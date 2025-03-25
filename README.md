@@ -1,2 +1,1 @@
-# pesada-balanza-backend
-# pesada-balanza-backend
+Backend para Pesada Balanza
