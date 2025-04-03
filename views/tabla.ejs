@@ -1,0 +1,67 @@
+<h1 class="mb-4">Informe del Registro</h1>
+<% if (registros.length === 0) { %>
+    <p>No hay registros disponibles.</p>
+<% } else { %>
+    <div class="table-responsive">
+        <table class="table table-striped tabla-registro">
+            <thead>
+                <tr>
+                    <th>ID Ticket</th>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Vehiculo</th>
+                    <th>Chofer</th>
+                    <th>Transporte</th>
+                    <th>Tara</th>
+                    <th>Bruto</th>
+                    <th>Neto</th>
+                    <th>Campo</th>
+                    <th>Grano</th>
+                    <th>Lote</th>
+                    <th>Silobolsa</th>
+                    <th>Anulado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-datos">
+                <% const hoy = new Date().toISOString().split('T')[0]; %>
+                <% registros.forEach(registro => { %>
+                    <tr class="<%= registro.fecha < hoy ? 'fecha-pasada' : '' %> <%= registro.anulado ? 'anulado' : '' %>">
+                        <td><%= registro.idTicket %></td>
+                        <td><%= registro.fecha %></td>
+                        <td><%= registro.usuario %></td>
+                        <td><%= registro.vehiculo %></td>
+                        <td><%= registro.chofer %></td>
+                        <td><%= registro.transporte %></td>
+                        <td><%= registro.tara %></td>
+                        <td><%= registro.bruto %></td>
+                        <td><%= registro.neto.toFixed(2) %></td>
+                        <td><%= registro.campo %></td>
+                        <td><%= registro.grano %></td>
+                        <td><%= registro.lote %></td>
+                        <td><%= registro.silobolsa %></td>
+                        <td><%= registro.anulado ? 'Sí' : 'No' %></td>
+                        <td>
+                            <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-sm btn-primary">Modificar</a>
+                            <% if (!registro.anulado) { %>
+                                <form action="/anular/<%= registro._id %>?_method=PUT" method="POST" style="display:inline;">
+                                    <input type="hidden" name="code" value="1234">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de anular este registro?')">Anular</button>
+                                </form>
+                            <% } %>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+    <a href="/export?code=1234" class="btn btn-success export-button">Exportar a CSV</a>
+<% } %>
+<style>
+    .anulado {
+        background-color: #ccffcc;       
+    }
+    .fecha-pasada {
+        background-color: orange;
+    }
+</style>

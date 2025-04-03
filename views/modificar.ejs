@@ -1,0 +1,73 @@
+<h1 class="mb-4">Modificar Registro</h1>
+<form method="POST" action="/modificar/<%= registro._id %>?_method=PUT">
+    <input type="hidden" name="code" value="9999">
+    <div class="mb-3">
+        <label for="idTicket" class="form-label">ID Ticket</label>
+        <input type="text" class="form-control" id="idTicket" name="idTicket" value="<%= registro.idTicket %>" readonly>
+    </div>
+    <div class="mb-3">
+        <label for="fecha" class="form-label">Fecha</label>
+        <input type="date" class="form-control" id="fecha" name="fecha" value="<%= registro.fecha %>" required>
+    </div>
+    <div class="mb-3">
+        <label for="usuario" class="form-label">Usuario</label>
+        <input type="text" class="form-control" id="usuario" name="usuario" value="<%= registro.usuario %>" required>
+    </div>
+    <div class="mb-3">
+        <label for="vehiculo" class="form-label">Vehículo</label>
+        <input type="text" class="form-control" id="vehiculo" name="vehiculo" value="<%= registro.vehiculo %>" required>
+    </div>
+    <div class="mb-3">
+        <label for="chofer" class="form-label">Chofer</label>
+        <input type="text" class="form-control" id="chofer" name="chofer" value="<%= registro.chofer %>" required>
+    </div>
+    <div class="mb-3">
+        <label for="transporte" class="form-label">Transporte</label>
+        <input type="text" class="form-control" id="transporte" name="transporte" value="<%= registro.transporte %>" required>
+    </div>
+    <div class="mb-3">
+        <label for="tara" class="form-label">Tara</label>
+        <input type="number" class="form-control" id="tara" name="tara" value="<%= registro.tara %>" oninput="calcularNeto()" required>
+    </div>
+    <div class="mb-3">
+        <label for="bruto" class="form-label">Bruto</label>
+        <input type="number" class="form-control" id="bruto" name="bruto" value="<%= registro.bruto %>" oninput="calcularNeto()" required>
+    </div>
+    <div class="mb-3">
+        <label for="neto" class="form-label">Neto</label>
+        <input type="number" class="form-control" id="neto" name="neto" value="<%= registro.neto %>" readonly>
+    </div>
+    <div class="mb-3">
+        <label for="campo" class="form-label">Campo</label>
+        <input type="text" class="form-control" id="campo" name="campo" value="<%= registro.campo %>" required>
+    </div>
+    <div class="mb-3">
+        <label for="grano" class="form-label">Grano</label>
+        <input type="text" class="form-control" id="grano" name="grano" value="<%= registro.grano %>" required>
+    </div>
+    <div class="mb-3">
+        <label for="lote" class="form-label">Lote</label>
+        <input type="text" class="form-control" id="lote" name="lote" value="<%= registro.lote %>" required>
+    </div>
+    <div class="mb-3">
+        <label for="silobolsa" class="form-label">Silobolsa</label>
+        <input type="text" class="form-control" id="silobolsa" name="silobolsa" value="<%= registro.silobolsa %>" required>
+    </div>
+    <div class="mb-3">
+        <label for="anulado" class="form-label">Anulado</label>
+        <select class="form-select" id="anulado" name="anulado" required>
+            <option value="true" <%= registro.anulado ? 'selected' : '' %>>Sí</option>
+            <option value="false" <%= !registro.anulado ? 'selected' : '' %>>No</option>
+        </select>
+    </div>
+    <button type="submit" class="=btn btn-succes">Guardar Cambios</button>
+    <a href="/tabla?code=1234" class="btn btn-secondary">Volver</a>
+</form>
+<script>
+    function calcularNeto() {
+        const tara = parseFloat(document.getElementById('tara').value) || 0;
+        const bruto = parseFloat(document.getElementById('bruto').value) || 0;
+        const neto = bruto - tara;
+        document.getElementById('neto').value = neto >= 0 ? neto.toFixed(2) : 0;
+    }
+</script>
