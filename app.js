@@ -21,6 +21,7 @@ mongoose.connect(MONGODB_URI, {
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(expressLayouts);
@@ -40,11 +41,12 @@ const requireCode = (allowedCode, redirectTo) => (req, res, next) => {
 // Ruta para la página de autenticación
 app.get('/', (req, res) => {
     const error = req.query.error || '';
-    res.render('index', { error });
+    const redirect = req.query.redirect || '/tabla';
+    res.render('index', { error, redirect });
 });
 
 // Ruta para ver registros (código: 1234)
-app.get('/tabla', requireCode('1234', '/'), async (req, res) => {
+app.get('/tabla', requireCode('1234', '/?redirect=/tabla'), async (req, res) => {
     try {
         const registros = await mongoose.connection.db.collection('registros').find().toArray();
         res.render('tabla', { registros });
@@ -69,7 +71,7 @@ app.get('/export', requireCode('1234', '/'), async (req, res) => {
 });
 
 // Ruta para mostrar el formulario de agregar registro (código: 5678)
-app.get('/registro', requireCode('5678', '/'), (req, res) => {
+app.get('/registro', requireCode('5678', '/?redirect=/registro'), (req, res) => {
     res.render('registro');
 });
 
@@ -118,7 +120,7 @@ app.post('/registro', requireCode('5678', '/'), async (req, res) => {
 });
 
 // Ruta para mostrar el formulario de edición (código: 9999)
-app.get('/modificar/:id', requireCode('9999', '/'), async (req, res) => {
+app.get('/modificar/:id', requireCode('9999', '/?redirect=/modificar'), async (req, res) => {
     try {
         const registro = await mongoose.connection.db.collection('registros').findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
         if (!registro) {
@@ -191,5 +193,5 @@ app.put('/anular/:id', requireCode('1234', '/'), async (req, res) => {
 // Iniciar el servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor corriendo en http://0.0.0.0:${PORT}`);
+    console.log('Servidor corriendo en http://0.0.0.0:${PORT}');
 });
