@@ -2,9 +2,9 @@
     "name": "pesada-balanza-backend",
     "version": "1.0.0",
     "description": "Backend para Pesada Balanza",
-    "main": "index.js",
+    "main": "app.js",
     "script": {
-        "star": "node index.js"
+        "star": "node app.js"
     },
     "dependencies": {
         "bootstrap": "^5.3.3",
