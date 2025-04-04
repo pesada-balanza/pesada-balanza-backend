@@ -97,7 +97,7 @@ app.post('/registro', requireCode('5678', '/'), async (req, res) => {
 
         const nuevoRegistro = {
             idTicket: newIdTicket,
-            fecha: req.body.fecha,
+            fecha: new Date().toISOString().split('T')[0], // Fecha del día actual en formato YYYY-MM-DD
             usuario: req.body.usuario,
             vehiculo: req.body.vehiculo,
             chofer: req.body.chofer,
@@ -110,6 +110,7 @@ app.post('/registro', requireCode('5678', '/'), async (req, res) => {
             lote: req.body.lote,
             silobolsa: req.body.silobolsa,
             anulado: false
+            modificaciones: 0 // Nuevo campo para contar modificaciones
         };
 
         await mongoose.connection.db.collection('registros').insertOne(nuevoRegistro);
@@ -126,6 +127,9 @@ app.get('/modificar/:id', requireCode('9999', '/?redirect=/modificar'), async (r
         if (!registro) {
             return res.render('error', { error: 'Registro no encontrado' });
         }
+        if (registro.anulado) {
+            return res.render('error', { error: 'Este registro está anulado y no puede ser modificado.' });
+        }
         res.render('modificar', { registro });
     } catch (err) {
         res.render('error', { error: 'Error al cargar el registro: ' + err.message });
@@ -135,6 +139,22 @@ app.get('/modificar/:id', requireCode('9999', '/?redirect=/modificar'), async (r
 // Ruta para actualizar un registro
 app.put('/modificar/:id', requireCode('9999', '/'), async (req, res) => {
     try {
+        // Buscar el registro existente
+        const registro = await mongoose.connection.db.collection('registros').findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
+        if (!registro) {
+            return res.render('error', { error: 'Registro no encontrado' });
+        }
+
+        // Verificar si el registro está anulado
+        if (registro.anulado) {
+            return res.render('error', { error: 'Este registro está anulado y no puede ser modificado.' });
+        }
+
+        // Verificar el número de modificaciones
+        if (registro.modificaciones >= 2) {
+            return res.render('error', { error: 'Este registro ya ha sido modificaco 2 veces. No se permiten más modificaciones.' });
+        }
+
         const tara = parseFloat(req.body.tara);
         const bruto = parseFloat(req.body.bruto);
         const neto = bruto - tara;
@@ -164,7 +184,8 @@ app.put('/modificar/:id', requireCode('9999', '/'), async (req, res) => {
             grano: req.body.grano,
             lote: req.body.lote,
             silobolsa: req.body.silobolsa,
-            anulado: req.body.anulado === 'true'
+            anulado: req.body.anulado === 'true',
+            modificaciones: registro.modificaciones + 1 // Incrementar el contador
         };
 
         await mongoose.connection.db.collection('registros').updateOne(
@@ -192,12 +213,6 @@ app.put('/anular/:id', requireCode('1234', '/'), async (req, res) => {
 
 // Iniciar el servidor
 const PORT = process.env.PORT || 3000;
-
-// Manejador de errores 404
-app.use((req, res, next) => {
-    res.status(404).render('error', { error: 'Página no encontrada' });
-});
-
 app.listen(PORT, '0.0.0.0', () => {
     console.log("Servidor corriendo en http://0.0.0.0:${PORT}");
 });

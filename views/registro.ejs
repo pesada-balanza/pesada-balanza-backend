@@ -6,8 +6,8 @@
         <input type="text" class="form-control" id="idTicket" name="idTicket" value="Automático" disabled>
     </div>
     <div class="mb-3">
-        <label for="fecha" class="form-label">Fecha</label>
-        <input type="date" class="form-control" id="fecha" name="fecha" max="<%= new Date().toISOString().split('T')[0] %>" required>
+        <label for="fecha">Fecha</label>
+        <input type="date" id="fecha" name="fecha" value="<%= new Date().toISOString().split('T')[0] %>" readonly required>
     </div>
     <div class="mb-3">
         <label for="usuario" class="form-label">Usuario</label>
