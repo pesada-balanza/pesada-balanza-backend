@@ -109,7 +109,7 @@ app.post('/registro', requireCode('5678', '/'), async (req, res) => {
             grano: req.body.grano,
             lote: req.body.lote,
             silobolsa: req.body.silobolsa,
-            anulado: false
+            anulado: false,
             modificaciones: 0 // Nuevo campo para contar modificaciones
         };
 
