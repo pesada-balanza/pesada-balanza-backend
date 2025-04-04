@@ -192,6 +192,12 @@ app.put('/anular/:id', requireCode('1234', '/'), async (req, res) => {
 
 // Iniciar el servidor
 const PORT = process.env.PORT || 3000;
+
+// Manejador de errores 404
+app.use((req, res, next) => {
+    res.status(404).render('error', { error: 'Página no encontrada' });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log("Servidor corriendo en http://0.0.0.0:${PORT}");
 });
