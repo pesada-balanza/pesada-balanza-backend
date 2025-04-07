@@ -13,8 +13,18 @@ const MONGODB_URI = 'mongodb+srv://pesadabalanzauser:mongo405322@pesada-balanza-
 mongoose.connect(MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-}).then(() => {
+}).then(async () => {
     console.log('Conectado a MongoDB');
+    // Actualizar registros existentes para agregar el campo modificaciones
+    try {
+        const result = await mongoose.connection.db.collection('registros').updateMany(
+            { modificaciones: { $exists: false } },
+            { $set: { modificaciones: 0 } }
+        );
+        console.log(`Actualizados ${result.modifiedCount} registros con el campo modificaciones: 0`);
+    } catch (err) {
+        console.error('Error al actualizar registros:', err);
+    }
 }).catch(err => {
     console.error('Error al conectar a MongoDB:', err);
 });
