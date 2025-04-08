@@ -9,6 +9,7 @@
                     <th>ID Ticket</th>
                     <th>Fecha</th>
                     <th>Usuario</th>
+                    <th>Socio</th>
                     <th>Vehiculo</th>
                     <th>Chofer</th>
                     <th>Transporte</th>
@@ -30,6 +31,7 @@
                         <td><%= registro.idTicket %></td>
                         <td><%= registro.fecha %></td>
                         <td><%= registro.usuario %></td>
+                        <td><%= registro.socio || 'No especificado' %></td>
                         <td><%= registro.vehiculo %></td>
                         <td><%= registro.chofer %></td>
                         <td><%= registro.transporte %></td>
@@ -44,9 +46,8 @@
                         <td>
                             <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-sm btn-primary">Modificar</a>
                             <% if (!registro.anulado) { %>
-                                <form action="/anular/<%= registro._id %>?_method=PUT" method="POST" style="display:inline;">
-                                    <input type="hidden" name="code" value="1234">
-                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de anular este registro?')">Anular</button>
+                                <form action="/anular/<%= registro._id %>?_method=PUT&code=<%= req.query.code %>" method="POST" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger">Anular</button>
                                 </form>
                             <% } %>
                         </td>

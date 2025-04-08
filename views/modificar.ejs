@@ -14,6 +14,10 @@
         <input type="text" class="form-control" id="usuario" name="usuario" value="<%= registro.usuario %>" required>
     </div>
     <div class="mb-3">
+        <label for="socio" class="form-label">Socio</label>
+        <input type="text" class="form-control" id="socio" name="socio" value="<%= registro.socio || 'No especificado' %>" required>
+    </div>
+    <div class="mb-3">
         <label for="vehiculo" class="form-label">Vehículo</label>
         <input type="text" class="form-control" id="vehiculo" name="vehiculo" value="<%= registro.vehiculo %>" required>
     </div>
