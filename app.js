@@ -18,10 +18,10 @@ mongoose.connect(MONGODB_URI, {
     // Actualizar registros existentes para agregar el campo socio
     try {
         const resultSocio = await mongoose.connection.db.collection('registros').updateMany(
-            { socio: { $exist: false } },
+            { socio: { $exists: false } },
             { $set: { socio: 'No especificado' } }
         );
-        console.log(`Actualizados ${result.modifiedCount} registros con el campo socio: "No especificado"`);
+        console.log(`Actualizados ${resultSocio.modifiedCount} registros con el campo socio: "No especificado"`);
         
         // Actualizar registros existentes para agregar el campo codigoIngreso
         const resultCodigo = await mongoose.connection.db.collection('registros').updateMany(
