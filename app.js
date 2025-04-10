@@ -13,25 +13,8 @@ const MONGODB_URI = 'mongodb+srv://pesadabalanzauser:mongo405322@pesada-balanza-
 mongoose.connect(MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-}).then(async () => {
+}).then(() => {
     console.log('Conectado a MongoDB');
-    // Actualizar registros existentes para agregar el campo socio
-    try {
-        const resultSocio = await mongoose.connection.db.collection('registros').updateMany(
-            { socio: { $exists: false } },
-            { $set: { socio: 'No especificado' } }
-        );
-        console.log(`Actualizados ${resultSocio.modifiedCount} registros con el campo socio: "No especificado"`);
-        
-        // Actualizar registros existentes para agregar el campo codigoIngreso
-        const resultCodigo = await mongoose.connection.db.collection('registros').updateMany(
-            { codigoIngreso: { $exists: false } },
-            { $set: { codigoIngreso: '5678' } }
-        );
-        console.log(`Actualizados ${resultCodigo.modifiedCount} registros con el campo codigoIngreso: "5678"`);
-    } catch (err) {
-        console.error('Error al actualizar registros:', err);
-    }
 }).catch(err => {
     console.error('Error al conectar a MongoDB:', err);
 });
