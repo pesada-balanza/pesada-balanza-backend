@@ -13,8 +13,25 @@ const MONGODB_URI = 'mongodb+srv://pesadabalanzauser:mongo405322@pesada-balanza-
 mongoose.connect(MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-}).then(() => {
+}).then(async () => {
     console.log('Conectado a MongoDB');
+    // Actualizar registros existentes para agregar el campo socio
+    try {
+        const resultSocio = await mongoose.connection.db.collection('registros').updateMany(
+            { socio: { $exists: false } },
+            { $set: { socio: 'No especificado' } }
+        );
+        console.log(`Actualizados ${resultSocio.modifiedCount} registros con el campo socio: "No especificado"`);
+
+        // Actualizar registros existentes para agregar el campo codigoIngreso
+        const resultCodigo = await mongoose.connection.db.collection('registros').updateMany(
+            { codigoIngreso: { $exists: false } },
+            { $set: { codigosIngreso: '5678' } }
+        );
+        console.log(`Actualizados ${resultCodigo.modifiedCount} registros con el campo codigoIngreso: "5678"`);
+    } catch (err) {
+        console.error('Error al actualizar registros:', err);
+    }
 }).catch(err => {
     console.error('Error al conectar a MongoDB:', err);
 });
@@ -40,18 +57,7 @@ const ingresoAObservacion = {
     '5683': '1239',
     '5684': '1240',
     '5685': '1241'
-}; 
-
-// Middleware para proteger rutas
-const requireCode = (allowedCode, redirectTo) => (req, res, next) => {
-    const code = req.query.code || req.body.code;
-    if (code === allowedCode) {
-        next();
-    } else {
-        res.redirect('/?error=Código incorrecto');
-    }
 };
-
 // Ruta para la página de autenticación
 app.get('/', (req, res) => {
     const error = req.query.error || '';
@@ -98,7 +104,7 @@ app.get('/export', (req, res, next) => {
     try {
         let registros;
         if (req.observacionCode === '1234') {
-            registros = await mongoose.connection.db.collection('registros').find().toArray
+            registros = await mongoose.connection.db.collection('registros').find().toArray();
         } else {
             const codigoIngreso = Object.keys(ingresoAObservacion).find(key => ingresoAObservacion[key] === req.observacionCode);
             registros = await mongoose.connection.db.collection('registros').find({ codigoIngreso: codigoIngreso }).toArray();
@@ -180,10 +186,11 @@ app.post('/registro', (req, res, next) => {
     }
 });
 
-// Ruta para mostrar el formulario de edición (código: 9999)
+// Ruta para mostrar el formulario de edición
 app.get('/modificar/:id', (req, res, next) => {
     const code = req.query.code || req.body.code;
     if (code === '9999') {
+        req.modifyCode = code; // Almacenar el código de modificación
         next();
     } else {
         res.redirect('/?error=Código incorrecto&redirect=/modificar');
@@ -197,7 +204,8 @@ app.get('/modificar/:id', (req, res, next) => {
         if (registro.anulado) {
             return res.render('error', { error: 'Este registro está anulado y no puede ser modificado.' });
         }
-        res.render('modificar', { registro });
+        const observacionCode = req.query.observacionCode || '1234'; // Obtener el código de observación
+        res.render('modificar', { registro, observacionCode });
     } catch (err) {
         res.render('error', { error: 'Error al cargar el registro: ' + err.message });
     }
@@ -207,6 +215,7 @@ app.get('/modificar/:id', (req, res, next) => {
 app.put('/modificar/:id', (req, res, next) => {
     const code = req.query.code || req.body.code;
     if (code === '9999') {
+        req.modifyCode = code;
         next();
     } else {
         res.redirect('/?error=Código incorrecto');
@@ -228,7 +237,7 @@ app.put('/modificar/:id', (req, res, next) => {
         if (registro.modificaciones >= 2) {
             return res.render('error', { error: 'Este registro ya ha sido modificado 2 veces. No se permiten más modificaciones.' });
         }
-
+       
         const tara = parseFloat(req.body.tara);
         const bruto = parseFloat(req.body.bruto);
         const neto = bruto - tara;
@@ -267,7 +276,8 @@ app.put('/modificar/:id', (req, res, next) => {
             { _id: new mongoose.Types.ObjectId(req.params.id) },
             { $set: updateData }
         );
-        res.redirect('/tabla?code=1234');
+        const observacionCode = req.query.observacionCode || '1234';
+        res.redirect('/tabla?code=${observacionCode}');
     } catch (err) {
         res.render('error', { error: 'Error al actualizar el registro: ' + err.message });
     }
@@ -275,7 +285,7 @@ app.put('/modificar/:id', (req, res, next) => {
 
 // Ruta para anular un registro
 app.put('/anular/:id', (req, res, next) => {
-    const code = req.query.code ||req.body.code;
+    const code = req.query.code || req.body.code;
     if (codigosObservacion.includes(code)) {
         req.observacionCode = code;
         next();
@@ -297,5 +307,5 @@ app.put('/anular/:id', (req, res, next) => {
 // Iniciar el servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log("Servidor corriendo en http://0.0.0.0:${PORT}");
+    console.log(`Servidor corriendo en http://0.0.0.0:${PORT}`);
 });

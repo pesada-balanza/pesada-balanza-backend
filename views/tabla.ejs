@@ -37,17 +37,17 @@
                         <td><%= registro.transporte %></td>
                         <td><%= registro.tara %></td>
                         <td><%= registro.bruto %></td>
-                        <td><%= registro.neto.toFixed(2) %></td>
+                        <td><%= registro.neto.toFixed(0) %></td>
                         <td><%= registro.campo %></td>
                         <td><%= registro.grano %></td>
                         <td><%= registro.lote %></td>
                         <td><%= registro.silobolsa %></td>
                         <td><%= registro.anulado ? 'Sí' : 'No' %></td>
                         <td>
-                            <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-sm btn-primary">Modificar</a>
+                            <a href="/modificar/<%= registro._id %>?code=9999&observacionCode=<%= req.query.code %>" class="btn btn-sm btn-primary">Modificar</a>
                             <% if (!registro.anulado) { %>
                                 <form action="/anular/<%= registro._id %>?_method=PUT&code=<%= req.query.code %>" method="POST" style="display:inline;">
-                                    <button type="submit" class="btn btn-sm btn-danger">Anular</button>
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de anular este registro?')">Anular</button>
                                 </form>
                             <% } %>
                         </td>
@@ -56,7 +56,7 @@
             </tbody>
         </table>
     </div>
-    <a href="/export?code=1234" class="btn btn-success export-button">Exportar a CSV</a>
+    <a href="/export?code=<%= req.query.code %>" class="btn btn-success export-button">Exportar a CSV</a>
 <% } %>
 <style>
     .anulado {

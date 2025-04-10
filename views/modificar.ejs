@@ -1,6 +1,5 @@
 <h1 class="mb-4">Modificar Registro</h1>
-<form method="POST" action="/modificar/<%= registro._id %>?_method=PUT">
-    <input type="hidden" name="code" value="9999">
+<form method="POST" action="/modificar/<%= registro._id %>?_method=PUT&code=9999&observacionCode=<%= observacionCode %>">
     <div class="mb-3">
         <label for="idTicket" class="form-label">ID Ticket</label>
         <input type="text" class="form-control" id="idTicket" name="idTicket" value="<%= registro.idTicket %>" readonly>
@@ -64,14 +63,14 @@
             <option value="false" <%= !registro.anulado ? 'selected' : '' %>>No</option>
         </select>
     </div>
-    <button type="submit" class="=btn btn-succes">Guardar Cambios</button>
-    <a href="/tabla?code=1234" class="btn btn-secondary">Volver</a>
+    <button type="submit" class="btn btn-success">Guardar Cambios</button>
+    <a href="/tabla?code=<%= observacionCode %>" class="btn btn-secondary">Volver</a>
 </form>
 <script>
     function calcularNeto() {
         const tara = parseFloat(document.getElementById('tara').value) || 0;
         const bruto = parseFloat(document.getElementById('bruto').value) || 0;
         const neto = bruto - tara;
-        document.getElementById('neto').value = neto >= 0 ? neto.toFixed(2) : 0;
+        document.getElementById('neto').value = neto >= 0 ? neto.toFixed(0) : 0;
     }
 </script>
