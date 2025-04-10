@@ -44,9 +44,9 @@
                         <td><%= registro.silobolsa %></td>
                         <td><%= registro.anulado ? 'Sí' : 'No' %></td>
                         <td>
-                            <a href="/modificar/<%= registro._id %>?code=9999&observacionCode=<%= req.query.code %>" class="btn btn-sm btn-primary">Modificar</a>
+                            <a href="/modificar/<%= registro._id %>?code=9999&observacionCode=<%= observacionCode %>" class="btn btn-sm btn-primary">Modificar</a>
                             <% if (!registro.anulado) { %>
-                                <form action="/anular/<%= registro._id %>?_method=PUT&code=<%= req.query.code %>" method="POST" style="display:inline;">
+                                <form action="/anular/<%= registro._id %>?_method=PUT&code=<%= observacionCode %>" method="POST" style="display:inline;">
                                     <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de anular este registro?')">Anular</button>
                                 </form>
                             <% } %>
@@ -56,7 +56,7 @@
             </tbody>
         </table>
     </div>
-    <a href="/export?code=<%= req.query.code %>" class="btn btn-success export-button">Exportar a CSV</a>
+    <a href="/export?code=<%= observacionCode %>" class="btn btn-success export-button">Exportar a CSV</a>
 <% } %>
 <style>
     .anulado {

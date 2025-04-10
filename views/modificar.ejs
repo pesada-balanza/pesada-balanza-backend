@@ -1,5 +1,6 @@
 <h1 class="mb-4">Modificar Registro</h1>
-<form method="POST" action="/modificar/<%= registro._id %>?_method=PUT&code=9999&observacionCode=<%= observacionCode %>">
+<form method="POST" action="/modificar/<%= registro._id %>?_method=PUT">
+    <input type="hidden" name="code" value="9999">
     <div class="mb-3">
         <label for="idTicket" class="form-label">ID Ticket</label>
         <input type="text" class="form-control" id="idTicket" name="idTicket" value="<%= registro.idTicket %>" readonly>
@@ -56,13 +57,7 @@
         <label for="silobolsa" class="form-label">Silobolsa</label>
         <input type="text" class="form-control" id="silobolsa" name="silobolsa" value="<%= registro.silobolsa %>" required>
     </div>
-    <div class="mb-3">
-        <label for="anulado" class="form-label">Anulado</label>
-        <select class="form-select" id="anulado" name="anulado" required>
-            <option value="true" <%= registro.anulado ? 'selected' : '' %>>Sí</option>
-            <option value="false" <%= !registro.anulado ? 'selected' : '' %>>No</option>
-        </select>
-    </div>
+    
     <button type="submit" class="btn btn-success">Guardar Cambios</button>
     <a href="/tabla?code=<%= observacionCode %>" class="btn btn-secondary">Volver</a>
 </form>

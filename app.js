@@ -13,25 +13,8 @@ const MONGODB_URI = 'mongodb+srv://pesadabalanzauser:mongo405322@pesada-balanza-
 mongoose.connect(MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-}).then(async () => {
+}).then(() => {
     console.log('Conectado a MongoDB');
-    // Actualizar registros existentes para agregar el campo socio
-    try {
-        const resultSocio = await mongoose.connection.db.collection('registros').updateMany(
-            { socio: { $exists: false } },
-            { $set: { socio: 'No especificado' } }
-        );
-        console.log(`Actualizados ${resultSocio.modifiedCount} registros con el campo socio: "No especificado"`);
-
-        // Actualizar registros existentes para agregar el campo codigoIngreso
-        const resultCodigo = await mongoose.connection.db.collection('registros').updateMany(
-            { codigoIngreso: { $exists: false } },
-            { $set: { codigosIngreso: '5678' } }
-        );
-        console.log(`Actualizados ${resultCodigo.modifiedCount} registros con el campo codigoIngreso: "5678"`);
-    } catch (err) {
-        console.error('Error al actualizar registros:', err);
-    }
 }).catch(err => {
     console.error('Error al conectar a MongoDB:', err);
 });
@@ -85,7 +68,7 @@ app.get('/tabla', (req, res, next) => {
             const codigoIngreso = Object.keys(ingresoAObservacion).find(key => ingresoAObservacion[key] === req.observacionCode);
             registros = await mongoose.connection.db.collection('registros').find({ codigoIngreso: codigoIngreso }).toArray();
         }
-        res.render('tabla', { registros });
+        res.render('tabla', { registros, observacionCode: req.observacionCode });
     } catch (err) {
         res.render('error', { error: 'Error al cargar los registros: ' + err.message });
     }
@@ -180,17 +163,18 @@ app.post('/registro', (req, res, next) => {
         };
 
         await mongoose.connection.db.collection('registros').insertOne(nuevoRegistro);
-        res.redirect('/tabla?code=1234');
+        const codigoIngreso = req.body.code || req.query.code;
+        const codigosObservacion = ingresoAObservacion[codigoIngreso];
+        res.redirect(`/tabla?code=${codigoObservacion}`);
     } catch (err) {
         res.render('error', { error: 'Error al guardar el registro: ' + err.message });
     }
 });
 
-// Ruta para mostrar el formulario de edición
+// Ruta para mostrar el formulario de edición (código: 9999)
 app.get('/modificar/:id', (req, res, next) => {
     const code = req.query.code || req.body.code;
     if (code === '9999') {
-        req.modifyCode = code; // Almacenar el código de modificación
         next();
     } else {
         res.redirect('/?error=Código incorrecto&redirect=/modificar');
@@ -204,8 +188,7 @@ app.get('/modificar/:id', (req, res, next) => {
         if (registro.anulado) {
             return res.render('error', { error: 'Este registro está anulado y no puede ser modificado.' });
         }
-        const observacionCode = req.query.observacionCode || '1234'; // Obtener el código de observación
-        res.render('modificar', { registro, observacionCode });
+        res.render('modificar', { registro, observacionCode: req.query.observacionCode });
     } catch (err) {
         res.render('error', { error: 'Error al cargar el registro: ' + err.message });
     }
@@ -215,7 +198,6 @@ app.get('/modificar/:id', (req, res, next) => {
 app.put('/modificar/:id', (req, res, next) => {
     const code = req.query.code || req.body.code;
     if (code === '9999') {
-        req.modifyCode = code;
         next();
     } else {
         res.redirect('/?error=Código incorrecto');
@@ -268,7 +250,6 @@ app.put('/modificar/:id', (req, res, next) => {
             grano: req.body.grano,
             lote: req.body.lote,
             silobolsa: req.body.silobolsa,
-            anulado: req.body.anulado === 'true',
             modificaciones: registro.modificaciones + 1 // Incrementar el contador
         };
 
@@ -276,8 +257,7 @@ app.put('/modificar/:id', (req, res, next) => {
             { _id: new mongoose.Types.ObjectId(req.params.id) },
             { $set: updateData }
         );
-        const observacionCode = req.query.observacionCode || '1234';
-        res.redirect('/tabla?code=${observacionCode}');
+        res.redirect(`/tabla?code=${req.query.observacionCode || '1234'}`);
     } catch (err) {
         res.render('error', { error: 'Error al actualizar el registro: ' + err.message });
     }
