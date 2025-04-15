@@ -1,68 +1,71 @@
-<h1 class="mb-4">Informe del Registro</h1>
-<% if (registros.length === 0) { %>
-    <p>No hay registros disponibles.</p>
-<% } else { %>
-    <div class="table-responsive">
-        <table class="table table-striped tabla-registro">
-            <thead>
-                <tr>
-                    <th>ID Ticket</th>
-                    <th>Fecha</th>
-                    <th>Usuario</th>
-                    <th>Socio</th>
-                    <th>Vehiculo</th>
-                    <th>Chofer</th>
-                    <th>Transporte</th>
-                    <th>Tara</th>
-                    <th>Bruto</th>
-                    <th>Neto</th>
-                    <th>Campo</th>
-                    <th>Grano</th>
-                    <th>Lote</th>
-                    <th>Silobolsa</th>
-                    <th>Anulado</th>
-                    <th>Acción</th>
-                </tr>
-            </thead>
-            <tbody id="tabla-datos">
-                <% const hoy = new Date().toISOString().split('T')[0]; %>
-                <% registros.forEach(registro => { %>
-                    <tr class="<%= registro.fecha < hoy ? 'fecha-pasada' : '' %> <%= registro.anulado ? 'anulado' : '' %>">
-                        <td><%= registro.idTicket %></td>
-                        <td><%= registro.fecha %></td>
-                        <td><%= registro.usuario %></td>
-                        <td><%= registro.socio || 'No especificado' %></td>
-                        <td><%= registro.vehiculo %></td>
-                        <td><%= registro.chofer %></td>
-                        <td><%= registro.transporte %></td>
-                        <td><%= registro.tara %></td>
-                        <td><%= registro.bruto %></td>
-                        <td><%= registro.neto.toFixed(0) %></td>
-                        <td><%= registro.campo %></td>
-                        <td><%= registro.grano %></td>
-                        <td><%= registro.lote %></td>
-                        <td><%= registro.silobolsa %></td>
-                        <td><%= registro.anulado ? 'Sí' : 'No' %></td>
-                        <td>
-                            <a href="/modificar/<%= registro._id %>?code=9999&observacionCode=<%= observacionCode %>" class="btn btn-sm btn-primary">Modificar</a>
-                            <% if (!registro.anulado) { %>
-                                <form action="/anular/<%= registro._id %>?_method=PUT&code=<%= observacionCode %>" method="POST" style="display:inline;">
-                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de anular este registro?')">Anular</button>
-                                </form>
-                            <% } %>
-                        </td>
-                    </tr>
-                <% }) %>
-            </tbody>
-        </table>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabla de Registros - Pesada Balanza</title>
+</head>
+<body>
+    <h1 class="text-center">Tabla de Registros</h1>
+    <div class="text-center mb-3">
+        <a href="/export?code=<%= observacionCode %>" class="btn btn-success">Exportar a CSV</a>
     </div>
-    <a href="/export?code=<%= observacionCode %>" class="btn btn-success export-button">Exportar a CSV</a>
-<% } %>
-<style>
-    .anulado {
-        background-color: #ccffcc;       
-    }
-    .fecha-pasada {
-        background-color: orange;
-    }
-</style>
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>ID Ticket</th>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>Socio</th>
+                <th>Vehículo</th>
+                <th>Chofer</th>
+                <th>Transporte</th>
+                <th>Tara (kg)</th>
+                <th>Bruto (kg)</th>
+                <th>Neto (kg)</th>
+                <th>Campo</th>
+                <th>Grano</th>
+                <th>Lote</th>
+                <th>Silobolsa</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% registros.forEach(registro => { %>
+                <% 
+                    const fechaRegistro = new Date(registro.fecha);
+                    const hoy = new Date();
+                    const fechaPasada = fechaRegistro < hoy.setHours(0, 0, 0, 0);
+                    const estiloFila = registro.anulado ? 'background-color: #d4edda;' : (fechaPasada ? 'background-color: #ffe5cc;' : '');
+                %>
+                <tr style= <%= estiloFila %>>
+                    <td><%= registro.idTicket %></td>
+                    <td><%= registro.fecha %></td>
+                    <td><%= registro.usuario %></td>
+                    <td><%= registro.socio %></td>
+                    <td><%= registro.vehiculo %></td>
+                    <td><%= registro.chofer %></td>
+                    <td><%= registro.transporte %></td>
+                    <td><%= registro.tara %></td>
+                    <td><%= registro.bruto %></td>
+                    <td><%= registro.neto %></td>
+                    <td><%= registro.campo %></td>
+                    <td><%= registro.grano %></td>
+                    <td><%= registro.lote %></td>
+                    <td><%= registro.silobolsa %></td>
+                    <td>
+                        <% if (!registro.anulado) { %>
+                            <a href="/modificar/<%= registro._id %>?code=9999&observacionCode=<%= observacionCode %>" class="btn btn-warning btn-sm">Modificar</a>
+                            <form action="/anular/<%= registro._id %>?_method=PUT&code=<%= observacionCode %>" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que quieres anular este registro?');">Anular</button>
+                            </form>
+                        <% } else { %>
+                            <span class="text-muted">Anulado</span>
+                        <% } %>
+                    </td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+</body>
+</html>

@@ -1,76 +1,80 @@
-<h1 class="mb-4">Registro de Datos</h1>
-<form method="POST" action="/registro">
-    <input type="hidden" name="code" value="5678">
-    <div class="mb-3">
-        <label for="idTicket" class="form-label">ID Ticket</label>
-        <input type="text" class="form-control" id="idTicket" name="idTicket" value="Automático" disabled>
-    </div>
-    <div class="mb-3">
-        <label for="fecha">Fecha</label>
-        <input type="date" id="fecha" name="fecha" value="<%= new Date().toISOString().split('T')[0] %>" readonly required>
-    </div>
-    <div class="mb-3">
-        <label for="usuario" class="form-label">Usuario</label>
-        <input type="text" class="form-control" id="usuario" name="usuario" placeholder="Juan Pérez" required>
-    </div>
-    <div class="mb-3">
-        <label for="socio" class="form-label">Socio:</label>
-        <input type="text" id="form-control" id="socio" name="socio" placeholder="socio" required>
-    </div>
-    <div class="mb-3">
-        <label for="vehiculo" class="form-label">Vehiculo</label>
-        <input type="text" class="form-control" id="vehiculo" name="vehiculo" placeholder="AB123CD" required>
-    </div>
-    <div class="mb-3">
-        <label for="chofer" class="form-label">Chofer</label>
-        <input type="text" class="form-control" id="chofer" name="chofer" placeholder="Carlos López" required>        
-    </div>
-    <div class="mb-3">
-        <label for="transporte" class="form-label">Transporte</label>
-        <input type="text" class="form-control" id="transporte" name="transporte" placeholder="Transporte S.A." required>
-    </div>
-    <div class="mb-3">
-        <label for="tara" class="form-label">Tara</label>
-        <input type="number" class="form-control" id="tara" name="tara" placeholder="5000" oninput="calcularNeto()" required>
-    </div>
-    <div class="mb-3">
-        <label for="bruto" class="form-label">Bruto</label>
-        <input type="number" class="form-control" id="bruto" name="bruto" placeholder="7000" oninput="calcularNeto()" required>
-    </div>
-    <div class="mb-3">
-        <label for="neto" class="form-label">Neto</label>
-        <input type="number" class="form-control" id="neto" name="neto" readonly>
-    </div>
-    <div class="mb-3">
-        <label for="campo" class="form-label">Campo</label>
-        <input type="text" class="form-control" id="campo" name="campo" placeholder="Campo Norte" required>
-    </div>
-    <div class="mb-3">
-        <label for="grano" class="form-label">Grano</label>
-        <input type="text" class="form-control" id="grano" name="grano" placeholder="Soja" required>
-    </div>
-    <div class="mb-3">
-        <label for="lote" class="form-label">Lote</label>
-        <input type="text" class="form-control" id="lote" name="lote" placeholder="Lote1" required>
-    </div>
-    <div class="mb-3">
-        <label for="silobolsa" class="form-label">Silobolsa</label>
-        <input type="text" class="form-control" id="silobolsa" name="silobolsa" placeholder="SB001" required>
-    </div>
-    <button type="submit" class="btn btn-success">Guardar Registro</button>
-    <a href="/" class="btn btn-secondary">Volver</a>
-</form>
-<script>
-    document.getElementById('tara').addEventListener('input', updateNeto);
-    document.getElementById('bruto').addEventListener('input', updateNeto);
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro - Pesada Balanza</title>
+</head>
+<body>
+    <h1 class="text-center">Registro de Pesaje</h1>
+    <form action="/registro" method="POST" onsubmit="calcularNeto()">
+        <input type="hidden" name="code" value="<%= code %>">
+        <div class="mb-3">
+            <label for="idTicket" class="form-label">ID Ticket</label>
+            <input type="number" class="form-control" id="idTicket" name="idTicket" value="<%= registros.length > 0 ? Math.max(...registros.map(r => r.idTicket)) + 1 : 1 %>" readonly>
+        </div>
+        <div class="mb-3">
+            <label for="fecha" class="form-label">Fecha</label>
+            <input type="date" class="form-control" id="fecha" name="fecha" value="<%= new Date().toISOString().split('T')[0] %>" readonly>
+        </div>
+        <div class="mb-3">
+            <label for="usuario" class="form-label">Usuario</label>
+            <input type="text" class="form-control" id="usuario" name="usuario" required>
+        </div>
+        <div class="mb-3">
+            <label for="socio" class="form-label">Socio</label>
+            <input type="text" class="form-control" id="socio" name="socio" required>
+        </div>
+        <div class="mb-3">
+            <label for="vehiculo" class="form-label">Vehículo</label>
+            <input type="text" class="form-control" id="vehiculo" name="vehiculo" required>
+        </div>
+        <div class="mb-3">
+            <label for="chofer" class="form-label">Chofer</label>
+            <input type="text" class="form-control" id="chofer" name="chofer" required>
+        </div>
+        <div class="mb-3">
+            <label for="transporte" class="form-label">Transporte</label>
+            <input type="text" class="form-control" id="transporte" name="transporte" required>
+        </div>
+        <div class="mb-3">
+            <label for="tara" class="form-label">Tara (kg)</label>
+            <input type="number" class="form-control" id="tara" name="tara" step="0.01" required oninput="calcularNeto()">
+        </div>
+        <div class="mb-3">
+            <label for="bruto" class="form-label">Bruto (kg)</label>
+            <input type="number" class="form-control" id="bruto" name="bruto" step="0.01" required oninput="calcularNeto()">
+        </div>
+        <div class="mb-3">
+            <label for="neto" class="form-label">Neto (kg)</label>
+            <input type="number" class="form-control" id="neto" name="neto" step="0.01" readonly>
+        </div>
+        <div class="mb-3">
+            <label for="campo" class="form-label">Campo</label>
+            <input type="text" class="form-control" id="campo" name="campo" required>
+        </div>
+        <div class="mb-3">
+            <label for="grano" class="form-label">Grano</label>
+            <input type="text" class="form-control" id="grano" name="grano" required>
+        </div>
+        <div class="mb-3">
+            <label for="lote" class="form-label">Lote</label>
+            <input type="text" class="form-control" id="lote" name="lote" required>
+        </div>
+        <div class="mb-3">
+            <label for="silobolsa" class="form-label">Silobolsa</label>
+            <input type="text" class="form-control" id="silobolsa" name="silobolsa" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+    </form>
 
-    function calcularNeto() {
-        const tara = parseFloat(document.getElementById('tara').value) || 0;
-        const bruto = parseFloat(document.getElementById('bruto').value) || 0;
-        const neto = bruto - tara;
-        document.getElementById('neto').value = neto.toFixed(3);
-    }
-    document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('fecha').value = new Date().toISOString().split('T') [0];
-    });
-</script>
+    <script>
+        function calcularNeto() {
+            const tara = parseFloat(document.getElementById('tara').value) || 0;
+            const bruto = parseFloat(document.getElementById('bruto').value) || 0;
+            const neto = bruto - tara;
+            document.getElementById('neto').value = neto.toFixed(2);
+        }
+    </script>
+</body>
+</html>
