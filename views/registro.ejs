@@ -11,7 +11,7 @@
         <input type="hidden" name="code" value="<%= code %>">
         <div class="mb-3">
             <label for="idTicket" class="form-label">ID Ticket</label>
-            <input type="number" class="form-control" id="idTicket" name="idTicket" value="<%= registros.length > 0 ? Math.max(...registros.map(r => r.idTicket)) + 1 : 1 %>" readonly>
+            <input type="number" class="form-control" id="idTicket" name="idTicket" value="<%= newIdTicket %>" readonly>
         </div>
         <div class="mb-3">
             <label for="fecha" class="form-label">Fecha</label>

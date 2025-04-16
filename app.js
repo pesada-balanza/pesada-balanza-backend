@@ -11,27 +11,11 @@ const app = express();
 mongoose.set('strictQuery', true);
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://pesadabalanzauser:mongo405322@pesada-balanza-cluster.dnc7i.mongodb.net/pesada-balanza?retryWrites=true&w=majority&appName=pesada-balanza-cluster';
 
-// Función para conectar a MongoDB con reintentos
-const connectWithRetry = async (retries = 5, delay = 5000) => {
-    for (let i = 0; i < retries; i++) {
-        try {
-            await mongoose.connect(MONGODB_URI);
-            console.log('Conectado a MongoDB');
-            return;
-        } catch (err) {
-            console.error(`Error al conectar a MongoDB (intento ${i + 1}/${retries}):`, err.message);
-            if (i < retries - 1) {
-                console.log(`Reintentando en ${delay / 1000} segundos...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-        }
-    }
-    throw new Error('No se pudo conectar a MongoDB después de varios intentos');
-};
-
-// Conectar a MongoDB antes de iniciar el servidor
-connectWithRetry().catch(err => {
-    console.error('No se pudo iniciar la aplicación:', err.message);
+// Conectar a MongoDB
+mongoose.connect(MONGODB_URI).then(() => {
+    console.log('Conectado a MongoDB');
+}).catch(err => {
+    console.error('Error al conectar a MongoDB:', err.message);
     process.exit(1);
 });
 
