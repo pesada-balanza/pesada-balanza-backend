@@ -1,19 +1,23 @@
 {
     "name": "pesada-balanza-backend",
     "version": "1.0.0",
-    "description": "Backend para Pesada Balanza",
+    "description": "",
     "main": "app.js",
-    "script": {
-        "star": "node app.js"
+    "scripts": {
+      "start": "node app.js"
     },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
     "dependencies": {
-        "bootstrap": "^5.3.3",
-        "cors": "2.8.5",
-        "ejs": "^3.1.10",
-        "express": "^4.21.2",
-        "express-ejs-layouts": "^2.5.1",
-        "json2csv": "^6.0.0-alpha.2",
-        "method-override": "^3.0.0",
-        "mongoose": "^6.13.8"
+      "bootstrap": "^5.3.3",
+      "cors": "^2.8.5",
+      "dotenv": "^16.4.5",
+      "ejs": "^3.1.10",
+      "express": "^4.19.2",
+      "express-ejs-layouts": "^2.5.1",
+      "json2csv": "^6.0.0-alpha.2",
+      "method-override": "^3.0.0",
+      "mongoose": "^8.4.0"
     }
-}
+  }
