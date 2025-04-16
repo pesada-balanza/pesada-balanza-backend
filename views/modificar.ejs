@@ -7,7 +7,9 @@
 </head>
 <body>
     <h1 class="text-center">Modificar Registro</h1>
-    <form action="/modificar/<%= registro._id %>?_method=PUT&observacionCode=<%= observacionCode || '1234' %>" method="POST" onsubmit="calcularNeto()">
+    <form action="/modificar/<%= registro._id %>?_method=PUT" method="POST" onsubmit="calcularNeto()">
+        <input type="hidden" name="code" value="9999"> <!-- Aseguramos que el código se envíe -->
+        <input type="hidden" name="observacionCode" value="<%= observacionCode || '1234' %>"> <!-- Pasamos observacionCode -->
         <div class="mb-3">
             <label for="idTicket" class="form-label">ID Ticket</label>
             <input type="number" class="form-control" id="idTicket" name="idTicket" value="<%= registro.idTicket %>" readonly>
