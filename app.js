@@ -11,13 +11,28 @@ const app = express();
 mongoose.set('strictQuery', true);
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://pesadabalanzauser:mongo405322@pesada-balanza-cluster.dnc7i.mongodb.net/pesada-balanza?retryWrites=true&w=majority&appName=pesada-balanza-cluster';
 
-mongoose.connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}).then(() => {
-    console.log('Conectado a MongoDB');
-}).catch(err => {
-    console.error('Error al conectar a MongoDB:', err);
+// Función para conectar a MongoDB con reintentos
+const connectWithRetry = async (retries = 5, delay = 5000) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            await mongoose.connect(MONGODB_URI);
+            console.log('Conectado a MongoDB');
+            return;
+        } catch (err) {
+            console.error(`Error al conectar a MongoDB (intento ${i + 1}/${retries}):`, err.message);
+            if (i < retries - 1) {
+                console.log(`Reintentando en ${delay / 1000} segundos...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    throw new Error('No se pudo conectar a MongoDB después de varios intentos');
+};
+
+// Conectar a MongoDB antes de iniciar el servidor
+connectWithRetry().catch(err => {
+    console.error('No se pudo iniciar la aplicación:', err.message);
+    process.exit(1);
 });
 
 // Middleware
@@ -43,6 +58,30 @@ const ingresoAObservacion = {
     '5685': '1241'
 };
 
+// Middleware para verificar la conexión a MongoDB antes de cada solicitud
+app.use((req, res, next) => {
+    if (mongoose.connection.readyState !== 1) {
+        console.error('Conexión a MongoDB no activa. Estado:', mongoose.connection.readyState);
+        return res.status(500).send('Internal Server Error: No se pudo conectar a MongoDB');
+    }
+    next();
+});
+
+// Función para calcular el próximo idTicket
+const calculateNextIdTicket = async () => {
+    try {
+        const registros = await mongoose.connection.db.collection('registros').find().toArray();
+        console.log('Registros obtenidos para calcular idTicket:', registros.length);
+        const idTickets = registros
+            .filter(r => typeof r.idTicket === 'number')
+            .map(r => r.idTicket);
+        return idTickets.length > 0 ? Math.max(...idTickets) + 1 : 1;
+    } catch (err) {
+        console.error('Error al calcular idTicket:', err);
+        throw err;
+    }
+};
+
 // Ruta para la página de autenticación
 app.get('/', (req, res) => {
     const error = req.query.error || '';
@@ -63,10 +102,8 @@ app.get('/tabla', (req, res, next) => {
     try {
         let registros;
         if (req.observacionCode === '1234') {
-            // El código 1234 puede ver todos los registros
             registros = await mongoose.connection.db.collection('registros').find().toArray();
         } else {
-            // Buscar el código de ingreso correspondiente al código de observación
             const codigoIngreso = Object.keys(ingresoAObservacion).find(key => ingresoAObservacion[key] === req.observacionCode);
             if (!codigoIngreso) {
                 return res.render('tabla', { registros: [], observacionCode: req.observacionCode });
@@ -75,7 +112,7 @@ app.get('/tabla', (req, res, next) => {
         }
         res.render('tabla', { registros, observacionCode: req.observacionCode });
     } catch (err) {
-        res.render('error', { error: 'Error al cargar los registros: ' + err.message });
+        res.status(500).send('Internal Server Error: ' + err.message);
     }
 });
 
@@ -107,41 +144,51 @@ app.get('/export', (req, res, next) => {
         res.attachment('registros.csv');
         res.send(csv);
     } catch (err) {
-        res.render('error', { error: 'Error al exportar los datos: ' + err.message });
+        res.status(500).send('Internal Server Error: ' + err.message);
     }
 });
 
 // Ruta para mostrar el formulario de agregar registro
 app.get('/registro', (req, res, next) => {
     const code = req.query.code || req.body.code;
+    console.log('Código recibido en GET /registro:', code);
     if (codigosIngreso.includes(code)) {
         req.ingresoCode = code;
         next();
     } else {
+        console.log('Código no válido, redirigiendo...');
         res.redirect('/?error=Código incorrecto&redirect=/registro');
     }
-}, (req, res) => {
-    res.render('registro', { code: req.ingresoCode });
+}, async (req, res) => {
+    try {
+        const newIdTicket = await calculateNextIdTicket();
+        console.log('Renderizando registro con idTicket:', newIdTicket);
+        res.render('registro', { code: req.ingresoCode, newIdTicket });
+    } catch (err) {
+        console.error('Error en GET /registro:', err);
+        res.status(500).send('Internal Server Error: ' + err.message);
+    }
 });
 
 // Ruta para guardar un nuevo registro
 app.post('/registro', (req, res, next) => {
     const code = req.body.code;
+    console.log('Código recibido en POST /registro:', code);
     if (codigosIngreso.includes(code)) {
         req.ingresoCode = code;
         next();
     } else {
+        console.log('Código no válido, redirigiendo...');
         res.redirect('/?error=Código incorrecto');
     }
 }, async (req, res) => {
     try {
-        const registros = await mongoose.connection.db.collection('registros').find().toArray();
-        const newIdTicket = registros.length > 0 ? Math.max(...registros.map(r => r.idTicket)) + 1 : 1;
+        const newIdTicket = await calculateNextIdTicket();
+
         const tara = parseFloat(req.body.tara);
         const bruto = parseFloat(req.body.bruto);
         const neto = bruto - tara;
 
-        // Validaciones
         if (!req.body.fecha || !req.body.usuario || !req.body.socio || !req.body.vehiculo || !req.body.chofer || !req.body.transporte || !req.body.campo || !req.body.grano || !req.body.lote || !req.body.silobolsa) {
             return res.render('error', { error: 'Todos los campos son obligatorios.' });
         }
@@ -169,19 +216,19 @@ app.post('/registro', (req, res, next) => {
             silobolsa: req.body.silobolsa,
             anulado: false,
             modificaciones: 0,
-            codigoIngreso: req.ingresoCode // Aseguramos que este campo se guarde correctamente
+            codigoIngreso: req.ingresoCode
         };
 
         await mongoose.connection.db.collection('registros').insertOne(nuevoRegistro);
+        console.log('Registro guardado:', nuevoRegistro);
 
-        // Verificar que el código de ingreso sea válido y obtener el código de observación
         if (!req.ingresoCode || !ingresoAObservacion[req.ingresoCode]) {
             return res.render('error', { error: 'Código de ingreso no válido.' });
         }
         const codigoObservacion = ingresoAObservacion[req.ingresoCode];
         res.redirect(`/tabla?code=${codigoObservacion}`);
     } catch (err) {
-        res.render('error', { error: 'Error al guardar el registro: ' + err.message });
+        res.status(500).send('Internal Server Error: ' + err.message);
     }
 });
 
@@ -204,7 +251,7 @@ app.get('/modificar/:id', (req, res, next) => {
         }
         res.render('modificar', { registro, observacionCode: req.query.observacionCode });
     } catch (err) {
-        res.render('error', { error: 'Error al cargar el registro: ' + err.message });
+        res.status(500).send('Internal Server Error: ' + err.message);
     }
 });
 
@@ -218,16 +265,13 @@ app.put('/modificar/:id', (req, res, next) => {
     }
 }, async (req, res) => {
     try {
-        
         const registro = await mongoose.connection.db.collection('registros').findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
         if (!registro) {
             return res.render('error', { error: 'Registro no encontrado' });
         }
-        
         if (registro.anulado) {
             return res.render('error', { error: 'Este registro está anulado y no puede ser modificado.' });
         }
-        
         if (registro.modificaciones >= 2) {
             return res.render('error', { error: 'Este registro ya ha sido modificado 2 veces. No se permiten más modificaciones.' });
         }
@@ -235,7 +279,7 @@ app.put('/modificar/:id', (req, res, next) => {
         const tara = parseFloat(req.body.tara);
         const bruto = parseFloat(req.body.bruto);
         const neto = bruto - tara;
-        
+
         if (!req.body.fecha || !req.body.usuario || !req.body.socio || !req.body.vehiculo || !req.body.chofer || !req.body.transporte || !req.body.campo || !req.body.grano || !req.body.lote || !req.body.silobolsa) {
             return res.render('error', { error: 'Todos los campos son obligatorios.' });
         }
@@ -270,7 +314,7 @@ app.put('/modificar/:id', (req, res, next) => {
         );
         res.redirect(`/tabla?code=${req.query.observacionCode || '1234'}`);
     } catch (err) {
-        res.render('error', { error: 'Error al actualizar el registro: ' + err.message });
+        res.status(500).send('Internal Server Error: ' + err.message);
     }
 });
 
@@ -291,7 +335,7 @@ app.put('/anular/:id', (req, res, next) => {
         );
         res.redirect(`/tabla?code=${req.observacionCode}`);
     } catch (err) {
-        res.render('error', { error: 'Error al anular el registro: ' + err.message });
+        res.status(500).send('Internal Server Error: ' + err.message);
     }
 });
 
