@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const expressLayouts = require('express-ejs-layouts');
 const methodOverride = require('method-override');
 const { Parser } = require('json2csv');
+const ExcelJS = require('exceljs'); // Añadir importación de exceljs
 const path = require('path');
 const app = express();
 
@@ -100,7 +101,7 @@ app.get('/tabla', (req, res, next) => {
     }
 });
 
-// Ruta para exportar a CSV
+// Ruta para exportar a XLSX
 app.get('/export', (req, res, next) => {
     const code = req.query.code || req.body.code;
     if (codigosObservacion.includes(code)) {
@@ -121,14 +122,58 @@ app.get('/export', (req, res, next) => {
             }
             registros = await mongoose.connection.db.collection('registros').find({ codigoIngreso: codigoIngreso }).toArray();
         }
-        const fields = ['idTicket', 'fecha', 'usuario', 'socio', 'vehiculo', 'chofer', 'transporte', 'tara', 'bruto', 'neto', 'campo', 'grano', 'lote', 'silobolsa', 'anulado'];
-        const json2csvParser = new Parser({ fields });
-        const csv = json2csvParser.parse(registros);
-        // Añadir BOM UTF-8 para compatibilidad con Excel
-        const BOM = '\uFEFF';
-        res.header('Content-Type', 'text/csv; charset=utf-8');
-        res.attachment('registros.csv');
-        res.send(BOM + csv);
+
+        // Crear un nuevo libro de Excel
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Registros');
+
+        // Definir las columnas
+        worksheet.columns = [
+            { header: 'ID Ticket', key: 'idTicket', width: 10 },
+            { header: 'Fecha', key: 'fecha', width: 15 },
+            { header: 'Usuario', key: 'usuario', width: 15 },
+            { header: 'Socio', key: 'socio', width: 15 },
+            { header: 'Vehículo', key: 'vehiculo', width: 15 },
+            { header: 'Chofer', key: 'chofer', width: 15 },
+            { header: 'Transporte', key: 'transporte', width: 15 },
+            { header: 'Tara (kg)', key: 'tara', width: 10 },
+            { header: 'Bruto (kg)', key: 'bruto', width: 10 },
+            { header: 'Neto (kg)', key: 'neto', width: 10 },
+            { header: 'Campo', key: 'campo', width: 15 },
+            { header: 'Grano', key: 'grano', width: 15 },
+            { header: 'Lote', key: 'lote', width: 15 },
+            { header: 'Silobolsa', key: 'silobolsa', width: 15 },
+            { header: 'Anulado', key: 'anulado', width: 10 }
+        ];
+
+        // Añadir los datos
+        registros.forEach(registro => {
+            worksheet.addRow({
+                idTicket: registro.idTicket,
+                fecha: registro.fecha,
+                usuario: registro.usuario,
+                socio: registro.socio,
+                vehiculo: registro.vehiculo,
+                chofer: registro.chofer,
+                transporte: registro.transporte,
+                tara: registro.tara,
+                bruto: registro.bruto,
+                neto: registro.neto,
+                campo: registro.campo,
+                grano: registro.grano,
+                lote: registro.lote,
+                silobolsa: registro.silobolsa,
+                anulado: registro.anulado
+            });
+        });
+
+        // Configurar los encabezados para descargar el archivo XLSX
+        res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.attachment('registros.xlsx');
+
+        // Escribir el archivo XLSX y enviarlo
+        await workbook.xlsx.write(res);
+        res.end();
     } catch (err) {
         res.render('error', { error: 'Error al exportar los datos: ' + err.message });
     }
@@ -243,7 +288,7 @@ app.get('/modificar/:id', (req, res, next) => {
 
 // Ruta para actualizar un registro
 app.put('/modificar/:id', (req, res, next) => {
-    const code = req.query.code || req.body.code; req.query.observacionCode;
+    const code = req.query.code || req.body.code || req.query.observacionCode; // Corregir la sintaxis
     console.log('Código recibido en PUT /modificar:', code);
     console.log('Datos recibidos en req.body:', req.body);
     if (code === '9999') {
