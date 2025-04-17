@@ -124,11 +124,13 @@ app.get('/export', (req, res, next) => {
         const fields = ['idTicket', 'fecha', 'usuario', 'socio', 'vehiculo', 'chofer', 'transporte', 'tara', 'bruto', 'neto', 'campo', 'grano', 'lote', 'silobolsa', 'anulado'];
         const json2csvParser = new Parser({ fields });
         const csv = json2csvParser.parse(registros);
-        res.header('Content-Type', 'text/csv');
+        // Añadir BOM UTF-8 para compatibilidad con Excel
+        const BOM = '\uFEFF';
+        res.header('Content-Type', 'text/csv; charset=utf-8');
         res.attachment('registros.csv');
-        res.send(csv);
+        res.send(BOM + csv);
     } catch (err) {
-        res.status(500).send('Internal Server Error: ' + err.message);
+        res.render('error', { error: 'Error al exportar los datos: ' + err.message });
     }
 });
 
