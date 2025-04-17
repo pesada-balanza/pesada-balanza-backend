@@ -298,7 +298,11 @@ app.put('/modificar/:id', (req, res, next) => {
             { _id: new mongoose.Types.ObjectId(req.params.id) },
             { $set: updateData }
         );
-        res.redirect(`/tabla?code=${req.query.observacionCode || '1234'}`);
+
+        // Obtener el codigoIngreso del registro y mapearlo al codigoObservacion
+        const codigoIngreso = registro.codigoIngreso; // Por ejemplo, '5678'
+        const codigoObservacion = ingresoAObservacion[codigoIngreso] || '1234'; // Por ejemplo, '1234' para '5678'
+        res.redirect(`/tabla?code=${codigoObservacion}`);
     } catch (err) {
         res.status(500).send('Internal Server Error: ' + err.message);
     }

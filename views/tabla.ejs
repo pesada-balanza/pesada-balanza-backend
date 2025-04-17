@@ -38,7 +38,7 @@
                     const fechaPasada = fechaRegistro < hoy.setHours(0, 0, 0, 0);
                     const estiloFila = registro.anulado ? 'background-color: #d4edda;' : (fechaPasada ? 'background-color: #ffe5cc;' : '');
                 %>
-                <tr style= <%= estiloFila %>>
+                <tr style=<%= estiloFila %>>
                     <td><%= registro.idTicket %></td>
                     <td><%= registro.fecha %></td>
                     <td><%= registro.usuario %></td>
@@ -55,7 +55,7 @@
                     <td><%= registro.silobolsa %></td>
                     <td>
                         <% if (!registro.anulado) { %>
-                            <a href="/modificar/<%= registro._id %>?code=9999&observacionCode=<%= observacionCode %>" class="btn btn-warning btn-sm">Modificar</a>
+                            <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-warning btn-sm">Modificar</a>
                             <form action="/anular/<%= registro._id %>?_method=PUT&code=<%= observacionCode %>" method="POST" style="display:inline;">
                                 <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que quieres anular este registro?');">Anular</button>
                             </form>
