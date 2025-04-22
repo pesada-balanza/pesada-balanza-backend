@@ -10,7 +10,7 @@
     <div class="text-center mb-3">
         <a href="/export?code=<%= observacionCode %>" class="btn btn-success">Exportar a Excel</a>
     </div>
-    <table class="table table-striped table-bordered">
+    <table class="table table-bordered">
         <thead>
             <tr>
                 <th>ID Ticket</th>
@@ -38,11 +38,16 @@
                     const fechaPasada = fechaRegistro < hoy.setHours(0, 0, 0, 0);
                     let estiloFila = '';
                     if (registro.anulado) {
-                        estiloFila = 'background-color: #d4edda;'; // Verde claro para registros anulados
+                        estiloFila = 'background-color: #d4edda !important;'; // Verde claro para registros anulados
+                        console.log(`Registro ${registro.idTicket} anulado: ${registro.anulado}, estilo: ${estiloFila}`);
                     } else if (registro.modificaciones > 0) {
-                        estiloFila = 'background-color: #fff3cd;'; // Amarillo claro para registros modificados
+                        estiloFila = 'background-color: #fff3cd !important;'; // Amarillo claro para registros modificados
+                        console.log(`Registro ${registro.idTicket} modificado: ${registro.modificaciones}, estilo: ${estiloFila}`);
                     } else if (fechaPasada) {
-                        estiloFila = 'background-color: #ffe5cc;'; // Naranja claro para fechas pasadas
+                        estiloFila = 'background-color: #ffe5cc !important;'; // Naranja claro para fechas pasadas
+                        console.log(`Registro ${registro.idTicket} con fecha pasada: ${registro.fecha}, estilo: ${estiloFila}`);
+                    } else {
+                        console.log(`Registro ${registro.idTicket} sin condiciones especiales`);
                     }
                 %>
                 <tr style=<%= estiloFila %>>
