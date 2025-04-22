@@ -36,36 +36,36 @@
                     const fechaRegistro = new Date(registro.fecha);
                     const hoy = new Date();
                     const fechaPasada = fechaRegistro < hoy.setHours(0, 0, 0, 0);
-                    let estiloFila = '';
+                    let estiloCelda = '';
                     if (registro.anulado) {
-                        estiloFila = 'background-color: #d4edda !important;'; // Verde claro para registros anulados
-                        console.log(`Registro ${registro.idTicket} anulado: ${registro.anulado}, estilo: ${estiloFila}`);
+                        estiloCelda = 'background-color: #d4edda !important;';
+                        console.log(`Registro ${registro.idTicket} anulado: ${registro.anulado}, estilo: ${estiloCelda}`);
                     } else if (registro.modificaciones > 0) {
-                        estiloFila = 'background-color: #fff3cd !important;'; // Amarillo claro para registros modificados
-                        console.log(`Registro ${registro.idTicket} modificado: ${registro.modificaciones}, estilo: ${estiloFila}`);
+                        estiloCelda = 'background-color: #fff3cd !important;';
+                        console.log(`Registro ${registro.idTicket} modificado: ${registro.modificaciones}, estilo: ${estiloCelda}`);
                     } else if (fechaPasada) {
-                        estiloFila = 'background-color: #ffe5cc !important;'; // Naranja claro para fechas pasadas
-                        console.log(`Registro ${registro.idTicket} con fecha pasada: ${registro.fecha}, estilo: ${estiloFila}`);
+                        estiloCelda = 'background-color: #ffe5cc !important;';
+                        console.log(`Registro ${registro.idTicket} con fecha pasada: ${registro.fecha}, estilo: ${estiloCelda}`);
                     } else {
                         console.log(`Registro ${registro.idTicket} sin condiciones especiales`);
                     }
                 %>
-                <tr style=<%= estiloFila %>>
-                    <td><%= registro.idTicket %></td>
-                    <td><%= registro.fecha %></td>
-                    <td><%= registro.usuario %></td>
-                    <td><%= registro.socio %></td>
-                    <td><%= registro.vehiculo %></td>
-                    <td><%= registro.chofer %></td>
-                    <td><%= registro.transporte %></td>
-                    <td><%= registro.tara %></td>
-                    <td><%= registro.bruto %></td>
-                    <td><%= registro.neto %></td>
-                    <td><%= registro.campo %></td>
-                    <td><%= registro.grano %></td>
-                    <td><%= registro.lote %></td>
-                    <td><%= registro.silobolsa %></td>
-                    <td>
+                <tr>
+                    <td style="<%= estiloCelda %>"><%= registro.idTicket %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.fecha %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.usuario %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.socio %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.vehiculo %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.chofer %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.transporte %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.tara %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.bruto %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.neto %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.campo %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.grano %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.lote %></td>
+                    <td style="<%= estiloCelda %>"><%= registro.silobolsa %></td>
+                    <td style="<%= estiloCelda %>">
                         <% if (!registro.anulado) { %>
                             <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-warning btn-sm">Modificar</a>
                             <form action="/anular/<%= registro._id %>?_method=PUT&code=<%= observacionCode %>" method="POST" style="display:inline;">
