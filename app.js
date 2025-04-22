@@ -85,7 +85,9 @@ const campos = [
     "El Centinela 3 - LOGROÑO SF",
     "La Pradera - San Bernardo",
     "Los Molinos - Tostado"
-];
+].sort(); // Ordenar alfabéticamente
+
+// ... (el resto de datosSiembra y app.js sigue igual)
 
 const datosSiembra = {
     "El C 1 Ciriaci - TINTINA - SE": {
