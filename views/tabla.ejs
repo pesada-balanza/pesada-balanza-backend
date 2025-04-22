@@ -36,7 +36,14 @@
                     const fechaRegistro = new Date(registro.fecha);
                     const hoy = new Date();
                     const fechaPasada = fechaRegistro < hoy.setHours(0, 0, 0, 0);
-                    const estiloFila = registro.anulado ? 'background-color: #d4edda;' : (fechaPasada ? 'background-color: #ffe5cc;' : '');
+                    let estiloFila = '';
+                    if (registro.anulado) {
+                        estiloFila = 'background-color: #d4edda;'; // Verde claro para registros anulados
+                    } else if (registro.modificaciones > 0) {
+                        estiloFila = 'background-color: #fff3cd;'; // Amarillo claro para registros modificados
+                    } else if (fechaPasada) {
+                        estiloFila = 'background-color: #ffe5cc;'; // Naranja claro para fechas pasadas
+                    }
                 %>
                 <tr style=<%= estiloFila %>>
                     <td><%= registro.idTicket %></td>
