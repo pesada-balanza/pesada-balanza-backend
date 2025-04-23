@@ -30,10 +30,10 @@ app.set('view engine', 'ejs');
 app.set('layout', 'layouts/main');
 
 // Códigos de ingreso y observación
-const codigosIngreso = ['5678', '5679', '5680', '5681', '5682', '5683', '5684', '5685'];
-const codigosObservacion = ['1234', '1235', '1236', '1237', '1238', '1239', '1240', '1241'];
+const codigosIngreso = ['56781', '5679', '5680', '5681', '5682', '5683', '5684', '5685'];
+const codigosObservacion = ['12341', '1235', '1236', '1237', '1238', '1239', '1240', '1241'];
 const ingresoAObservacion = {
-    '5678': '1234',
+    '56781': '12341',
     '5679': '1235',
     '5680': '1236',
     '5681': '1237',
@@ -635,7 +635,7 @@ const calculateNextIdTicket = async () => {
 // Ruta para la página de autenticación
 app.get('/', (req, res) => {
     const error = req.query.error || '';
-    const redirect = req.query.redirect || '/tabla';
+    const redirect = req.query.redirect || '/tabla?code=12341';
     res.render('index', { error, redirect });
 });
 
@@ -651,7 +651,7 @@ app.get('/tabla', (req, res, next) => {
 }, async (req, res) => {
     try {
         let registros;
-        if (req.observacionCode === '1234') {
+        if (req.observacionCode === '12341') {
             registros = await mongoose.connection.db.collection('registros').find().toArray();
         } else {
             const codigoIngreso = Object.keys(ingresoAObservacion).find(key => ingresoAObservacion[key] === req.observacionCode);
@@ -678,7 +678,7 @@ app.get('/export', (req, res, next) => {
 }, async (req, res) => {
     try {
         let registros;
-        if (req.observacionCode === '1234') {
+        if (req.observacionCode === '12341') {
             registros = await mongoose.connection.db.collection('registros').find().toArray();
         } else {
             const codigoIngreso = Object.keys(ingresoAObservacion).find(key => ingresoAObservacion[key] === req.observacionCode);
