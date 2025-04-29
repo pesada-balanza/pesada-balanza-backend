@@ -38,6 +38,14 @@
             <input type="text" class="form-control" id="transporte" name="transporte" value="<%= registro.transporte %>" required>
         </div>
         <div class="mb-3">
+            <label for="cprto" class="form-label">CP/RTO</label>
+            <input type="text" class="form-control" id="cprto" name="cprto" value="<%= registro.cprto %>">
+        </div>
+        <div class="mb-3">
+            <label for="ctg" class="form-label">Ctg</label>
+            <input type="text" class="form-control" id="ctg" name="ctg" value="<%= registro.ctg %>">
+        </div>
+        <div class="mb-3">
             <label for="tara" class="form-label">Tara (kg)</label>
             <input type="number" class="form-control" id="tara" name="tara" step="0.01" value="<%= registro.tara %>" required oninput="calcularNeto()">
         </div>

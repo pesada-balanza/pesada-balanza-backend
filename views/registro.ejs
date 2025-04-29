@@ -19,11 +19,11 @@
         </div>
         <div class="mb-3">
             <label for="usuario" class="form-label">Usuario</label>
-            <input type="text" class="form-control" id="usuario" name="usuario" required>
+            <input type="text" class="form-control" id="usuario" name="usuario" value="<%= ultimoUsuario %>" required>
         </div>
         <div class="mb-3">
             <label for="socio" class="form-label">Socio</label>
-            <input type="text" class="form-control" id="socio" name="socio" required>
+            <input type="text" class="form-control" id="socio" name="socio" value="<%= ultimoSocio %>" required>
         </div>
         <div class="mb-3">
             <label for="vehiculo" class="form-label">Vehículo</label>
@@ -36,6 +36,14 @@
         <div class="mb-3">
             <label for="transporte" class="form-label">Transporte</label>
             <input type="text" class="form-control" id="transporte" name="transporte" required>
+        </div>
+        <div class="mb-3">
+            <label for="cprto" class="form-label">CP/RTO</label>
+            <input type="text" class="form-control" id="cprto" name="cprto" required>
+        </div>
+        <div class="mb-3">
+            <label for="ctg" class="form-label">Ctg</label>
+            <input type="text" class="form-control" id="ctg" name="ctg" required>
         </div>
         <div class="mb-3">
             <label for="tara" class="form-label">Tara (kg)</label>
@@ -75,7 +83,7 @@
         </div>
         <div class="mb-3">
             <label for="silobolsa" class="form-label">Silobolsa</label>
-            <input type="text" class="form-control" id="silobolsa" name="silobolsa" required>
+            <input type="text" class="form-control" id="silobolsa" name="silobolsa">
         </div>
         <button type="submit" class="btn btn-primary">Guardar</button>
     </form>

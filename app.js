@@ -701,6 +701,8 @@ app.get('/export', (req, res, next) => {
             { header: 'Vehículo', key: 'vehiculo', width: 15 },
             { header: 'Chofer', key: 'chofer', width: 15 },
             { header: 'Transporte', key: 'transporte', width: 15 },
+            { header: 'CP/RTO', key: 'cprto', widht: 15 },
+            { header: 'Ctg', key: 'ctg', width: 15 },
             { header: 'Tara (kg)', key: 'tara', width: 10 },
             { header: 'Bruto (kg)', key: 'bruto', width: 10 },
             { header: 'Neto (kg)', key: 'neto', width: 10 },
@@ -721,6 +723,8 @@ app.get('/export', (req, res, next) => {
                 vehiculo: registro.vehiculo,
                 chofer: registro.chofer,
                 transporte: registro.transporte,
+                cprto: registro.cprto,
+                ctg: registro.ctg,
                 tara: registro.tara,
                 bruto: registro.bruto,
                 neto: registro.neto,
@@ -758,8 +762,24 @@ app.get('/registro', (req, res, next) => {
 }, async (req, res) => {
     try {
         const newIdTicket = await calculateNextIdTicket();
-        console.log('Renderizando registro con idTicket:', newIdTicket);
-        res.render('registro', { code: req.ingresoCode, newIdTicket, campos, datosSiembra });
+        // Obtener el último registro ingresado
+        const ultimoRegistro = await mongoose.connection.db.collection('registros')
+            .find()
+            .sort({ idTicket: -1 }) // Ordenar por idTicket descendente (el último primero)
+            .limit(1)
+            .toArray();
+        // Si existe un último registro, extraer usuario y socio; si no, usar valores vacíos
+        const ultimoUsuario = ultimoRegistro.length > 0 ? ultimoRegistro[0].usuario : '';
+        const ultimoSocio = ultimoRegistro.length > 0 ? ultimoRegistro[0].socio : '';
+        console.log('Renderizando registro con idTicket:', newIdTicket, 'Usuario:', ultimoUsuario, 'Socio:', ultimoSocio);
+        res.render('registro', {
+            code: req.ingresoCode,
+            newIdTicket,
+            campos,
+            datosSiembra,
+            ultimoUsuario,
+            ultimoSocio
+        });
     } catch (err) {
         console.error('Error en GET /registro:', err);
         res.status(500).send('Internal Server Error: ' + err.message);
@@ -784,9 +804,10 @@ app.post('/registro', (req, res, next) => {
         const tara = parseFloat(req.body.tara);
         const bruto = parseFloat(req.body.bruto);
         const neto = bruto - tara;
-
-        if (!req.body.fecha || !req.body.usuario || !req.body.socio || !req.body.vehiculo || !req.body.chofer || !req.body.transporte || !req.body.campo || !req.body.grano || !req.body.lote || !req.body.silobolsa) {
-            return res.render('error', { error: 'Todos los campos son obligatorios.' });
+        
+        // Eliminar la validación de silobolsa
+        if (!req.body.fecha || !req.body.usuario || !req.body.socio || !req.body.vehiculo || !req.body.chofer || !req.body.transporte || !req.body.cprto || !req.body.ctg || !req.body.campo || !req.body.grano || !req.body.lote) {
+            return res.render('error', { error: 'Todos los campos son obligatorios, excepto Silobolsa.' });
         }
         if (isNaN(tara) || tara <= 0 || isNaN(bruto) || bruto <= 0) {
             return res.render('error', { error: 'Tara y Bruto deben ser números positivos.' });
@@ -803,13 +824,15 @@ app.post('/registro', (req, res, next) => {
             vehiculo: req.body.vehiculo,
             chofer: req.body.chofer,
             transporte: req.body.transporte,
+            cprto: req.body.cprto,
+            ctg: req.body.ctg,
             tara: tara,
             bruto: bruto,
             neto: neto,
             campo: req.body.campo,
             grano: req.body.grano,
             lote: req.body.lote,
-            silobolsa: req.body.silobolsa,
+            silobolsa: req.body.silobolsa || '',
             anulado: false,
             modificaciones: 0,
             codigoIngreso: req.ingresoCode
@@ -830,11 +853,13 @@ app.post('/registro', (req, res, next) => {
 
 // Ruta para mostrar el formulario de edición (código: 9999)
 app.get('/modificar/:id', (req, res, next) => {
-    const code = req.query.code || req.body.code;
+    const code = req.query.code || req.body.code || req.query.observacionCode;
+    console.log('Código recibido en PUT /modificar:' code);
+    console.log('Datos recibidos en req.body:', req.body);
     if (code === '9999') {
         next();
     } else {
-        res.redirect('/?error=Código incorrecto&redirect=/modificar');
+        res.redirect('/?error=Código incorrecto');
     }
 }, async (req, res) => {
     try {
@@ -845,7 +870,53 @@ app.get('/modificar/:id', (req, res, next) => {
         if (registro.anulado) {
             return res.render('error', { error: 'Este registro está anulado y no puede ser modificado.' });
         }
-        res.render('modificar', { registro, observacionCode: req.query.observacionCode });
+        if (registro.modificaciones >= 2) {
+            return res.render('error', { error: 'Este registro ya ha sido modificado 2 veces. No se permiten más modificaciones.' });
+        }
+
+        const tara = parseFloat(req.body.tara);
+        const bruto = parseFloat(req.body.bruto);
+        const neto = bruto - tara;
+
+        // Añadir cprto y ctg a la validación
+        if (!req.body.fecha || !req.body.usuario || !req.body.socio || !req.body.vehiculo || !req.body.chofer || !req.body.transporte || !req.body.cprto || !req.body.ctg || !req.body.campo || !req.body.grano || !req.body.lote) {
+            return res.render('error', { error: 'Todos los campos son obligatorios, excepto Silobolsa.' });
+        }
+        if (isNaN(tara) || tara <= 0 || isNaN(bruto) || bruto <= 0) {
+            return res.render('error', { error: 'Tara y Bruto deben ser números positivos.' });
+        }
+        if (neto < 0) {
+            return res.render('error', { error: 'El Neto no puede ser negativo. Asegúrate de que Bruto sea mayor o igual a Tara.' });
+        }
+
+        const updateData = {
+            idTicket: parseInt(req.body.idTicket),
+            fecha: req.body.fecha,
+            usuario: req.body.usuario,
+            socio: req.body.socio,
+            vehiculo: req.body.vehiculo,
+            chofer: req.body.chofer,
+            transporte: req.body.transporte,
+            cprto: req.body.cprto, // Nuevo campo
+            ctg: req.body.ctg,     // Nuevo campo
+            tara: tara,
+            bruto: bruto,
+            neto: neto,
+            campo: req.body.campo,
+            grano: req.body.grano,
+            lote: req.body.lote,
+            silobolsa: req.body.silobolsa || '',
+            modificaciones: registro.modificaciones + 1
+        };
+
+        await mongoose.connection.db.collection('registros').updateOne(
+            { _id: new mongoose.Types.ObjectId(req.params.id) },
+            { $set: updateData }
+        );
+
+        const codigoIngreso = registro.codigoIngreso;
+        const codigoObservacion = ingresoAObservacion[codigoIngreso] || '12341';
+        res.redirect(`/tabla?code=${codigoObservacion}`);
     } catch (err) {
         res.status(500).send('Internal Server Error: ' + err.message);
     }
@@ -878,8 +949,8 @@ app.put('/modificar/:id', (req, res, next) => {
         const bruto = parseFloat(req.body.bruto);
         const neto = bruto - tara;
 
-        if (!req.body.fecha || !req.body.usuario || !req.body.socio || !req.body.vehiculo || !req.body.chofer || !req.body.transporte || !req.body.campo || !req.body.grano || !req.body.lote || !req.body.silobolsa) {
-            return res.render('error', { error: 'Todos los campos son obligatorios.' });
+        if (!req.body.fecha || !req.body.usuario || !req.body.socio || !req.body.vehiculo || !req.body.chofer || !req.body.transporte || !req.body.cprto || !req.body.ctg || !req.body.campo || !req.body.grano || !req.body.lote) {
+            return res.render('error', { error: 'Todos los campos son obligatorios, excepto Silobolsa.' });
         }
         if (isNaN(tara) || tara <= 0 || isNaN(bruto) || bruto <= 0) {
             return res.render('error', { error: 'Tara y Bruto deben ser números positivos.' });
@@ -896,13 +967,15 @@ app.put('/modificar/:id', (req, res, next) => {
             vehiculo: req.body.vehiculo,
             chofer: req.body.chofer,
             transporte: req.body.transporte,
+            cprto: req.body.cprto,
+            ctg: req.body.ctg,
             tara: tara,
             bruto: bruto,
             neto: neto,
             campo: req.body.campo,
             grano: req.body.grano,
             lote: req.body.lote,
-            silobolsa: req.body.silobolsa,
+            silobolsa: req.body.silobolsa, || '',
             modificaciones: registro.modificaciones + 1
         };
 
@@ -912,8 +985,8 @@ app.put('/modificar/:id', (req, res, next) => {
         );
 
         // Obtener el codigoIngreso del registro y mapearlo al codigoObservacion
-        const codigoIngreso = registro.codigoIngreso; // Por ejemplo, '5678'
-        const codigoObservacion = ingresoAObservacion[codigoIngreso] || '1234'; // Por ejemplo, '1234' para '5678'
+        const codigoIngreso = registro.codigoIngreso;
+        const codigoObservacion = ingresoAObservacion[codigoIngreso] || '12341'; // Por ejemplo, '12341' para '56781'
         res.redirect(`/tabla?code=${codigoObservacion}`);
     } catch (err) {
         res.status(500).send('Internal Server Error: ' + err.message);
