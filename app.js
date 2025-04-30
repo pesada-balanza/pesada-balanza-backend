@@ -854,7 +854,7 @@ app.post('/registro', (req, res, next) => {
 // Ruta para mostrar el formulario de edición (código: 9999)
 app.get('/modificar/:id', (req, res, next) => {
     const code = req.query.code || req.body.code || req.query.observacionCode;
-    console.log('Código recibido en PUT /modificar:' code);
+    console.log('Código recibido en PUT /modificar:', code);
     console.log('Datos recibidos en req.body:', req.body);
     if (code === '9999') {
         next();
