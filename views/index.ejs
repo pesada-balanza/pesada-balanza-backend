@@ -1,23 +1,10 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Autenticación - Pesada Balanza</title>
-</head>
-<body>
-    <h1 class="text-center">Autenticación</h1>
-    <% if (error) { %>
-        <div class="alert alert-danger text-center" role="alert">
-            <%= error %>
-        </div>
-    <% } %>
-    <form action="<%= redirect %>" method="GET" class="text-center">
-        <div class="mb-3">
-            <label for="code" class="form-label">Código</label>
-            <input type="text" class="form-control w-50 mx-auto" id="code" name="code" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Ingresar</button>
-    </form>
-</body>
-</html>
+<%- include('partials/header') %>
+<h1>Autenticación</h1>
+<form action="/" method="post">
+    <div class="form-group">
+        <label for="code">Código</label>
+        <input type="text" name="code" id="code" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Ingresar</button>
+</form>
+<%- include('partials/footer') %>

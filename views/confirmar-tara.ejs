@@ -1,0 +1,15 @@
+<%- include('partials/header') %>
+<h1>Confirmar Registro (TARA)</h1>
+<p>Bruto Estimado: <%= brutoEstimado %> kg</p>
+<p>Tara: <%= tara %> kg</p>
+<p>Neto Estimado: <%= netoEstimado %> kg</p>
+<form action="/guardar-tara" method="post">
+    <% for (let key in formData) { %>
+        <input type="hidden" name="<%= key %>" value="<%= formData[key] %>">
+    <% } %>
+    <input type="hidden" name="brutoEstimado" value="<%= brutoEstimado %>">
+    <input type="hidden" name="tara" value="<%= tara %>">
+    <button type="submit" class="btn btn-success">Guardar</button>
+    <a href="/registro?code=<%= formData.code %>" class="btn btn-danger">Modificar</a>
+</form>
+<%- include('partials/footer') %>

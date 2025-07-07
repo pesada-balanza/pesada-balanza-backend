@@ -1,88 +1,108 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modificar Registro - Pesada Balanza</title>
-</head>
-<body>
-    <h1 class="text-center">Modificar Registro</h1>
-    <form action="/modificar/<%= registro._id %>?_method=PUT" method="POST" onsubmit="calcularNeto()">
-        <input type="hidden" name="code" value="9999"> <!-- Aseguramos que el código se envíe -->
-        <div class="mb-3">
-            <label for="idTicket" class="form-label">ID Ticket</label>
-            <input type="number" class="form-control" id="idTicket" name="idTicket" value="<%= registro.idTicket %>" readonly>
+<%- include('partials/header') %>
+<h1>Modificar Registro</h1>
+<form action="/modificar/<%= registro._id %>" method="post">
+    <div class="form-group">
+        <label for="idTicket">ID Ticket</label>
+        <input type="text" name="idTicket" id="idTicket" class="form-control" value="<%= registro.idTicket %>" readonly>
+    </div>
+    <div class="form-group">
+        <label for="fecha">Fecha</label>
+        <input type="date" name="fecha" id="fecha" class="form-control" value="<%= registro.fecha %>" required>
+    </div>
+    <div class="form-group">
+        <label for="usuario">Usuario</label>
+        <input type="text" name="usuario" id="usuario" class="form-control" value="<%= registro.usuario %>" required>
+    </div>
+    <div class="form-group">
+        <label for="cargaPara">Carga para</label>
+        <select name="cargaPara" id="cargaPara" class="form-control" required onchange="toggleSocio()">
+            <option value="AMH" <%= registro.cargaPara === 'AMH' ? 'selected' : '' %>>AMH</option>
+            <option value="SOCIO" <%= registro.cargaPara === 'SOCIO' ? 'selected' : '' %>>SOCIO</option>
+        </select>
+    </div>
+    <div class="form-group" id="socioField" style="display: <%= registro.cargaPara === 'SOCIO' ? 'block' : 'none' %>;">
+        <label for="socio">Nombre del Socio</label>
+        <input type="text" name="socio" id="socio" class="form-control" value="<%= registro.socio %>">
+    </div>
+    <div class="form-group">
+        <label for="pesadaPara">Pesada para</label>
+        <select name="pesadaPara" id="pesadaPara" class="form-control" required onchange="toggleForm()">
+            <option value="TARA" <%= registro.pesadaPara === 'TARA' ? 'selected' : '' %>>TARA</option>
+            <option value="REGULADA" <%= registro.pesadaPara === 'REGULADA' ? 'selected' : '' %>>REGULADA</option>
+        </select>
+    </div>
+    <div class="form-group" id="taraFields" style="display: <%= registro.pesadaPara === 'TARA' ? 'block' : 'none' %>;">
+        <label for="transporte">Transporte</label>
+        <input type="text" name="transporte" id="transporte" class="form-control" value="<%= registro.transporte %>">
+        <label for="patentes">Patentes</label>
+        <input type="text" name="patentes" id="patentes" class="form-control" value="<%= registro.patentes %>">
+        <label for="chofer">Chofer</label>
+        <input type="text" name="chofer" id="chofer" class="form-control" value="<%= registro.chofer %>">
+        <label for="brutoEstimado">Bruto Estimado (kg)</label>
+        <select name="brutoEstimado" id="brutoEstimado" class="form-control">
+            <option value="45000" <%= registro.brutoEstimado === 45000 ? 'selected' : '' %>>45000 kg</option>
+            <option value="52500" <%= registro.brutoEstimado === 52500 ? 'selected' : '' %>>52500 kg</option>
+            <option value="55000" <%= registro.brutoEstimado === 55000 ? 'selected' : '' %>>55000 kg</option>
+        </select>
+        <label for="tara">Tara (kg)</label>
+        <input type="number" name="tara" id="tara" class="form-control" value="<%= registro.tara %>" required>
+    </div>
+    <div class="form-group" id="reguladaFields" style="display: <%= registro.pesadaPara === 'REGULADA' ? 'block' : 'none' %>;">
+        <label for="patentes">Patentes</label>
+        <input type="text" name="patentes" id="patentes" class="form-control" value="<%= registro.patentes %>">
+        <label for="campo">Campo</label>
+        <select name="campo" id="campo" class="form-control" required>
+            <option value="">Seleccione un campo</option>
+            <% campos.forEach(campo => { %>
+                <option value="<%= campo %>" <%= registro.campo === campo ? 'selected' : '' %>><%= campo %></option>
+            <% }); %>
+        </select>
+        <label for="lote">Lote</label>
+        <select name="lote" id="lote" class="form-control" required>
+            <option value="">Seleccione un lote</option>
+            <% if (registro.campo && datosSiembra[registro.campo] && datosSiembra[registro.campo]['SOJA']) { %>
+                <% datosSiembra[registro.campo]['SOJA'].forEach(lote => { %>
+                    <option value="<%= lote %>" <%= registro.lote === lote ? 'selected' : '' %>><%= lote %></option>
+                <% }); %>
+            <% } %>
+        </select>
+        <label for="cargoDe">Cargo de</label>
+        <select name="cargoDe" id="cargoDe" class="form-control" required onchange="toggleCargo()">
+            <option value="SILOBOLSA" <%= registro.cargoDe === 'SILOBOLSA' ? 'selected' : '' %>>Silobolsa</option>
+            <option value="CONTRATISTA" <%= registro.cargoDe === 'CONTRATISTA' ? 'selected' : '' %>>Contratista</option>
+        </select>
+        <div class="form-group" id="silobolsaField" style="display: <%= registro.cargoDe === 'SILOBOLSA' ? 'block' : 'none' %>;">
+            <label for="silobolsa">Número Silobolsa</label>
+            <input type="text" name="silobolsa" id="silobolsa" class="form-control" value="<%= registro.silobolsa %>">
         </div>
-        <div class="mb-3">
-            <label for="fecha" class="form-label">Fecha</label>
-            <input type="date" class="form-control" id="fecha" name="fecha" value="<%= registro.fecha %>" required>
+        <div class="form-group" id="contratistaField" style="display: <%= registro.cargoDe === 'CONTRATISTA' ? 'block' : 'none' %>;">
+            <label for="contratista">Nombre Contratista</label>
+            <input type="text" name="contratista" id="contratista" class="form-control" value="<%= registro.contratista %>">
         </div>
-        <div class="mb-3">
-            <label for="usuario" class="form-label">Usuario</label>
-            <input type="text" class="form-control" id="usuario" name="usuario" value="<%= registro.usuario %>" required>
-        </div>
-        <div class="mb-3">
-            <label for="socio" class="form-label">Socio</label>
-            <input type="text" class="form-control" id="socio" name="socio" value="<%= registro.socio %>" required>
-        </div>
-        <div class="mb-3">
-            <label for="vehiculo" class="form-label">Vehículo</label>
-            <input type="text" class="form-control" id="vehiculo" name="vehiculo" value="<%= registro.vehiculo %>" required>
-        </div>
-        <div class="mb-3">
-            <label for="chofer" class="form-label">Chofer</label>
-            <input type="text" class="form-control" id="chofer" name="chofer" value="<%= registro.chofer %>" required>
-        </div>
-        <div class="mb-3">
-            <label for="transporte" class="form-label">Transporte</label>
-            <input type="text" class="form-control" id="transporte" name="transporte" value="<%= registro.transporte %>" required>
-        </div>
-        <div class="mb-3">
-            <label for="cprto" class="form-label">CP/RTO</label>
-            <input type="text" class="form-control" id="cprto" name="cprto" value="<%= registro.cprto %>">
-        </div>
-        <div class="mb-3">
-            <label for="ctg" class="form-label">Ctg</label>
-            <input type="text" class="form-control" id="ctg" name="ctg" value="<%= registro.ctg %>">
-        </div>
-        <div class="mb-3">
-            <label for="tara" class="form-label">Tara (kg)</label>
-            <input type="number" class="form-control" id="tara" name="tara" step="0.01" value="<%= registro.tara %>" required oninput="calcularNeto()">
-        </div>
-        <div class="mb-3">
-            <label for="bruto" class="form-label">Bruto (kg)</label>
-            <input type="number" class="form-control" id="bruto" name="bruto" step="0.01" value="<%= registro.bruto %>" required oninput="calcularNeto()">
-        </div>
-        <div class="mb-3">
-            <label for="neto" class="form-label">Neto (kg)</label>
-            <input type="number" class="form-control" id="neto" name="neto" step="0.01" value="<%= registro.neto %>" readonly>
-        </div>
-        <div class="mb-3">
-            <label for="campo" class="form-label">Campo</label>
-            <input type="text" class="form-control" id="campo" name="campo" value="<%= registro.campo %>" required>
-        </div>
-        <div class="mb-3">
-            <label for="grano" class="form-label">Grano</label>
-            <input type="text" class="form-control" id="grano" name="grano" value="<%= registro.grano %>" required>
-        </div>
-        <div class="mb-3">
-            <label for="lote" class="form-label">Lote</label>
-            <input type="text" class="form-control" id="lote" name="lote" value="<%= registro.lote %>" required>
-        </div>
-        <div class="mb-3">
-            <label for="silobolsa" class="form-label">Silobolsa</label>
-            <input type="text" class="form-control" id="silobolsa" name="silobolsa" value="<%= registro.silobolsa %>" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-    </form>
+        <label for="bruto">Bruto (kg)</label>
+        <input type="number" name="bruto" id="bruto" class="form-control" value="<%= registro.bruto %>">
+    </div>
+    <input type="hidden" name="_method" value="PUT">
+    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+</form>
 
-    <script>
-        function calcularNeto() {
-            const tara = parseFloat(document.getElementById('tara').value) || 0;
-            const bruto = parseFloat(document.getElementById('bruto').value) || 0;
-            const neto = bruto - tara;
-            document.getElementById('neto').value = neto.toFixed(2);
-        }
-    </script>
-</body>
-</html>
+<script>
+    function toggleForm() {
+        const pesadaPara = document.getElementById('pesadaPara').value;
+        document.getElementById('taraFields').style.display = pesadaPara === 'TARA' ? 'block' : 'none';
+        document.getElementById('reguladaFields').style.display = pesadaPara === 'REGULADA' ? 'block' : 'none';
+    }
+
+    function toggleSocio() {
+        const cargaPara = document.getElementById('cargaPara').value;
+        document.getElementById('socioField').style.display = cargaPara === 'SOCIO' ? 'block' : 'none';
+    }
+
+    function toggleCargo() {
+        const cargoDe = document.getElementById('cargoDe').value;
+        document.getElementById('silobolsaField').style.display = cargoDe === 'SILOBOLSA' ? 'block' : 'none';
+        document.getElementById('contratistaField').style.display = cargoDe === 'CONTRATISTA' ? 'block' : 'none';
+    }
+</script>
+
+<%- include('partials/footer') %>

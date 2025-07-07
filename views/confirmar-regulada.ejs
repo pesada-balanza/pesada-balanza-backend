@@ -1,0 +1,14 @@
+<%- include('partials/header') %>
+<h1>Confirmar Registro (REGULADA)</h1>
+<p>Bruto: <%= bruto %> kg</p>
+<p>Neto: <%= neto %> kg</p>
+<form action="/guardar-regulada" method="post">
+    <% for (let key in formData) { %>
+        <input type="hidden" name="<%= key %>" value="<%= formData[key] %>">
+    <% } %>
+    <input type="hidden" name="bruto" value="<%= bruto %>">
+    <input type="hidden" name="neto" value="<%= neto %>">
+    <button type="submit" class="btn btn-success">Guardar</button>
+    <a href="/registro?code=<%= formData.code %>" class="btn btn-danger">Modificar</a>
+</form>
+<%- include('partials/footer') %>
