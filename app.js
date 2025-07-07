@@ -37,7 +37,7 @@ const ingresoAObservacion = {
     '5682': '1238', '5683': '1239', '5684': '1240', '5685': '1241'
 };
 
-// Datos de campos (ya definidos)
+// Datos de campos
 const campos = [
     "El C 1 Ciriaci - TINTINA - SE", "Gioda - SAN FRANCISCO - SE", "Grifa - Zunesma - TINTINA - SE",
     "La Chuchi - Avelleira y Cesar", "Cejolao - CEJOLAO - SE", "Bandera - AVERIAS - SE",
@@ -55,8 +55,13 @@ const campos = [
     "La Pradera - San Bernardo", "Los Molinos - Tostado"
 ].sort();
 
-// Datos de siembra (ya definidos)
-const datosSiembra = { /* ... (mismo contenido que antes, omitido por brevedad) */ };
+// Datos de siembra
+const datosSiembra = {
+    "El C 1 Ciriaci - TINTINA - SE": { "MAIZ": [...], "SOJA": [...] },
+    "Gioda - SAN FRANCISCO - SE": { "SOJA": [...] },
+    // ... (resto de datosSiembra como en tu archivo original, omitido por brevedad)
+    "Los Molinos - Tostado": { "ALGODON": ["Lote 1", "Lote 2", "Lote 3", "Lote 4"] }
+};
 
 // Variable para rastrear registros del día
 let registrosDelDia = [];
