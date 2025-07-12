@@ -55,7 +55,7 @@ const campos = [
     "La Pradera - San Bernardo", "Los Molinos - Tostado"
 ].sort();
 
-// Datos de siembra (completos según tu archivo original)
+// Datos de siembra
 const datosSiembra = {
     "El C 1 Ciriaci - TINTINA - SE": {
         "MAIZ": [
@@ -306,6 +306,28 @@ app.get('/', (req, res) => {
     const error = req.query.error || '';
     const redirect = req.query.redirect || '/tabla?code=12341';
     res.render('index', { error, redirect });
+});
+
+app.post('/', (req, res) => {
+    const code = req.body.code;
+    const redirect = req.body.redirect || '/tabla'; // Por defecto a tabla si no hay redirect
+    const isRegistro = redirect.includes('/registro');
+    const isTabla = redirect.includes('/tabla');
+
+    let validCodes = [];
+    if (isRegistro) {
+        validCodes = codigosIngreso;
+    } else if (isTabla) {
+        validCodes = codigosObservacion;
+    }
+
+    if (validCodes.includes(code)) {
+        // Redirigir con el code agregado
+        res.redirect(redirect + '?code=' + code);
+    } else {
+        // Redirigir con error si el código no es válido
+        res.redirect('/?error=Código incorrecto&redirect=' + redirect);
+    }
 });
 
 app.get('/tabla', (req, res, next) => {
