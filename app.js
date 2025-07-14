@@ -444,7 +444,8 @@ app.get('/registro', (req, res, next) => {
             code: req.ingresoCode,
             newIdTicket,
             ultimoUsuario,
-            campos
+            campos,
+            pesadaPara: 'TARA' // Valor por defecto para mostrar el formulario TARA inicialmente
         });
     } catch (err) {
         res.status(500).send('Internal Server Error: ' + err.message);

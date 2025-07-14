@@ -1,7 +1,7 @@
 <%- include('partials/header') %>
 <h1>Registro de Pesaje</h1>
 
-<form action="/confirmar-tara" method="post" id="formTara" style="display: <%= pesadaPara === 'TARA' ? 'block' : 'none' %>;">
+<form action="/confirmar-tara" method="post" id="formTara" style="display: <%= pesadaPara === 'TARA' ? 'block' : 'none' %>">
     <div class="form-group">
         <label for="idTicket">ID Ticket</label>
         <input type="text" name="idTicket" id="idTicket" class="form-control" value="<%= newIdTicket %>" readonly>
@@ -63,7 +63,7 @@
     <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
-<form action="/confirmar-regulada" method="post" id="formRegulada" style="display: %= pesadaPara === 'REGULADA' ? 'block' : 'none' %>">
+<form action="/confirmar-regulada" method="post" id="formRegulada" style="display: <%= pesadaPara === 'REGULADA' ? 'block' : 'none' %>">
     <div class="form-group">
         <label for="patentes">Patentes (del día)</label>
         <select name="patentes" id="patentesRegulada" class="form-control" required>
