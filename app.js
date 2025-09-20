@@ -445,6 +445,8 @@ app.get('/registro', (req, res, next) => {
             newIdTicket,
             ultimoUsuario,
             campos,
+            registrosDelDia,
+            datosSiembra,
             pesadaPara: 'TARA' // Valor por defecto para mostrar el formulario TARA inicialmente
         });
     } catch (err) {
@@ -547,7 +549,7 @@ app.get('/modificar/:id', (req, res, next) => {
         if (!registro) return res.render('error', { error: 'Registro no encontrado' });
         if (registro.anulado) return res.render('error', { error: 'Registro anulado' });
         if (registro.modificaciones >= 2) return res.render('error', { error: 'Límite de modificaciones alcanzado' });
-        res.render('modificar', { registro });
+        res.render('modificar', { registro, campos, datosSiembra });
     } catch (err) {
         res.status(500).send('Internal Server Error: ' + err.message);
     }
