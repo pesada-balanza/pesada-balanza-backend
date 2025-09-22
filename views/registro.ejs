@@ -1,7 +1,7 @@
 <%- include('partials/header') %>
 <h1>Registro de Pesaje</h1>
 
-<!-- FORMULARIO TARA -->
+<!-- ====== FORMULARIO TARA ====== -->
 <form action="/confirmar-tara" method="post" id="formTara" style="display: <%= pesadaPara === 'TARA' ? 'block' : 'none' %>">
   <div class="form-group">
     <label for="idTicket">ID Ticket</label>
@@ -36,8 +36,8 @@
     <label for="pesadaPara">Pesada para</label>
     <select name="pesadaPara" id="pesadaPara" class="form-control" required onchange="toggleForm()">
       <option value="">Seleccione</option>
-      <option value="TARA">TARA</option>
-      <option value="REGULADA">REGULADA</option>
+      <option value="TARA" <%= pesadaPara==='TARA' ? 'selected' : '' %> >TARA</option>
+      <option value="REGULADA" <%= pesadaPara==='REGULADA' ? 'selected' : '' %> >REGULADA</option>
     </select>
   </div>
 
@@ -76,7 +76,7 @@
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
-<!-- FORMULARIO REGULADA -->
+<!-- ====== FORMULARIO REGULADA ====== -->
 <form action="/confirmar-regulada" method="post" id="formRegulada" style="display: <%= pesadaPara === 'REGULADA' ? 'block' : 'none' %>">
   <div class="form-group">
     <label for="patentesRegulada">Patentes (del día)</label>
@@ -98,7 +98,7 @@
     </select>
   </div>
 
-  <!-- NUEVO: GRANO/CULTIVO (se llena según el campo) -->
+  <!-- NUEVO: GRANO/CULTIVO (dinámico) -->
   <div class="form-group">
     <label for="grano">Grano / Cultivo</label>
     <select name="grano" id="grano" class="form-control" required disabled>
@@ -155,11 +155,12 @@
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
-<!-- Publicamos datosSiembra en el navegador -->
+<!-- ====== Datos al navegador ====== -->
 <script>
   window.datosSiembra = <%- JSON.stringify(datosSiembra || {}) %>;
 </script>
 
+<!-- ====== Lógica de UI ====== -->
 <script>
   function toggleForm() {
     const pesadaPara = document.getElementById('pesadaPara').value;
@@ -180,13 +181,11 @@
     document.getElementById('brutoField').style.display = confirmarBruto === 'NO' ? 'block' : 'none';
   }
 
-  // Referencias
   const campoSel = document.getElementById('campo');
   const granoSel = document.getElementById('grano');
   const loteSel  = document.getElementById('lote');
   const patentesReg = document.getElementById('patentesRegulada');
 
-  // Llenar GRANO según CAMPO
   function fillGranos() {
     const campo = campoSel.value;
     granoSel.innerHTML = '<option value="">Seleccione un cultivo</option>';
@@ -196,8 +195,7 @@
 
     const ds = window.datosSiembra || {};
     if (campo && ds[campo]) {
-      const granos = Object.keys(ds[campo]); // p.ej. ['SOJA','MAIZ','ALGODON']
-      granos.forEach(g => {
+      Object.keys(ds[campo]).forEach(g => {
         const op = document.createElement('option');
         op.value = op.text = g;
         granoSel.appendChild(op);
@@ -206,7 +204,6 @@
     }
   }
 
-  // Llenar LOTE según GRANO
   function fillLotes() {
     const campo = campoSel.value;
     const grano = granoSel.value;
@@ -223,7 +220,7 @@
     if (lotes.length) loteSel.disabled = false;
   }
 
-  // Completar BRUTO ESTIMADO (REGULADA) cuando elegís una patente del día
+  // Completar Bruto Estimado de REGULADA al elegir una patente del día
   if (patentesReg) {
     patentesReg.addEventListener('change', function () {
       const txt = this.options[this.selectedIndex]?.text || '';
@@ -238,7 +235,7 @@
 
   // Estado inicial
   toggleForm(); toggleSocio(); toggleCargo(); toggleBruto();
-  fillGranos(); // prepara grano/lote según el campo (si ya hay alguno seleccionado)
+  fillGranos();
 </script>
 
 <%- include('partials/footer') %>
