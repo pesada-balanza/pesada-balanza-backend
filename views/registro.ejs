@@ -1,171 +1,244 @@
 <%- include('partials/header') %>
 <h1>Registro de Pesaje</h1>
 
+<!-- FORMULARIO TARA -->
 <form action="/confirmar-tara" method="post" id="formTara" style="display: <%= pesadaPara === 'TARA' ? 'block' : 'none' %>">
-    <div class="form-group">
-        <label for="idTicket">ID Ticket</label>
-        <input type="text" name="idTicket" id="idTicket" class="form-control" value="<%= newIdTicket %>" readonly>
-    </div>
-    <div class="form-group">
-        <label for="fecha">Fecha</label>
-        <input type="date" name="fecha" id="fecha" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>" readonly>
-    </div>
-    <div class="form-group">
-        <label for="usuario">Usuario</label>
-        <input type="text" name="usuario" id="usuario" class="form-control" value="<%= ultimoUsuario %>" required>
-    </div>
-    <div class="form-group">
-        <label for="cargaPara">Carga para</label>
-        <select name="cargaPara" id="cargaPara" class="form-control" required onchange="toggleSocio()">
-            <option value="">Seleccione</option>
-            <option value="AMH">AMH</option>
-            <option value="SOCIO">SOCIO</option>
-        </select>
-    </div>
-    <div class="form-group" id="socioField" style="display: none;">
-        <label for="socio">Nombre del Socio</label>
-        <input type="text" name="socio" id="socio" class="form-control">
-    </div>
-    <div class="form-group">
-        <label for="pesadaPara">Pesada para</label>
-        <select name="pesadaPara" id="pesadaPara" class="form-control" required onchange="toggleForm()">
-            <option value="">Seleccione</option>
-            <option value="TARA">TARA</option>
-            <option value="REGULADA">REGULADA</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <label for="transporte">Transporte</label>
-        <input type="text" name="transporte" id="transporte" class="form-control">
-    </div>
-    <div class="form-group">
-        <label for="patentes">Patentes</label>
-        <input type="text" name="patentes" id="patentes" class="form-control">
-    </div>
-    <div class="form-group">
-        <label for="chofer">Chofer</label>
-        <input type="text" name="chofer" id="chofer" class="form-control">
-    </div>
-    <div class="form-group">
-        <label for="brutoEstimado">Bruto Estimado (kg)</label>
-        <select name="brutoEstimado" id="brutoEstimado" class="form-control">
-            <option value="">Seleccione</option>
-            <option value="45000">45000 kg</option>
-            <option value="52500">52500 kg</option>
-            <option value="55000">55000 kg</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <label for="tara">Tara (kg)</label>
-        <input type="number" name="tara" id="tara" class="form-control" required>
-    </div>
-    <input type="hidden" name="code" value="<%= code %>">
-    <button type="submit" class="btn btn-primary">Confirmar</button>
+  <div class="form-group">
+    <label for="idTicket">ID Ticket</label>
+    <input type="text" name="idTicket" id="idTicket" class="form-control" value="<%= newIdTicket %>" readonly>
+  </div>
+
+  <div class="form-group">
+    <label for="fecha">Fecha</label>
+    <input type="date" name="fecha" id="fecha" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>" readonly>
+  </div>
+
+  <div class="form-group">
+    <label for="usuario">Usuario</label>
+    <input type="text" name="usuario" id="usuario" class="form-control" value="<%= ultimoUsuario %>" required>
+  </div>
+
+  <div class="form-group">
+    <label for="cargaPara">Carga para</label>
+    <select name="cargaPara" id="cargaPara" class="form-control" required onchange="toggleSocio()">
+      <option value="">Seleccione</option>
+      <option value="AMH">AMH</option>
+      <option value="SOCIO">SOCIO</option>
+    </select>
+  </div>
+
+  <div class="form-group" id="socioField" style="display: none;">
+    <label for="socio">Nombre del Socio</label>
+    <input type="text" name="socio" id="socio" class="form-control">
+  </div>
+
+  <div class="form-group">
+    <label for="pesadaPara">Pesada para</label>
+    <select name="pesadaPara" id="pesadaPara" class="form-control" required onchange="toggleForm()">
+      <option value="">Seleccione</option>
+      <option value="TARA">TARA</option>
+      <option value="REGULADA">REGULADA</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="transporte">Transporte</label>
+    <input type="text" name="transporte" id="transporte" class="form-control">
+  </div>
+
+  <div class="form-group">
+    <label for="patentes">Patentes</label>
+    <input type="text" name="patentes" id="patentes" class="form-control">
+  </div>
+
+  <div class="form-group">
+    <label for="chofer">Chofer</label>
+    <input type="text" name="chofer" id="chofer" class="form-control">
+  </div>
+
+  <!-- ID ÚNICO PARA TARA -->
+  <div class="form-group">
+    <label for="brutoEstimadoTara">Bruto Estimado (kg)</label>
+    <select name="brutoEstimado" id="brutoEstimadoTara" class="form-control">
+      <option value="">Seleccione</option>
+      <option value="45000">45000 kg</option>
+      <option value="52500">52500 kg</option>
+      <option value="55000">55000 kg</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="tara">Tara (kg)</label>
+    <input type="number" name="tara" id="tara" class="form-control" required>
+  </div>
+
+  <input type="hidden" name="code" value="<%= code %>">
+  <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
+<!-- FORMULARIO REGULADA -->
 <form action="/confirmar-regulada" method="post" id="formRegulada" style="display: <%= pesadaPara === 'REGULADA' ? 'block' : 'none' %>">
-    <div class="form-group">
-        <label for="patentes">Patentes (del día)</label>
-        <select name="patentes" id="patentesRegulada" class="form-control" required>
-            <option value="">Seleccione</option>
-            <% registrosDelDia.forEach(reg => { %>
-                <option value="<%= reg.patentes %>"><%= reg.patentes %> (Bruto: <%= reg.brutoEstimado %>)</option>
-            <% }); %>
-        </select>
-    </div>
-    <div class="form-group">
-        <label for="campo">Campo</label>
-        <select name="campo" id="campo" class="form-control" required>
-            <option value="">Seleccione un campo</option>
-            <% campos.forEach(campo => { %>
-                <option value="<%= campo %>"><%= campo %></option>
-            <% }); %>
-        </select>
-    </div>
-    <div class="form-group">
-        <label for="lote">Lote</label>
-        <select name="lote" id="lote" class="form-control" required>
-            <option value="">Seleccione un lote</option>
-            <!-- Se llenará dinámicamente con JavaScript -->
-        </select>
-    </div>
-    <div class="form-group">
-        <label for="cargoDe">Cargo de</label>
-        <select name="cargoDe" id="cargoDe" class="form-control" required onchange="toggleCargo()">
-            <option value="">Seleccione</option>
-            <option value="SILOBOLSA">Silobolsa</option>
-            <option value="CONTRATISTA">Contratista</option>
-        </select>
-    </div>
-    <div class="form-group" id="silobolsaField" style="display: none;">
-        <label for="silobolsa">Número Silobolsa</label>
-        <input type="text" name="silobolsa" id="silobolsa" class="form-control">
-    </div>
-    <div class="form-group" id="contratistaField" style="display: none;">
-        <label for="contratista">Nombre Contratista</label>
-        <input type="text" name="contratista" id="contratista" class="form-control">
-    </div>
-    <div class="form-group">
-        <label for="brutoEstimado">Bruto Estimado (kg)</label>
-        <input type="text" name="brutoEstimado" id="brutoEstimado" class="form-control" readonly>
-    </div>
-    <div class="form-group">
-        <label for="confirmarBruto">Confirmar Bruto</label>
-        <select name="confirmarBruto" id="confirmarBruto" class="form-control" onchange="toggleBruto()">
-            <option value="SI">Sí</option>
-            <option value="NO">No</option>
-        </select>
-    </div>
-    <div class="form-group" id="brutoField" style="display: none;">
-        <label for="bruto">Bruto (kg)</label>
-        <input type="number" name="bruto" id="bruto" class="form-control">
-    </div>
-    <input type="hidden" name="code" value="<%= code %>">
-    <button type="submit" class="btn btn-primary">Confirmar</button>
+  <div class="form-group">
+    <label for="patentesRegulada">Patentes (del día)</label>
+    <select name="patentes" id="patentesRegulada" class="form-control" required>
+      <option value="">Seleccione</option>
+      <% (registrosDelDia || []).forEach(reg => { %>
+        <option value="<%= reg.patentes %>"><%= reg.patentes %> (Bruto: <%= reg.brutoEstimado %>)</option>
+      <% }); %>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="campo">Campo</label>
+    <select name="campo" id="campo" class="form-control" required>
+      <option value="">Seleccione un campo</option>
+      <% (campos || []).forEach(c => { %>
+        <option value="<%= c %>"><%= c %></option>
+      <% }) %>
+    </select>
+  </div>
+
+  <!-- NUEVO: GRANO/CULTIVO (se llena según el campo) -->
+  <div class="form-group">
+    <label for="grano">Grano / Cultivo</label>
+    <select name="grano" id="grano" class="form-control" required disabled>
+      <option value="">Seleccione un cultivo</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="lote">Lote</label>
+    <select name="lote" id="lote" class="form-control" required disabled>
+      <option value="">Seleccione un lote</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="cargoDe">Cargo de</label>
+    <select name="cargoDe" id="cargoDe" class="form-control" required onchange="toggleCargo()">
+      <option value="">Seleccione</option>
+      <option value="SILOBOLSA">Silobolsa</option>
+      <option value="CONTRATISTA">Contratista</option>
+    </select>
+  </div>
+
+  <div class="form-group" id="silobolsaField" style="display: none;">
+    <label for="silobolsa">Número Silobolsa</label>
+    <input type="text" name="silobolsa" id="silobolsa" class="form-control">
+  </div>
+
+  <div class="form-group" id="contratistaField" style="display: none;">
+    <label for="contratista">Nombre Contratista</label>
+    <input type="text" name="contratista" id="contratista" class="form-control">
+  </div>
+
+  <!-- ID ÚNICO PARA REGULADA -->
+  <div class="form-group">
+    <label for="brutoEstimadoReg">Bruto Estimado (kg)</label>
+    <input type="text" name="brutoEstimado" id="brutoEstimadoReg" class="form-control" readonly>
+  </div>
+
+  <div class="form-group">
+    <label for="confirmarBruto">Confirmar Bruto</label>
+    <select name="confirmarBruto" id="confirmarBruto" class="form-control" onchange="toggleBruto()">
+      <option value="SI">Sí</option>
+      <option value="NO">No</option>
+    </select>
+  </div>
+
+  <div class="form-group" id="brutoField" style="display: none;">
+    <label for="bruto">Bruto (kg)</label>
+    <input type="number" name="bruto" id="bruto" class="form-control">
+  </div>
+
+  <input type="hidden" name="code" value="<%= code %>">
+  <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
+
+<!-- Publicamos datosSiembra en el navegador -->
+<script>
+  window.datosSiembra = <%- JSON.stringify(datosSiembra || {}) %>;
+</script>
 
 <script>
-    function toggleForm() {
-        const pesadaPara = document.getElementById('pesadaPara').value;
-        document.getElementById('formTara').style.display = pesadaPara === 'TARA' ? 'block' : 'none';
-        document.getElementById('formRegulada').style.display = pesadaPara === 'REGULADA' ? 'block' : 'none';
-    }
+  function toggleForm() {
+    const pesadaPara = document.getElementById('pesadaPara').value;
+    document.getElementById('formTara').style.display = pesadaPara === 'TARA' ? 'block' : 'none';
+    document.getElementById('formRegulada').style.display = pesadaPara === 'REGULADA' ? 'block' : 'none';
+  }
+  function toggleSocio() {
+    const cargaPara = document.getElementById('cargaPara').value;
+    document.getElementById('socioField').style.display = cargaPara === 'SOCIO' ? 'block' : 'none';
+  }
+  function toggleCargo() {
+    const cargoDe = document.getElementById('cargoDe').value;
+    document.getElementById('silobolsaField').style.display = cargoDe === 'SILOBOLSA' ? 'block' : 'none';
+    document.getElementById('contratistaField').style.display = cargoDe === 'CONTRATISTA' ? 'block' : 'none';
+  }
+  function toggleBruto() {
+    const confirmarBruto = document.getElementById('confirmarBruto').value;
+    document.getElementById('brutoField').style.display = confirmarBruto === 'NO' ? 'block' : 'none';
+  }
 
-    function toggleSocio() {
-        const cargaPara = document.getElementById('cargaPara').value;
-        document.getElementById('socioField').style.display = cargaPara === 'SOCIO' ? 'block' : 'none';
-    }
+  // Referencias
+  const campoSel = document.getElementById('campo');
+  const granoSel = document.getElementById('grano');
+  const loteSel  = document.getElementById('lote');
+  const patentesReg = document.getElementById('patentesRegulada');
 
-    function toggleCargo() {
-        const cargoDe = document.getElementById('cargoDe').value;
-        document.getElementById('silobolsaField').style.display = cargoDe === 'SILOBOLSA' ? 'block' : 'none';
-        document.getElementById('contratistaField').style.display = cargoDe === 'CONTRATISTA' ? 'block' : 'none';
-    }
+  // Llenar GRANO según CAMPO
+  function fillGranos() {
+    const campo = campoSel.value;
+    granoSel.innerHTML = '<option value="">Seleccione un cultivo</option>';
+    loteSel.innerHTML  = '<option value="">Seleccione un lote</option>';
+    granoSel.disabled = true;
+    loteSel.disabled = true;
 
-    function toggleBruto() {
-        const confirmarBruto = document.getElementById('confirmarBruto').value;
-        document.getElementById('brutoField').style.display = confirmarBruto === 'NO' ? 'block' : 'none';
+    const ds = window.datosSiembra || {};
+    if (campo && ds[campo]) {
+      const granos = Object.keys(ds[campo]); // p.ej. ['SOJA','MAIZ','ALGODON']
+      granos.forEach(g => {
+        const op = document.createElement('option');
+        op.value = op.text = g;
+        granoSel.appendChild(op);
+      });
+      granoSel.disabled = false;
     }
+  }
 
-    document.getElementById('campo').addEventListener('change', function() {
-        const campo = this.value;
-        const grano = 'SOJA'; // Fijo por ahora, ajustar con selector si es necesario
-        const loteSelect = document.getElementById('lote');
-        loteSelect.innerHTML = '<option value="">Seleccione un lote</option>';
-        if (campo && window.datosSiembra[campo] && window.datosSiembra[campo][grano]) {
-            window.datosSiembra[campo][grano].forEach(lote => {
-                const option = document.createElement('option');
-                option.value = lote;
-                option.text = lote;
-                loteSelect.appendChild(option);
-            });
-        }
+  // Llenar LOTE según GRANO
+  function fillLotes() {
+    const campo = campoSel.value;
+    const grano = granoSel.value;
+    loteSel.innerHTML = '<option value="">Seleccione un lote</option>';
+    loteSel.disabled = true;
+
+    const ds = window.datosSiembra || {};
+    const lotes = (campo && grano && ds[campo] && ds[campo][grano]) ? ds[campo][grano] : [];
+    lotes.forEach(l => {
+      const op = document.createElement('option');
+      op.value = op.text = l;
+      loteSel.appendChild(op);
     });
+    if (lotes.length) loteSel.disabled = false;
+  }
 
-    document.getElementById('patentesRegulada').addEventListener('change', function() {
-        const selected = this.options[this.selectedIndex];
-        document.getElementById('brutoEstimado').value = selected.text.match(/Bruto: (\d+)/) ? selected.text.match(/Bruto: (\d+)/)[1] : '';
+  // Completar BRUTO ESTIMADO (REGULADA) cuando elegís una patente del día
+  if (patentesReg) {
+    patentesReg.addEventListener('change', function () {
+      const txt = this.options[this.selectedIndex]?.text || '';
+      const m = txt.match(/Bruto:\s*([\d.]+)/);
+      document.getElementById('brutoEstimadoReg').value = m ? m[1] : '';
     });
+  }
+
+  // Eventos
+  campoSel.addEventListener('change', fillGranos);
+  granoSel.addEventListener('change', fillLotes);
+
+  // Estado inicial
+  toggleForm(); toggleSocio(); toggleCargo(); toggleBruto();
+  fillGranos(); // prepara grano/lote según el campo (si ya hay alguno seleccionado)
 </script>
 
 <%- include('partials/footer') %>
