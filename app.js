@@ -296,47 +296,42 @@ const calculateNextIdTicket = async () => {
         const registros = await mongoose.connection.db.collection('registros').find().toArray();
         const idTickets = registros.map(r => r.idTicket).filter(id => typeof id === 'number');
         return idTickets.length > 0 ? Math.max(...idTickets) + 1 : 1;
-    } catch (err) {
-        console.error('Error al calcular idTicket:', err);
-        throw err;
-    }
 };
 
 app.get('/', (req, res) => {
     const error = req.query.error || '';
-    const redirect = req.query.redirect || '/tabla?code=12341';
+    const redirect = req.query.redirect || '/tabla';
     res.render('index', { error, redirect });
 });
 
-app.post('/', (req, res) => {
-    const code = req.body.code;
-    const redirect = req.body.redirect || '/tabla'; // Por defecto a tabla si no hay redirect
-    const isRegistro = redirect.includes('/registro');
-    const isTabla = redirect.includes('/tabla');
-
-    let validCodes = [];
-    if (isRegistro) {
-        validCodes = codigosIngreso;
-    } else if (isTabla) {
-        validCodes = codigosObservacion;
-    }
-
-    if (validCodes.includes(code)) {
-        // Redirigir con el code agregado
-        res.redirect(redirect + '?code=' + code);
-    } else {
-        // Redirigir con error si el código no es válido
-        res.redirect('/?error=Código incorrecto&redirect=' + redirect);
-    }
+app.get('/login/registro', (req, res) => {
+    res.render('index', { error: '', redirect: '/registro' });
 });
+app.get('/login/tabla', (req, res) => {
+    res.render('index', { error: '', redirect: '/tabla' });
+});
+
+app.post('/', (req, res) => {
+    const code = (req.body.code || '').trim();
+    const redirect = (req.body.redirect || '/tabla').trim();
+
+    const isRegistro    = codigosIngreso.includes(code);
+    const isObservacion = codigosObservacion.includes(code);
+
+    if (!isIngreso && !isObservacion) {
+        return res.redirect('/?error=Código incorrecto&redirect=' + encodeURIComponent(redirect));
+    }
+
+    const destino = isIngreso ? '/registro' : '/tabla';
+    return res.redirect(destino + '?code=' + encodeURIComponent(code));
+});        
 
 app.get('/tabla', (req, res, next) => {
     const code = req.query.code || req.body.code;
     if (codigosObservacion.includes(code)) {
-        req.observacionCode = code;
-        next();
+        req.observacionCode = code; next();
     } else {
-        res.redirect('/?error=Código incorrecto&redirect=/tabla');
+      res.redirect('/?error=Código incorrecto&redirect=/tabla');
     }
 }, async (req, res) => {
     try {
@@ -390,30 +385,7 @@ app.get('/export', (req, res, next) => {
             { header: 'Neto', key: 'neto', width: 15 },
             { header: 'Anulado', key: 'anulado', width: 10 }
         ];
-        registros.forEach(registro => {
-            worksheet.addRow({
-                idTicket: registro.idTicket,
-                fecha: registro.fecha,
-                usuario: registro.usuario,
-                cargaPara: registro.cargaPara,
-                socio: registro.socio,
-                pesadaPara: registro.pesadaPara,
-                transporte: registro.transporte,
-                patentes: registro.patentes,
-                chofer: registro.chofer,
-                brutoEstimado: registro.brutoEstimado,
-                tara: registro.tara,
-                netoEstimado: registro.netoEstimado,
-                campo: registro.campo,
-                lote: registro.lote,
-                cargoDe: registro.cargoDe,
-                silobolsa: registro.silobolsa,
-                contratista: registro.contratista,
-                bruto: registro.bruto,
-                neto: registro.neto,
-                anulado: registro.anulado
-            });
-        });
+        registros.forEach(registro => worksheet.addRow(registro));
         res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.attachment('registros.xlsx');
         await workbook.xlsx.write(res);
@@ -426,8 +398,7 @@ app.get('/export', (req, res, next) => {
 app.get('/registro', (req, res, next) => {
     const code = req.query.code || req.body.code;
     if (codigosIngreso.includes(code)) {
-        req.ingresoCode = code;
-        next();
+        req.ingresoCode = code; next();
     } else {
         res.redirect('/?error=Código incorrecto&redirect=/registro');
     }
@@ -439,7 +410,7 @@ app.get('/registro', (req, res, next) => {
             .sort({ idTicket: -1 })
             .limit(1)
             .toArray();
-        const ultimoUsuario = ultimoRegistro.length > 0 ? ultimoRegistro[0].usuario : '';
+        const ultimoUsuario = ultimoRegistro.length ? ultimoRegistro[0].usuario : '';
         res.render('registro', {
             code: req.ingresoCode,
             newIdTicket,
@@ -458,12 +429,7 @@ app.post('/confirmar-tara', (req, res) => {
     const brutoEstimado = parseFloat(req.body.brutoEstimado);
     const tara = parseFloat(req.body.tara);
     const netoEstimado = brutoEstimado - tara;
-    res.render('confirmar-tara', {
-        formData: req.body,
-        brutoEstimado,
-        tara,
-        netoEstimado
-    });
+    res.render('confirmar-tara', { formData: req.body, brutoEstimado, tara, netoEstimado });
 });
 
 app.post('/guardar-tara', async (req, res) => {
@@ -496,41 +462,46 @@ app.post('/guardar-tara', async (req, res) => {
 });
 
 app.post('/confirmar-regulada', (req, res) => {
-    const bruto = req.body.confirmarBruto === 'SI' ? parseFloat(req.body.brutoEstimado) : parseFloat(req.body.bruto);
+    const bruto = req.body.confirmarBruto === 'SI'
+      ? parseFloat(req.body.brutoEstimado)
+      : parseFloat(req.body.bruto || 0);
     res.render('confirmar-regulada', {
-        formData: req.body,
-        bruto,
-        neto: bruto - parseFloat(req.body.tara || 0)
+      formData: req.body,
+      bruto,
+      neto: bruto - parseFloat(req.body.tara || 0)
     });
 });
 
 app.post('/guardar-regulada', async (req, res) => {
     try {
-        const newIdTicket = await calculateNextIdTicket();
-        const bruto = req.body.confirmarBruto === 'SI' ? parseFloat(req.body.brutoEstimado) : parseFloat(req.body.bruto);
-        const registro = {
-            idTicket: newIdTicket,
-            fecha: new Date().toISOString().split('T')[0],
-            usuario: req.body.usuario,
-            cargaPara: req.body.cargaPara,
-            socio: req.body.socio || '',
-            pesadaPara: 'REGULADA',
-            patentes: req.body.patentes,
-            campo: req.body.campo,
-            lote: req.body.lote,
-            cargoDe: req.body.cargoDe,
-            silobolsa: req.body.cargoDe === 'SILOBOLSA' ? req.body.silobolsa : '',
-            contratista: req.body.cargoDe === 'CONTRATISTA' ? req.body.contratista : '',
-            bruto: bruto,
-            tara: parseFloat(req.body.tara || 0),
-            neto: bruto - parseFloat(req.body.tara || 0),
-            anulado: false,
-            modificaciones: 0,
-            codigoIngreso: req.body.code
-        };
-        await mongoose.connection.db.collection('registros').insertOne(registro);
-        const codigoObservacion = ingresoAObservacion[req.body.code];
-        res.redirect(`/tabla?code=${codigoObservacion}`);
+    const newIdTicket = await calculateNextIdTicket();
+    const bruto = req.body.confirmarBruto === 'SI'
+      ? parseFloat(req.body.brutoEstimado)
+      : parseFloat(req.body.bruto);
+      const registro = {
+        idTicket: newIdTicket,
+        fecha: new Date().toISOString().split('T')[0],
+        usuario: req.body.usuario,
+        cargaPara: req.body.cargaPara,
+        socio: req.body.socio || '',
+        pesadaPara: 'REGULADA',
+        patentes: req.body.patentes,
+        campo: req.body.campo,
+        grano: req.body.grano,
+        lote: req.body.lote,
+        cargoDe: req.body.cargoDe,
+        silobolsa: req.body.cargoDe === 'SILOBOLSA' ? req.body.silobolsa : '',
+        contratista: req.body.cargoDe === 'CONTRATISTA' ? req.body.contratista : '',
+        bruto,
+        tara: parseFloat(req.body.tara || 0),
+        neto: bruto - parseFloat(req.body.tara || 0),
+        anulado: false,
+        modificaciones: 0,
+        codigoIngreso: req.body.code
+    };
+    await mongoose.connection.db.collection('registros').insertOne(registro);
+    const codigoObservacion = ingresoAObservacion[req.body.code];
+    res.redirect(`/tabla?code=${codigoObservacion}`);
     } catch (err) {
         res.status(500).send('Internal Server Error: ' + err.message);
     }
@@ -538,17 +509,14 @@ app.post('/guardar-regulada', async (req, res) => {
 
 app.get('/modificar/:id', (req, res, next) => {
     const code = req.query.code || req.body.code || req.query.observacionCode;
-    if (code === '9999') {
-        next();
-    } else {
-        res.redirect('/?error=Código incorrecto');
-    }
+    if (code === '9999') { next(); } else { res.redirect('/?error=Código incorrecto'); }
 }, async (req, res) => {
     try {
         const registro = await mongoose.connection.db.collection('registros').findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
         if (!registro) return res.render('error', { error: 'Registro no encontrado' });
         if (registro.anulado) return res.render('error', { error: 'Registro anulado' });
         if (registro.modificaciones >= 2) return res.render('error', { error: 'Límite de modificaciones alcanzado' });
+        
         res.render('modificar', { registro, campos, datosSiembra });
     } catch (err) {
         res.status(500).send('Internal Server Error: ' + err.message);
@@ -557,11 +525,7 @@ app.get('/modificar/:id', (req, res, next) => {
 
 app.put('/modificar/:id', (req, res, next) => {
     const code = req.query.code || req.body.code || req.query.observacionCode;
-    if (code === '9999') {
-        next();
-    } else {
-        res.redirect('/?error=Código incorrecto');
-    }
+    if (code === '9999') { next(); } else { res.redirect('/?error=Código incorrecto'); }
 }, async (req, res) => {
     try {
         const registro = await mongoose.connection.db.collection('registros').findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
@@ -583,6 +547,7 @@ app.put('/modificar/:id', (req, res, next) => {
             tara: parseFloat(req.body.tara),
             netoEstimado: parseFloat(req.body.brutoEstimado) - parseFloat(req.body.tara),
             campo: req.body.campo,
+            grano: req.body.grano || registro.grano,
             lote: req.body.lote,
             cargoDe: req.body.cargoDe,
             silobolsa: req.body.silobolsa || '',
@@ -605,12 +570,8 @@ app.put('/modificar/:id', (req, res, next) => {
 
 app.put('/anular/:id', (req, res, next) => {
     const code = req.query.code || req.body.code;
-    if (codigosObservacion.includes(code)) {
-        req.observacionCode = code;
-        next();
-    } else {
-        res.redirect('/?error=Código incorrecto');
-    }
+    if (codigosObservacion.includes(code)) { req.observacionCode = code; next(); }
+    else { res.redirect('/?error=Código incorrecto'); }
 }, async (req, res) => {
     try {
         await mongoose.connection.db.collection('registros').updateOne(
