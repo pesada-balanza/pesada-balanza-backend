@@ -79,11 +79,13 @@
 <!-- ====== FORMULARIO REGULADA ====== -->
 <form action="/confirmar-regulada" method="post" id="formRegulada" style="display: <%= pesadaPara === 'REGULADA' ? 'block' : 'none' %>">
   <div class="form-group">
-    <label for="patentesRegulada">Patentes (del día)</label>
+    <label for="patentesRegulada">Patentes (pendientes: hoy + ayer)</label>
     <select name="patentes" id="patentesRegulada" class="form-control" required>
       <option value="">Seleccione</option>
-      <% (registrosDelDia || []).forEach(reg => { %>
-        <option value="<%= reg.patentes %>"><%= reg.patentes %> (Bruto: <%= reg.brutoEstimado %>)</option>
+      <% (pendientesTara || []).forEach(reg => { %>
+        <option value="<%= reg.patentes %>"> data-bruto="<%= reg.brutoEstimado %>">
+          <%= reg.patentes %> (Bruto: <%= reg.brutoEstimado %>)
+        </option>
       <% }); %>
     </select>
   </div>
@@ -158,10 +160,7 @@
 <!-- Publicamos datosSiembra para el script -->
 <script>
   window.datosSiembra = <%- JSON.stringify(datosSiembra || {}) %>;
-</script>
-
-<!-- ====== Lógica de UI ====== -->
-<script>
+  
   function toggleForm() {
     const pesadaPara = document.getElementById('pesadaPara').value;
     document.getElementById('formTara').style.display = pesadaPara === 'TARA' ? 'block' : 'none';
@@ -220,15 +219,12 @@
     if (lotes.length) loteSel.disabled = false;
   }
 
-  // Completar Bruto Estimado de REGULADA al elegir una patente del día
-  if (patentesReg) {
-    patentesReg.addEventListener('change', function () {
-      const txt = this.options[this.selectedIndex]?.text || '';
-      const m = txt.match(/Bruto:\s*([\d.]+)/);
-      document.getElementById('brutoEstimadoReg').value = m ? m[1] : '';
+  // Completar Bruto Estimado usando el atributo data-bruto
+  patSel.addEventListener('change', function () {
+      const bruto = this.options[this.selectedIndex]?.getAttribute('data-bruto') || '';
+      document.getElementById('brutoEstimadoReg').value = bruto;
     });
-  }
-
+  
   // Eventos
   campoSel.addEventListener('change', fillGranos);
   granoSel.addEventListener('change', fillLotes);

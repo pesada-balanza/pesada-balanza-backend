@@ -288,8 +288,40 @@ const datosSiembra = {
     }
 };
 
-// Variable para rastrear registros del día
-let registrosDelDia = [];
+// Formato YYYY-MM-DD
+const ymd = (d) => d.toISOString().split('T')[0];
+
+// Buscar TARA pendientes de hoy y ayer (no anuladas, no confirmadas)
+async function obtenerTaraPendientesHoyYAyer() {
+    const hoy = new Date();
+    const ayer = new Date();
+    ayer.setDate(hoy.getDate() - 1);
+    const hoyStr = ymd(hoy);
+    const ayerStr = ymd(ayer);
+
+const col = mongoose.connection.db.collection('registros');
+
+// Traemos TARA de hoy y ayer sin confirmar
+const raw = await col
+  .find({
+    pesadaPara: 'TARA',
+    fecha: { $in: [hoyStr, ayerStr] },
+    anulado: { $ne: true },
+    confirmada: { $ne: true },
+})
+  .sort({ idTicket: -1 })
+  .toArray();
+
+// Deduplicamos por patente quedándonos con la más reciente
+const vistos = new Set();
+const result = [];
+for (const r of raw) {
+    if (!vistos.has(r.patentes)) continue;
+    vistos.add(r.patentes);
+    result.push({ patentes: r.patentes, brutoEstimado: r.brutoEstimado });
+}
+return result;
+}
 
 app.use((req, res, next) => {
     if (mongoose.connection.readyState !== 1) {
@@ -368,16 +400,15 @@ app.get('/export', (req, res, next) => {
     return res.redirect('/?error=Código incorrecto');
 },
 async (req, res) => {
-    { header: 'Tara', key: 'tara', width: 10 },
     try {
         let registros = await mongoose.connection.db.collection('registros').find().toArray();
         if (req.observacionCode !== '12341') {
             const codigoIngreso = Object.keys(ingresoAObservacion).find(key => ingresoAObservacion[key] === req.observacionCode);
-            registros = registros.filter(r => r.codigoIngreso === codigoIngreso);
+            registros = registros.filter((r) => r.codigoIngreso === codigoIngreso);
         }
+
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Registros');
-        { header: 'Pesada Para', key: 'pesadaPara', width: 15 },
         worksheet.columns = [
             { header: 'ID Ticket', key: 'idTicket', width: 10 },
             { header: 'Fecha', key: 'fecha', width: 15 },
@@ -392,14 +423,16 @@ async (req, res) => {
             { header: 'Tara', key: 'tara', width: 10 },
             { header: 'Neto Estimado', key: 'netoEstimado', width: 15 },
             { header: 'Campo', key: 'campo', width: 15 },
-            { header: 'Grano', key: 'grano', width: 15 },
+            { header: 'Grano', key: 'grano', width: 12 },
             { header: 'Lote', key: 'lote', width: 15 },
             { header: 'Cargo De', key: 'cargoDe', width: 15 },
             { header: 'Silobolsa', key: 'silobolsa', width: 15 },
             { header: 'Contratista', key: 'contratista', width: 15 },
             { header: 'Bruto', key: 'bruto', width: 15 },
+            { header: 'Tara', key: 'tara', width: 12 },
             { header: 'Neto', key: 'neto', width: 15 },
             { header: 'Anulado', key: 'anulado', width: 10 }
+            { header: 'Confirmada TARA', key: 'confirmada', width: 14 },
         ];
         registros.forEach(registro => worksheet.addRow(registro));
 
@@ -424,6 +457,7 @@ app.get('/registro', (req, res, next) => {
     async (req, res) => {
     try {
         const newIdTicket = await calculateNextIdTicket();
+        // Usuario previo
         const ultimoRegistro = await mongoose.connection.db
             .collection('registros')
             .find()
@@ -437,8 +471,8 @@ app.get('/registro', (req, res, next) => {
             newIdTicket,
             ultimoUsuario,
             campos,
-            registrosDelDia,
             datosSiembra,
+            pendientesTAra,    // << NUEVO para la vista
             pesadaPara: 'TARA' // Valor por defecto para mostrar el formulario TARA inicialmente
         });
     } catch (err) {
@@ -463,7 +497,7 @@ app.post('/guardar-tara', async (req, res) => {
         const newIdTicket = await calculateNextIdTicket();
         const registro = {
             idTicket: newIdTicket,
-            fecha: new Date().toISOString().split('T')[0],
+            fecha: ymd(new Date()),
             usuario: req.body.usuario,
             cargaPara: req.body.cargaPara,
             socio: req.body.socio || '',
@@ -476,11 +510,10 @@ app.post('/guardar-tara', async (req, res) => {
             netoEstimado: parseFloat(req.body.brutoEstimado || 0) - parseFloat(req.body.tara || 0),
             anulado: false,
             modificaciones: 0,
+            confirmada: false,
             codigoIngreso: req.body.code
         };
         await mongoose.connection.db.collection('registros').insertOne(registro);
-        
-        registrosDelDia.push({ patentes: req.body.patentes, brutoEstimado: req.body.brutoEstimado });
         
         const codigoObservacion = ingresoAObservacion[req.body.code];
         return res.redirect(`/tabla?code=${codigoObservacion}`);
@@ -510,7 +543,7 @@ app.post('/guardar-regulada', async (req, res) => {
     
     const registro = {
         idTicket: newIdTicket,
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: ymd(new Date()),
         usuario: req.body.usuario,
         cargaPara: req.body.cargaPara,
         socio: req.body.socio || '',
@@ -530,8 +563,29 @@ app.post('/guardar-regulada', async (req, res) => {
         codigoIngreso: req.body.code
     };
 
-    await mongoose.connection.db.collection('registros').insertOne(registro);
-    
+    const col = mongoose.connection.db.collection('registros');
+
+    // 1) Insertamos REGULADA
+    await col.insertOne(registro);
+
+    // 2) Marcamos TARA más reciente de esa patente como confirmada
+    await col.findOneAndUpdate(
+        {
+            pesadaPara: 'TARA',
+            patentes: req.body.patentes,
+            anulado: { $ne: true },
+            confirmada: { $ne: true }
+        },
+        { 
+            $set: {
+                confirmada: true,
+                idRegulada: newIdTicket,
+                fechaRegulada: ymd(new Date()),
+            },
+        },
+        { sort: { idTicket: -1 } }
+    );
+     
     const codigoObservacion = ingresoAObservacion[req.body.code];
     return res.redirect(`/tabla?code=${codigoObservacion}`);
     } catch (err) {
@@ -601,13 +655,12 @@ async (req, res) => {
 
         await mongoose.connection.db
           .collection('registros')
-          .updateOne(
-            { _id: new mongoose.Types.ObjectId(req.params.id) }, { $set: updateData });
+          .updateOne({ _id: new mongoose.Types.ObjectId(req.params.id) }, { $set: updateData });
             
         const codigoObservacion = ingresoAObservacion[registro.codigoIngreso] || '12341';
-        res.redirect(`/tabla?code=${codigoObservacion}`);
+        return res.redirect(`/tabla?code=${codigoObservacion}`);
     } catch (err) {
-        res.status(500).send('Internal Server Error: ' + err.message);
+        return res.status(500).send('Internal Server Error: ' + err.message);
     }
 }
 );
@@ -628,7 +681,8 @@ async (req, res) => {
             { _id: new mongoose.Types.ObjectId(req.params.id) },
             { $set: { tara: 0, bruto: 0, neto: 0, anulado: true } }
         );
-        res.redirect(`/tabla?code=${req.observacionCode}`);
+        
+        return res.redirect(`/tabla?code=${req.observacionCode}`);
     } catch (err) {
         return res.status(500).send('Internal Server Error: ' + err.message);
     }
