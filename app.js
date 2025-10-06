@@ -402,6 +402,7 @@ app.get('/export', (req, res, next) => {
 async (req, res) => {
     try {
         let registros = await mongoose.connection.db.collection('registros').find().toArray();
+        
         if (req.observacionCode !== '12341') {
             const codigoIngreso = Object.keys(ingresoAObservacion).find(key => ingresoAObservacion[key] === req.observacionCode);
             registros = registros.filter((r) => r.codigoIngreso === codigoIngreso);
@@ -419,19 +420,18 @@ async (req, res) => {
             { header: 'Transporte', key: 'transporte', width: 15 },
             { header: 'Patentes', key: 'patentes', width: 15 },
             { header: 'Chofer', key: 'chofer', width: 15 },
-            { header: 'Bruto Estimado', key: 'brutoEstimado', width: 15 },
+            { header: 'Bruto Estimado', key: 'brutoEstimado', width: 16 },
             { header: 'Tara', key: 'tara', width: 10 },
-            { header: 'Neto Estimado', key: 'netoEstimado', width: 15 },
-            { header: 'Campo', key: 'campo', width: 15 },
+            { header: 'Neto Estimado', key: 'netoEstimado', width: 16 },
+            { header: 'Campo', key: 'campo', width: 18 },
             { header: 'Grano', key: 'grano', width: 12 },
-            { header: 'Lote', key: 'lote', width: 15 },
+            { header: 'Lote', key: 'lote', width: 18 },
             { header: 'Cargo De', key: 'cargoDe', width: 15 },
             { header: 'Silobolsa', key: 'silobolsa', width: 15 },
             { header: 'Contratista', key: 'contratista', width: 15 },
             { header: 'Bruto', key: 'bruto', width: 15 },
-            { header: 'Tara', key: 'tara', width: 12 },
             { header: 'Neto', key: 'neto', width: 15 },
-            { header: 'Anulado', key: 'anulado', width: 10 }
+            { header: 'Anulado', key: 'anulado', width: 10 },
             { header: 'Confirmada TARA', key: 'confirmada', width: 14 },
         ];
         registros.forEach(registro => worksheet.addRow(registro));
