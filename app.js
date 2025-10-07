@@ -8,9 +8,9 @@ const path = require('path');
 
 const app = express();
 
-// ---------------------------------------------
-// MONGODB
-// ---------------------------------------------
+/* ---------------------------------------------
+ * MONGODB
+ * -------------------------------------------*/
 mongoose.set('strictQuery', true);
 const MONGODB_URI =
   process.env.MONGODB_URI ||
@@ -24,9 +24,9 @@ mongoose
     process.exit(1);
   });
 
-// ---------------------------------------------
-// MIDDLEWARE
-// ---------------------------------------------
+/* ---------------------------------------------
+ * MIDDLEWARE
+ * -------------------------------------------*/
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride('_method'));
@@ -36,9 +36,9 @@ app.use(expressLayouts);
 app.set('view engine', 'ejs');
 app.set('layout', 'layouts/main');
 
-// ---------------------------------------------
-// CÓDIGOS
-// ---------------------------------------------
+/* ---------------------------------------------
+ * CÓDIGOS
+ * -------------------------------------------*/
 const codigosIngreso = ['56781', '5679', '5680', '5681', '5682', '5683', '5684', '5685'];
 const codigosObservacion = ['12341', '1235', '1236', '1237', '1238', '1239', '1240', '1241'];
 const ingresoAObservacion = {
@@ -52,9 +52,9 @@ const ingresoAObservacion = {
   '5685': '1241',
 };
 
-// ---------------------------------------------
-// DATOS: campos y datosSiembra (TAL CUAL LOS TENÍAS)
-// ---------------------------------------------
+/* ---------------------------------------------
+ * DATOS (campos y datosSiembra)
+ * -------------------------------------------*/
 const campos = [
   "El C 1 Ciriaci - TINTINA - SE","Gioda - SAN FRANCISCO - SE","Grifa - Zunesma - TINTINA - SE",
   "La Chuchi - Avelleira y Cesar","Cejolao - CEJOLAO - SE","Bandera - AVERIAS - SE",
@@ -115,12 +115,12 @@ const datosSiembra = {
   "Los Molinos - Tostado": { "ALGODON": [ "Lote 1","Lote 2","Lote 3","Lote 4" ] }
 };
 
-// ---------------------------------------------
-// UTILIDADES
-// ---------------------------------------------
+/* ---------------------------------------------
+ * UTILIDADES
+ * -------------------------------------------*/
 const ymd = (d) => d.toISOString().split('T')[0];
 
-// TARA pendientes hoy y ayer (no anuladas, no confirmadas)
+// TARA pendientes hoy y ayer (no anuladas, no confirmadas).
 async function obtenerTaraPendientesHoyYAyer() {
   const hoy = new Date();
   const ayer = new Date();
@@ -139,20 +139,24 @@ async function obtenerTaraPendientesHoyYAyer() {
     .sort({ idTicket: -1 })
     .toArray();
 
-  // Deduplicación por patente (me quedo con la más reciente)
+  // Deduplicar por patente (quedarse con la más reciente)
   const vistos = new Set();
   const result = [];
   for (const r of raw) {
-    if (vistos.has(r.patentes)) continue; // <-- este era el bug (antes estaba invertido)
+    if (vistos.has(r.patentes)) continue;
     vistos.add(r.patentes);
-    result.push({ patentes: r.patentes, brutoEstimado: r.brutoEstimado });
+    result.push({
+      patentes: r.patentes,
+      brutoEstimado: r.brutoEstimado ?? 0,
+      tara: r.tara ?? 0,
+    });
   }
   return result;
 }
 
-// Comprobación de conexión Mongo: permite "connected (1)" y "connecting (2)"
+// Permitir estados "connected (1)" y "connecting (2)".
 app.use((req, res, next) => {
-  const state = mongoose.connection.readyState; // 0=disconnected,1=connected,2=connecting,3=disconnecting
+  const state = mongoose.connection.readyState; // 0=disc,1=conn,2=connecting,3=disconnecting
   if (state === 0 || state === 3) {
     console.error('Conexión a MongoDB no activa. Estado:', state);
     return res.status(500).send('Internal Server Error: No se pudo conectar a MongoDB');
@@ -160,16 +164,20 @@ app.use((req, res, next) => {
   return next();
 });
 
-// idTicket siguiente (O(1))
+// idTicket siguiente (buscando el último)
 const calculateNextIdTicket = async () => {
   const col = mongoose.connection.db.collection('registros');
-  const ultimo = await col.find({}, { projection: { idTicket: 1 } }).sort({ idTicket: -1 }).limit(1).toArray();
+  const ultimo = await col
+    .find({}, { projection: { idTicket: 1 } })
+    .sort({ idTicket: -1 })
+    .limit(1)
+    .toArray();
   return ultimo.length ? (parseInt(ultimo[0].idTicket, 10) + 1) : 1;
 };
 
-// ---------------------------------------------
-// RUTAS
-// ---------------------------------------------
+/* ---------------------------------------------
+ * RUTAS
+ * -------------------------------------------*/
 app.get('/', (req, res) => {
   const error = req.query.error || '';
   const redirect = req.query.redirect || '/tabla';
@@ -183,7 +191,7 @@ app.get('/login/tabla', (req, res) => {
   res.render('index', { error: '', redirect: '/tabla' });
 });
 
-// FIX: login (antes usaba isIngreso que no existía)
+// Login
 app.post('/', (req, res) => {
   try {
     const code = String(req.body.code || '').trim();
@@ -193,10 +201,13 @@ app.post('/', (req, res) => {
     const esObservacion = codigosObservacion.includes(code);
 
     if (!esIngreso && !esObservacion) {
-      return res.redirect('/?error=Código incorrecto&redirect=' + encodeURIComponent(redirect || '/tabla'));
+      return res.redirect(
+        '/?error=Código incorrecto&redirect=' + encodeURIComponent(redirect || '/tabla')
+      );
     }
 
-    const redirectValido = (r) => typeof r === 'string' && (r.includes('/registro') || r.includes('/tabla'));
+    const redirectValido = (r) =>
+      typeof r === 'string' && (r.includes('/registro') || r.includes('/tabla'));
     const destino = redirectValido(redirect) ? redirect : (esIngreso ? '/registro' : '/tabla');
 
     return res.redirect(destino + '?code=' + encodeURIComponent(code));
@@ -219,12 +230,15 @@ app.get(
   async (req, res) => {
     try {
       let registros = await mongoose.connection.db.collection('registros').find().toArray();
+
+      // Filtrar si no es el master (12341)
       if (req.observacionCode !== '12341') {
         const codigoIngreso = Object.keys(ingresoAObservacion).find(
           (key) => ingresoAObservacion[key] === req.observacionCode
         );
         registros = registros.filter((r) => r.codigoIngreso === codigoIngreso);
       }
+
       return res.render('tabla', { registros, observacionCode: req.observacionCode });
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
@@ -317,7 +331,7 @@ app.get(
         .toArray();
       const ultimoUsuario = ultimoRegistro.length ? ultimoRegistro[0].usuario : '';
 
-      // TARA pendientes hoy/ayer para el combo de REGULADA
+      // TARA pendientes hoy/ayer para REGULADA
       const pendientesTara = await obtenerTaraPendientesHoyYAyer();
 
       return res.render('registro', {
@@ -326,8 +340,8 @@ app.get(
         ultimoUsuario,
         campos,
         datosSiembra,
-        pendientesTara,       // <-- nombre correcto
-        pesadaPara: 'TARA',   // mostrar TARA por defecto
+        pendientesTara,
+        pesadaPara: 'TARA', // mostrar TARA por defecto
       });
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
@@ -335,6 +349,7 @@ app.get(
   }
 );
 
+// Confirmar TARA
 app.post('/confirmar-tara', (req, res) => {
   const brutoEstimado = parseFloat(req.body.brutoEstimado || 0);
   const tara = parseFloat(req.body.tara || 0);
@@ -347,6 +362,7 @@ app.post('/confirmar-tara', (req, res) => {
   });
 });
 
+// Guardar TARA
 app.post('/guardar-tara', async (req, res) => {
   try {
     const newIdTicket = await calculateNextIdTicket();
@@ -366,7 +382,7 @@ app.post('/guardar-tara', async (req, res) => {
         parseFloat(req.body.brutoEstimado || 0) - parseFloat(req.body.tara || 0),
       anulado: false,
       modificaciones: 0,
-      confirmada: false, // marcar como pendiente
+      confirmada: false, // pendiente hasta REGULADA
       codigoIngreso: req.body.code,
     };
     await mongoose.connection.db.collection('registros').insertOne(registro);
@@ -378,18 +394,21 @@ app.post('/guardar-tara', async (req, res) => {
   }
 });
 
+// Confirmar REGULADA (previsualización)
 app.post('/confirmar-regulada', (req, res) => {
   const bruto =
     req.body.confirmarBruto === 'SI'
-      ? parseFloat(req.body.brutoEstimado || 0) // <-- typo corregido
+      ? parseFloat(req.body.brutoEstimado || 0) // typo corregido
       : parseFloat(req.body.bruto || 0);
-  return res.render('confirmar-regulada', {
+
+  res.render('confirmar-regulada', {
     formData: req.body,
     bruto,
     neto: bruto - parseFloat(req.body.tara || 0),
   });
 });
 
+// Guardar REGULADA
 app.post('/guardar-regulada', async (req, res) => {
   try {
     const newIdTicket = await calculateNextIdTicket();
@@ -422,10 +441,10 @@ app.post('/guardar-regulada', async (req, res) => {
 
     const col = mongoose.connection.db.collection('registros');
 
-    // 1) Insertamos REGULADA
+    // 1) Insertar REGULADA
     await col.insertOne(registro);
 
-    // 2) Marcamos la TARA más reciente de esa patente como confirmada
+    // 2) Marcar TARA más reciente de esa patente como confirmada
     await col.findOneAndUpdate(
       {
         pesadaPara: 'TARA',
@@ -450,6 +469,7 @@ app.post('/guardar-regulada', async (req, res) => {
   }
 });
 
+// Modificar (GET)
 app.get(
   '/modificar/:id',
   (req, res, next) => {
@@ -475,6 +495,7 @@ app.get(
   }
 );
 
+// Modificar (PUT)
 app.put(
   '/modificar/:id',
   (req, res, next) => {
@@ -515,7 +536,7 @@ app.put(
         contratista: req.body.contratista || '',
         bruto: parseFloat(req.body.bruto || 0),
         neto: parseFloat(req.body.bruto || 0) - parseFloat(req.body.tara || 0),
-        modificaciones: registro.modificaciones + 1,
+        modificaciones: (registro.modificaciones || 0) + 1,
       };
 
       await mongoose.connection.db
@@ -530,6 +551,7 @@ app.put(
   }
 );
 
+// Anular (PUT)
 app.put(
   '/anular/:id',
   (req, res, next) => {
@@ -556,7 +578,9 @@ app.put(
   }
 );
 
-// ---------------------------------------------
+/* ---------------------------------------------
+ * SERVER
+ * -------------------------------------------*/
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor corriendo en http://0.0.0.0:${PORT}`);
