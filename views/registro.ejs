@@ -36,8 +36,8 @@
     <label for="pesadaPara">Pesada para</label>
     <select name="pesadaPara" id="pesadaPara" class="form-control" required onchange="toggleForm()">
       <option value="">Seleccione</option>
-      <option value="TARA" <%= pesadaPara==='TARA' ? 'selected' : '' %> >TARA</option>
-      <option value="REGULADA" <%= pesadaPara==='REGULADA' ? 'selected' : '' %> >REGULADA</option>
+      <option value="TARA" <%= pesadaPara==='TARA' ? 'selected' : '' %>>TARA</option>
+      <option value="REGULADA" <%= pesadaPara==='REGULADA' ? 'selected' : '' %>>REGULADA</option>
     </select>
   </div>
 
@@ -83,11 +83,15 @@
     <select name="patentes" id="patentesRegulada" class="form-control" required>
       <option value="">Seleccione</option>
       <% (pendientesTara || []).forEach(reg => { %>
-        <option value="<%= reg.patentes %>"> data-bruto="<%= reg.brutoEstimado %>">
+        <!-- data-bruto es CLAVE para completar el bruto -->
+        <option value="<%= reg.patentes %>" data-bruto="<%= reg.brutoEstimado %>">
           <%= reg.patentes %> (Bruto: <%= reg.brutoEstimado %>)
         </option>
       <% }); %>
     </select>
+    <% if (!(pendientesTara && pendientesTara.length)) { %>
+      <small class="text-muted">No hay TARA pendientes de hoy/ayer.</small>
+    <% } %>
   </div>
 
   <div class="form-group">
@@ -159,8 +163,8 @@
 
 <!-- Publicamos datosSiembra para el script -->
 <script>
-  window.datosSiembra = <%- JSON.stringify(datosSiembra || {}) %>;
-  
+  window.datosSiembra = <%- JSON.stringify(datosSiembra) %>;
+
   function toggleForm() {
     const pesadaPara = document.getElementById('pesadaPara').value;
     document.getElementById('formTara').style.display = pesadaPara === 'TARA' ? 'block' : 'none';
@@ -180,9 +184,9 @@
     document.getElementById('brutoField').style.display = confirmarBruto === 'NO' ? 'block' : 'none';
   }
 
-  const campoSel = document.getElementById('campo');
-  const granoSel = document.getElementById('grano');
-  const loteSel  = document.getElementById('lote');
+  const campoSel    = document.getElementById('campo');
+  const granoSel    = document.getElementById('grano');
+  const loteSel     = document.getElementById('lote');
   const patentesReg = document.getElementById('patentesRegulada');
 
   function fillGranos() {
@@ -190,7 +194,7 @@
     granoSel.innerHTML = '<option value="">Seleccione un cultivo</option>';
     loteSel.innerHTML  = '<option value="">Seleccione un lote</option>';
     granoSel.disabled = true;
-    loteSel.disabled = true;
+    loteSel.disabled  = true;
 
     const ds = window.datosSiembra || {};
     if (campo && ds[campo]) {
@@ -219,12 +223,12 @@
     if (lotes.length) loteSel.disabled = false;
   }
 
-  // Completar Bruto Estimado usando el atributo data-bruto
-  patSel.addEventListener('change', function () {
-      const bruto = this.options[this.selectedIndex]?.getAttribute('data-bruto') || '';
-      document.getElementById('brutoEstimadoReg').value = bruto;
-    });
-  
+  // Completar Bruto Estimado con el data-bruto seleccionado
+  patentesReg.addEventListener('change', function () {
+    const bruto = this.options[this.selectedIndex]?.dataset?.bruto || '';
+    document.getElementById('brutoEstimadoReg').value = bruto;
+  });
+
   // Eventos
   campoSel.addEventListener('change', fillGranos);
   granoSel.addEventListener('change', fillLotes);
