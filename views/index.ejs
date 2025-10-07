@@ -1,20 +1,21 @@
 <%- include('partials/header') %>
-<h3>Autenticación</h3>
 
-<% if (error) { %>
-    <div class="alert alert-danger mt-3"><%= error %></div>
+<h1>Autenticación</h1>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert alert-danger"><%= error %></div>
 <% } %>
 
-<form action="/" method="post"> class="mt-3" autocomplete="off">
-    <div class="mb-3">
-        <label for="code" class="form-label">Código</label>
-        <input type="text" name="code" id="code" class="form-control" required>
-    </div>
-    <input type="hidden" name="redirect" value="<%= redirect %>">
-    <button type="submit" class="btn btn-primary">Ingresar</button>
-</form>
-</div>
+<form action="/" method="post" class="mt-3" autocomplete="off">
+  <div class="form-group">
+    <label for="code">Código</label>
+    <input type="text" id="code" name="code" class="form-control" required>
+  </div>
 
-<footer class="text-center py-3 text-muted">
-    © 2025 Pesada Balanza. Todos los derechos reservados.
-</footer>
+  <!-- A dónde ir después de loguear (registro o tabla) -->
+  <input type="hidden" name="redirect" value="<%= redirect || '/tabla' %>">
+
+  <button type="submit" class="btn btn-primary mt-2">Ingresar</button>
+</form>
+
+<%- include('partials/footer') %>
