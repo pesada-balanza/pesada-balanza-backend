@@ -2,7 +2,7 @@
 <h1>Registro de Pesaje</h1>
 
 <!-- ====== FORMULARIO TARA ====== -->
-<form action="/confirmar-tara" method="post" id="formTara" style="display: <%= pesadaPara === 'TARA' ? 'block' : 'none' %>">
+<form action="/confirmar-tara" method="post" id="formTara" style="display:<%= pesadaPara==='TARA' ? 'block' : 'none' %>">
   <div class="form-group">
     <label for="idTicket">ID Ticket</label>
     <input type="text" name="idTicket" id="idTicket" class="form-control" value="<%= newIdTicket %>" readonly>
@@ -27,7 +27,7 @@
     </select>
   </div>
 
-  <div class="form-group" id="socioField" style="display: none;">
+  <div class="form-group" id="socioField" style="display:none;">
     <label for="socio">Nombre del Socio</label>
     <input type="text" name="socio" id="socio" class="form-control">
   </div>
@@ -56,7 +56,6 @@
     <input type="text" name="chofer" id="chofer" class="form-control">
   </div>
 
-  <!-- ID ÚNICO PARA TARA -->
   <div class="form-group">
     <label for="brutoEstimadoTara">Bruto Estimado (kg)</label>
     <select name="brutoEstimado" id="brutoEstimadoTara" class="form-control">
@@ -77,14 +76,16 @@
 </form>
 
 <!-- ====== FORMULARIO REGULADA ====== -->
-<form action="/confirmar-regulada" method="post" id="formRegulada" style="display: <%= pesadaPara === 'REGULADA' ? 'block' : 'none' %>">
+<form action="/confirmar-regulada" method="post" id="formRegulada" style="display:<%= pesadaPara==='REGULADA' ? 'block' : 'none' %>">
   <div class="form-group">
     <label for="patentesRegulada">Patentes (pendientes: hoy + ayer)</label>
     <select name="patentes" id="patentesRegulada" class="form-control" required>
       <option value="">Seleccione</option>
       <% (pendientesTara || []).forEach(reg => { %>
-        <!-- data-bruto es CLAVE para completar el bruto -->
-        <option value="<%= reg.patentes %>" data-bruto="<%= reg.brutoEstimado %>">
+        <option
+          value="<%= reg.patentes %>"
+          data-bruto="<%= reg.brutoEstimado %>"
+          data-tara="<%= reg.tara %>">
           <%= reg.patentes %> (Bruto: <%= reg.brutoEstimado %>)
         </option>
       <% }); %>
@@ -104,7 +105,6 @@
     </select>
   </div>
 
-  <!-- NUEVO: GRANO/CULTIVO (dinámico) -->
   <div class="form-group">
     <label for="grano">Grano / Cultivo</label>
     <select name="grano" id="grano" class="form-control" required disabled>
@@ -128,20 +128,24 @@
     </select>
   </div>
 
-  <div class="form-group" id="silobolsaField" style="display: none;">
+  <div class="form-group" id="silobolsaField" style="display:none;">
     <label for="silobolsa">Número Silobolsa</label>
     <input type="text" name="silobolsa" id="silobolsa" class="form-control">
   </div>
 
-  <div class="form-group" id="contratistaField" style="display: none;">
+  <div class="form-group" id="contratistaField" style="display:none;">
     <label for="contratista">Nombre Contratista</label>
     <input type="text" name="contratista" id="contratista" class="form-control">
   </div>
 
-  <!-- ID ÚNICO PARA REGULADA -->
   <div class="form-group">
     <label for="brutoEstimadoReg">Bruto Estimado (kg)</label>
     <input type="text" name="brutoEstimado" id="brutoEstimadoReg" class="form-control" readonly>
+  </div>
+
+  <div class="form-group">
+    <label for="taraReg">Tara (kg)</label>
+    <input type="number" name="tara" id="taraReg" class="form-control" readonly>
   </div>
 
   <div class="form-group">
@@ -152,7 +156,7 @@
     </select>
   </div>
 
-  <div class="form-group" id="brutoField" style="display: none;">
+  <div class="form-group" id="brutoField" style="display:none;">
     <label for="bruto">Bruto (kg)</label>
     <input type="number" name="bruto" id="bruto" class="form-control">
   </div>
@@ -161,27 +165,26 @@
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
-<!-- Publicamos datosSiembra para el script -->
 <script>
   window.datosSiembra = <%- JSON.stringify(datosSiembra) %>;
 
-  function toggleForm() {
-    const pesadaPara = document.getElementById('pesadaPara').value;
-    document.getElementById('formTara').style.display = pesadaPara === 'TARA' ? 'block' : 'none';
-    document.getElementById('formRegulada').style.display = pesadaPara === 'REGULADA' ? 'block' : 'none';
+  function toggleForm(){
+    const v = document.getElementById('pesadaPara').value;
+    document.getElementById('formTara').style.display     = (v==='TARA') ? 'block' : 'none';
+    document.getElementById('formRegulada').style.display = (v==='REGULADA') ? 'block' : 'none';
   }
-  function toggleSocio() {
-    const cargaPara = document.getElementById('cargaPara').value;
-    document.getElementById('socioField').style.display = cargaPara === 'SOCIO' ? 'block' : 'none';
+  function toggleSocio(){
+    const v = document.getElementById('cargaPara').value;
+    document.getElementById('socioField').style.display = (v==='SOCIO') ? 'block' : 'none';
   }
-  function toggleCargo() {
-    const cargoDe = document.getElementById('cargoDe').value;
-    document.getElementById('silobolsaField').style.display = cargoDe === 'SILOBOLSA' ? 'block' : 'none';
-    document.getElementById('contratistaField').style.display = cargoDe === 'CONTRATISTA' ? 'block' : 'none';
+  function toggleCargo(){
+    const v = document.getElementById('cargoDe').value;
+    document.getElementById('silobolsaField').style.display   = (v==='SILOBOLSA') ? 'block' : 'none';
+    document.getElementById('contratistaField').style.display = (v==='CONTRATISTA') ? 'block' : 'none';
   }
-  function toggleBruto() {
-    const confirmarBruto = document.getElementById('confirmarBruto').value;
-    document.getElementById('brutoField').style.display = confirmarBruto === 'NO' ? 'block' : 'none';
+  function toggleBruto(){
+    const v = document.getElementById('confirmarBruto').value;
+    document.getElementById('brutoField').style.display = (v==='NO') ? 'block' : 'none';
   }
 
   const campoSel    = document.getElementById('campo');
@@ -189,47 +192,37 @@
   const loteSel     = document.getElementById('lote');
   const patentesReg = document.getElementById('patentesRegulada');
 
-  function fillGranos() {
+  function fillGranos(){
     const campo = campoSel.value;
     granoSel.innerHTML = '<option value="">Seleccione un cultivo</option>';
     loteSel.innerHTML  = '<option value="">Seleccione un lote</option>';
-    granoSel.disabled = true;
-    loteSel.disabled  = true;
+    granoSel.disabled = true; loteSel.disabled = true;
 
     const ds = window.datosSiembra || {};
     if (campo && ds[campo]) {
-      Object.keys(ds[campo]).forEach(g => {
-        const op = document.createElement('option');
-        op.value = op.text = g;
-        granoSel.appendChild(op);
+      Object.keys(ds[campo]).forEach(g=>{
+        const op=document.createElement('option'); op.value=op.text=g; granoSel.appendChild(op);
       });
-      granoSel.disabled = false;
+      granoSel.disabled=false;
     }
   }
-
-  function fillLotes() {
-    const campo = campoSel.value;
-    const grano = granoSel.value;
-    loteSel.innerHTML = '<option value="">Seleccione un lote</option>';
-    loteSel.disabled = true;
-
-    const ds = window.datosSiembra || {};
+  function fillLotes(){
+    const campo=campoSel.value, grano=granoSel.value;
+    loteSel.innerHTML='<option value="">Seleccione un lote</option>';
+    loteSel.disabled=true;
+    const ds=window.datosSiembra||{};
     const lotes = (campo && grano && ds[campo] && ds[campo][grano]) ? ds[campo][grano] : [];
-    lotes.forEach(l => {
-      const op = document.createElement('option');
-      op.value = op.text = l;
-      loteSel.appendChild(op);
-    });
-    if (lotes.length) loteSel.disabled = false;
+    lotes.forEach(l=>{ const op=document.createElement('option'); op.value=op.text=l; loteSel.appendChild(op); });
+    if(lotes.length) loteSel.disabled=false;
   }
 
-  // Completar Bruto Estimado con el data-bruto seleccionado
-  patentesReg.addEventListener('change', function () {
-    const bruto = this.options[this.selectedIndex]?.dataset?.bruto || '';
-    document.getElementById('brutoEstimadoReg').value = bruto;
+  // Completar bruto/tara desde data-*
+  patentesReg.addEventListener('change', function(){
+    const opt   = this.options[this.selectedIndex];
+    document.getElementById('brutoEstimadoReg').value = opt?.dataset?.bruto || '';
+    document.getElementById('taraReg').value          = opt?.dataset?.tara  || '';
   });
 
-  // Eventos
   campoSel.addEventListener('change', fillGranos);
   granoSel.addEventListener('change', fillLotes);
 

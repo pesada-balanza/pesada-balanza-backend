@@ -1,70 +1,82 @@
 <%- include('partials/header') %>
 <h1>Tabla de Registros</h1>
+
 <a href="/export?code=<%= observacionCode %>" class="btn btn-success mb-3">Exportar a Excel</a>
+
 <table class="table">
-    <thead>
-        <tr>
-            <th>ID Ticket</th>
-            <th>Fecha</th>
-            <th>Usuario</th>
-            <th>Carga Para</th>
-            <th>Socio</th>
-            <th>Pesada Para</th>
-            <th>Transporte</th>
-            <th>Patentes</th>
-            <th>Chofer</th>
-            <th>Bruto Estimado</th>
-            <th>Tara</th>
-            <th>Neto Estimado</th>
-            <th>Campo</th>
-            <th>Lote</th>
-            <th>Cargo De</th>
-            <th>Silobolsa</th>
-            <th>Contratista</th>
-            <th>Bruto</th>
-            <th>Neto</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        <% registros.forEach(registro => { %>
-            <% const fechaPasada = new Date(registro.fecha) < new Date(new Date().setHours(0, 0, 0, 0)); %>
-            <% let estiloCelda = ''; %>
-            <% if (registro.modificaciones > 0) { %>
-                <% estiloCelda = 'background-color: #fff3cd !important;' %>
-            <% } else if (fechaPasada) { %>
-                <% estiloCelda = 'background-color: #ffe5cc !important;' %>
-            <% } %>
-            <tr style="<%= estiloCelda %>">
-                <td><%= registro.idTicket %></td>
-                <td><%= registro.fecha %></td>
-                <td><%= registro.usuario %></td>
-                <td><%= registro.cargaPara %></td>
-                <td><%= registro.socio %></td>
-                <td><%= registro.pesadaPara %></td>
-                <td><%= registro.transporte %></td>
-                <td><%= registro.patentes %></td>
-                <td><%= registro.chofer %></td>
-                <td><%= registro.brutoEstimado || '' %></td>
-                <td><%= registro.tara %></td>
-                <td><%= registro.netoEstimado || '' %></td>
-                <td><%= registro.campo || '' %></td>
-                <td><%= registro.lote || '' %></td>
-                <td><%= registro.cargoDe || '' %></td>
-                <td><%= registro.silobolsa || '' %></td>
-                <td><%= registro.contratista || '' %></td>
-                <td><%= registro.bruto || '' %></td>
-                <td><%= registro.neto || '' %></td>
-                <td>
-                    <% if (!registro.anulado) { %>
-                        <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-warning btn-sm">Modificar</a>
-                        <a href="/anular/<%= registro._id %>?code=<%= observacionCode %>" class="btn btn-danger btn-sm">Anular</a>
-                    <% } else { %>
-                        <span class="text-danger">Anulado</span>
-                    <% } %>
-                </td>
-            </tr>
-        <% }); %>
-    </tbody>
+  <thead>
+    <tr>
+      <th>ID Ticket</th>
+      <th>Fecha</th>
+      <th>Usuario</th>
+      <th>Carga Para</th>
+      <th>Socio</th>
+      <th>Pesada Para</th>
+      <th>Transporte</th>
+      <th>Patentes</th>
+      <th>Chofer</th>
+      <th>Bruto Estimado</th>
+      <th>Tara</th>
+      <th>Neto Estimado</th>
+      <th>Campo</th>
+      <th>Grano</th>
+      <th>Lote</th>
+      <th>Cargo De</th>
+      <th>Silobolsa</th>
+      <th>Contratista</th>
+      <th>Bruto</th>
+      <th>Neto</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% registros.forEach(registro => { %>
+      <% const fechaPasada = new Date(registro.fecha) < new Date(new Date().setHours(0,0,0,0)); %>
+      <% let estiloCelda = ''; %>
+      <% if (registro.modificaciones > 0) { %>
+        <% estiloCelda = 'background-color:#fff3cd!important;'; %>
+      <% } else if (fechaPasada) { %>
+        <% estiloCelda = 'background-color:#ffe5cc!important;'; %>
+      <% } %>
+
+      <tr style="<%= estiloCelda %>">
+        <td><%= registro.idTicket %></td>
+        <td><%= registro.fecha %></td>
+        <td><%= registro.usuario %></td>
+        <td><%= registro.cargaPara %></td>
+        <td><%= registro.socio || '' %></td>
+        <td><%= registro.pesadaPara %></td>
+        <td><%= registro.transporte || '' %></td>
+        <td><%= registro.patentes %></td>
+        <td><%= registro.chofer || '' %></td>
+        <td><%= registro.brutoEstimado ?? '' %></td>
+        <td><%= registro.tara ?? '' %></td>
+        <td><%= registro.netoEstimado ?? '' %></td>
+        <td><%= registro.campo || '' %></td>
+        <td><%= registro.grano || '' %></td>
+        <td><%= registro.lote || '' %></td>
+        <td><%= registro.cargoDe || '' %></td>
+        <td><%= registro.silobolsa || '' %></td>
+        <td><%= registro.contratista || '' %></td>
+        <td><%= registro.bruto ?? '' %></td>
+        <td><%= registro.neto ?? '' %></td>
+        <td>
+          <% if (!registro.anulado) { %>
+            <!-- Modificar abre formulario (GET) -->
+            <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-warning btn-sm">Modificar</a>
+
+            <!-- Anular: PUT con method-override -->
+            <form action="/anular/<%= registro._id %>?code=<%= observacionCode %>" method="post" style="display:inline">
+              <input type="hidden" name="_method" value="PUT">
+              <button type="submit" class="btn btn-danger btn-sm">Anular</button>
+            </form>
+          <% } else { %>
+            <span class="text-danger">Anulado</span>
+          <% } %>
+        </td>
+      </tr>
+    <% }); %>
+  </tbody>
 </table>
+
 <%- include('partials/footer') %>
