@@ -1,64 +1,64 @@
 <%- include('partials/header') %>
 <h1>Registro de Pesaje</h1>
 
-<!-- ====== FORMULARIO TARA ====== -->
-<form action="/confirmar-tara" method="post" id="formTara" style="display:<%= pesadaPara==='TARA' ? 'block' : 'none' %>">
+<!-- ====== TARA ====== -->
+<form action="/confirmar-tara" method="post" id="formTara" style="display:<%= pesadaPara==='TARA' ? 'block':'none' %>">
   <div class="form-group">
     <label for="idTicket">ID Ticket</label>
-    <input type="text" name="idTicket" id="idTicket" class="form-control" value="<%= newIdTicket %>" readonly>
+    <input type="text" id="idTicket" name="idTicket" class="form-control" value="<%= newIdTicket %>" readonly>
   </div>
 
   <div class="form-group">
     <label for="fecha">Fecha</label>
-    <input type="date" name="fecha" id="fecha" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>" readonly>
+    <input type="date" id="fecha" name="fecha" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>" readonly>
   </div>
 
   <div class="form-group">
     <label for="usuario">Usuario</label>
-    <input type="text" name="usuario" id="usuario" class="form-control" value="<%= ultimoUsuario %>" required>
+    <input type="text" id="usuario" name="usuario" class="form-control" value="<%= ultimoUsuario %>" required>
   </div>
 
   <div class="form-group">
     <label for="cargaPara">Carga para</label>
-    <select name="cargaPara" id="cargaPara" class="form-control" required onchange="toggleSocio()">
+    <select id="cargaPara" name="cargaPara" class="form-control" required onchange="toggleSocio()">
       <option value="">Seleccione</option>
       <option value="AMH">AMH</option>
       <option value="SOCIO">SOCIO</option>
     </select>
   </div>
 
-  <div class="form-group" id="socioField" style="display:none;">
+  <div id="socioField" class="form-group" style="display:none;">
     <label for="socio">Nombre del Socio</label>
-    <input type="text" name="socio" id="socio" class="form-control">
+    <input type="text" id="socio" name="socio" class="form-control">
   </div>
 
   <div class="form-group">
     <label for="pesadaPara">Pesada para</label>
-    <select name="pesadaPara" id="pesadaPara" class="form-control" required onchange="toggleForm()">
+    <select id="pesadaPara" name="pesadaPara" class="form-control" required onchange="toggleForm()">
       <option value="">Seleccione</option>
-      <option value="TARA" <%= pesadaPara==='TARA' ? 'selected' : '' %>>TARA</option>
-      <option value="REGULADA" <%= pesadaPara==='REGULADA' ? 'selected' : '' %>>REGULADA</option>
+      <option value="TARA" <%= pesadaPara==='TARA' ? 'selected':'' %>>TARA</option>
+      <option value="REGULADA" <%= pesadaPara==='REGULADA' ? 'selected':'' %>>REGULADA</option>
     </select>
   </div>
 
   <div class="form-group">
     <label for="transporte">Transporte</label>
-    <input type="text" name="transporte" id="transporte" class="form-control">
+    <input type="text" id="transporte" name="transporte" class="form-control">
   </div>
 
   <div class="form-group">
     <label for="patentes">Patentes</label>
-    <input type="text" name="patentes" id="patentes" class="form-control">
+    <input type="text" id="patentes" name="patentes" class="form-control">
   </div>
 
   <div class="form-group">
     <label for="chofer">Chofer</label>
-    <input type="text" name="chofer" id="chofer" class="form-control">
+    <input type="text" id="chofer" name="chofer" class="form-control">
   </div>
 
   <div class="form-group">
     <label for="brutoEstimadoTara">Bruto Estimado (kg)</label>
-    <select name="brutoEstimado" id="brutoEstimadoTara" class="form-control">
+    <select id="brutoEstimadoTara" name="brutoEstimado" class="form-control">
       <option value="">Seleccione</option>
       <option value="45000">45000 kg</option>
       <option value="52500">52500 kg</option>
@@ -68,27 +68,25 @@
 
   <div class="form-group">
     <label for="tara">Tara (kg)</label>
-    <input type="number" name="tara" id="tara" class="form-control" required>
+    <input type="number" id="tara" name="tara" class="form-control" required>
   </div>
 
   <input type="hidden" name="code" value="<%= code %>">
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
-<!-- ====== FORMULARIO REGULADA ====== -->
-<form action="/confirmar-regulada" method="post" id="formRegulada" style="display:<%= pesadaPara==='REGULADA' ? 'block' : 'none' %>">
+<!-- ====== REGULADA ====== -->
+<form action="/confirmar-regulada" method="post" id="formRegulada" style="display:<%= pesadaPara==='REGULADA' ? 'block':'none' %>">
   <div class="form-group">
     <label for="patentesRegulada">Patentes (pendientes: hoy + ayer)</label>
-    <select name="patentes" id="patentesRegulada" class="form-control" required>
+    <select id="patentesRegulada" name="patentes" class="form-control" required>
       <option value="">Seleccione</option>
       <% (pendientesTara || []).forEach(reg => { %>
-        <option
-          value="<%= reg.patentes %>"
-          data-bruto="<%= reg.brutoEstimado %>"
-          data-tara="<%= reg.tara %>">
+        <!-- OJO: data-* DENTRO del option -->
+        <option value="<%= reg.patentes %>" data-bruto="<%= reg.brutoEstimado %>" data-tara="<%= reg.tara %>">
           <%= reg.patentes %> (Bruto: <%= reg.brutoEstimado %>)
         </option>
-      <% }); %>
+      <% }) %>
     </select>
     <% if (!(pendientesTara && pendientesTara.length)) { %>
       <small class="text-muted">No hay TARA pendientes de hoy/ayer.</small>
@@ -97,7 +95,7 @@
 
   <div class="form-group">
     <label for="campo">Campo</label>
-    <select name="campo" id="campo" class="form-control" required>
+    <select id="campo" name="campo" class="form-control" required>
       <option value="">Seleccione un campo</option>
       <% (campos || []).forEach(c => { %>
         <option value="<%= c %>"><%= c %></option>
@@ -107,58 +105,58 @@
 
   <div class="form-group">
     <label for="grano">Grano / Cultivo</label>
-    <select name="grano" id="grano" class="form-control" required disabled>
+    <select id="grano" name="grano" class="form-control" required disabled>
       <option value="">Seleccione un cultivo</option>
     </select>
   </div>
 
   <div class="form-group">
     <label for="lote">Lote</label>
-    <select name="lote" id="lote" class="form-control" required disabled>
+    <select id="lote" name="lote" class="form-control" required disabled>
       <option value="">Seleccione un lote</option>
     </select>
   </div>
 
   <div class="form-group">
     <label for="cargoDe">Cargo de</label>
-    <select name="cargoDe" id="cargoDe" class="form-control" required onchange="toggleCargo()">
+    <select id="cargoDe" name="cargoDe" class="form-control" required onchange="toggleCargo()">
       <option value="">Seleccione</option>
       <option value="SILOBOLSA">Silobolsa</option>
       <option value="CONTRATISTA">Contratista</option>
     </select>
   </div>
 
-  <div class="form-group" id="silobolsaField" style="display:none;">
+  <div id="silobolsaField" class="form-group" style="display:none;">
     <label for="silobolsa">Número Silobolsa</label>
-    <input type="text" name="silobolsa" id="silobolsa" class="form-control">
+    <input type="text" id="silobolsa" name="silobolsa" class="form-control">
   </div>
 
-  <div class="form-group" id="contratistaField" style="display:none;">
+  <div id="contratistaField" class="form-group" style="display:none;">
     <label for="contratista">Nombre Contratista</label>
-    <input type="text" name="contratista" id="contratista" class="form-control">
+    <input type="text" id="contratista" name="contratista" class="form-control">
   </div>
 
   <div class="form-group">
     <label for="brutoEstimadoReg">Bruto Estimado (kg)</label>
-    <input type="text" name="brutoEstimado" id="brutoEstimadoReg" class="form-control" readonly>
+    <input type="text" id="brutoEstimadoReg" name="brutoEstimado" class="form-control" readonly>
   </div>
 
   <div class="form-group">
     <label for="taraReg">Tara (kg)</label>
-    <input type="number" name="tara" id="taraReg" class="form-control" readonly>
+    <input type="number" id="taraReg" name="tara" class="form-control" readonly>
   </div>
 
   <div class="form-group">
     <label for="confirmarBruto">Confirmar Bruto</label>
-    <select name="confirmarBruto" id="confirmarBruto" class="form-control" onchange="toggleBruto()">
+    <select id="confirmarBruto" name="confirmarBruto" class="form-control" onchange="toggleBruto()">
       <option value="SI">Sí</option>
       <option value="NO">No</option>
     </select>
   </div>
 
-  <div class="form-group" id="brutoField" style="display:none;">
+  <div id="brutoField" class="form-group" style="display:none;">
     <label for="bruto">Bruto (kg)</label>
-    <input type="number" name="bruto" id="bruto" class="form-control">
+    <input type="number" id="bruto" name="bruto" class="form-control">
   </div>
 
   <input type="hidden" name="code" value="<%= code %>">
@@ -166,33 +164,34 @@
 </form>
 
 <script>
+  // Publicamos datosSiembra
   window.datosSiembra = <%- JSON.stringify(datosSiembra) %>;
 
-  function toggleForm(){
-    const v = document.getElementById('pesadaPara').value;
-    document.getElementById('formTara').style.display     = (v==='TARA') ? 'block' : 'none';
-    document.getElementById('formRegulada').style.display = (v==='REGULADA') ? 'block' : 'none';
+  function toggleForm() {
+    const val = document.getElementById('pesadaPara').value;
+    document.getElementById('formTara').style.display     = val === 'TARA' ? 'block' : 'none';
+    document.getElementById('formRegulada').style.display = val === 'REGULADA' ? 'block' : 'none';
   }
-  function toggleSocio(){
+  function toggleSocio() {
     const v = document.getElementById('cargaPara').value;
-    document.getElementById('socioField').style.display = (v==='SOCIO') ? 'block' : 'none';
+    document.getElementById('socioField').style.display = v === 'SOCIO' ? 'block' : 'none';
   }
-  function toggleCargo(){
+  function toggleCargo() {
     const v = document.getElementById('cargoDe').value;
-    document.getElementById('silobolsaField').style.display   = (v==='SILOBOLSA') ? 'block' : 'none';
-    document.getElementById('contratistaField').style.display = (v==='CONTRATISTA') ? 'block' : 'none';
+    document.getElementById('silobolsaField').style.display   = v === 'SILOBOLSA' ? 'block' : 'none';
+    document.getElementById('contratistaField').style.display = v === 'CONTRATISTA' ? 'block' : 'none';
   }
-  function toggleBruto(){
+  function toggleBruto() {
     const v = document.getElementById('confirmarBruto').value;
-    document.getElementById('brutoField').style.display = (v==='NO') ? 'block' : 'none';
+    document.getElementById('brutoField').style.display = v === 'NO' ? 'block' : 'none';
   }
 
   const campoSel    = document.getElementById('campo');
   const granoSel    = document.getElementById('grano');
   const loteSel     = document.getElementById('lote');
-  const patentesReg = document.getElementById('patentesRegulada');
+  const patentesSel = document.getElementById('patentesRegulada');
 
-  function fillGranos(){
+  function fillGranos() {
     const campo = campoSel.value;
     granoSel.innerHTML = '<option value="">Seleccione un cultivo</option>';
     loteSel.innerHTML  = '<option value="">Seleccione un lote</option>';
@@ -200,27 +199,37 @@
 
     const ds = window.datosSiembra || {};
     if (campo && ds[campo]) {
-      Object.keys(ds[campo]).forEach(g=>{
-        const op=document.createElement('option'); op.value=op.text=g; granoSel.appendChild(op);
+      Object.keys(ds[campo]).forEach(g => {
+        const op = document.createElement('option');
+        op.value = op.text = g;
+        granoSel.appendChild(op);
       });
-      granoSel.disabled=false;
+      granoSel.disabled = false;
     }
   }
-  function fillLotes(){
-    const campo=campoSel.value, grano=granoSel.value;
-    loteSel.innerHTML='<option value="">Seleccione un lote</option>';
-    loteSel.disabled=true;
-    const ds=window.datosSiembra||{};
+
+  function fillLotes() {
+    const campo = campoSel.value;
+    const grano = granoSel.value;
+    loteSel.innerHTML = '<option value="">Seleccione un lote</option>';
+    loteSel.disabled = true;
+
+    const ds = window.datosSiembra || {};
     const lotes = (campo && grano && ds[campo] && ds[campo][grano]) ? ds[campo][grano] : [];
-    lotes.forEach(l=>{ const op=document.createElement('option'); op.value=op.text=l; loteSel.appendChild(op); });
-    if(lotes.length) loteSel.disabled=false;
+    lotes.forEach(l => {
+      const op = document.createElement('option'); op.value = op.text = l;
+      loteSel.appendChild(op);
+    });
+    if (lotes.length) loteSel.disabled = false;
   }
 
-  // Completar bruto/tara desde data-*
-  patentesReg.addEventListener('change', function(){
+  // Completar bruto/tara al elegir patente
+  patentesSel.addEventListener('change', function () {
     const opt   = this.options[this.selectedIndex];
-    document.getElementById('brutoEstimadoReg').value = opt?.dataset?.bruto || '';
-    document.getElementById('taraReg').value          = opt?.dataset?.tara  || '';
+    const bruto = opt?.dataset?.bruto || '';
+    const tara  = opt?.dataset?.tara  || '';
+    document.getElementById('brutoEstimadoReg').value = bruto;
+    document.getElementById('taraReg').value          = tara;
   });
 
   campoSel.addEventListener('change', fillGranos);

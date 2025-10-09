@@ -30,52 +30,56 @@
     </tr>
   </thead>
   <tbody>
-    <% registros.forEach(registro => { %>
-      <% const fechaPasada = new Date(registro.fecha) < new Date(new Date().setHours(0,0,0,0)); %>
-      <% let estiloCelda = ''; %>
-      <% if (registro.modificaciones > 0) { %>
-        <% estiloCelda = 'background-color:#fff3cd!important;'; %>
-      <% } else if (fechaPasada) { %>
-        <% estiloCelda = 'background-color:#ffe5cc!important;'; %>
-      <% } %>
+  <% registros.forEach(registro => { %>
+    <% const fechaPasada = new Date(registro.fecha) < new Date(new Date().setHours(0,0,0,0)); %>
+    <% let estilo = ''; %>
+    <% if (registro.modificaciones > 0) { estilo = 'background-color:#fff3cd !important;' } else if (fechaPasada) { estilo = 'background-color:#ffe5cc !important;' } %>
 
-      <tr style="<%= estiloCelda %>">
-        <td><%= registro.idTicket %></td>
-        <td><%= registro.fecha %></td>
-        <td><%= registro.usuario %></td>
-        <td><%= registro.cargaPara %></td>
-        <td><%= registro.socio || '' %></td>
-        <td><%= registro.pesadaPara %></td>
-        <td><%= registro.transporte || '' %></td>
-        <td><%= registro.patentes %></td>
-        <td><%= registro.chofer || '' %></td>
-        <td><%= registro.brutoEstimado ?? '' %></td>
-        <td><%= registro.tara ?? '' %></td>
-        <td><%= registro.netoEstimado ?? '' %></td>
-        <td><%= registro.campo || '' %></td>
-        <td><%= registro.grano || '' %></td>
-        <td><%= registro.lote || '' %></td>
-        <td><%= registro.cargoDe || '' %></td>
-        <td><%= registro.silobolsa || '' %></td>
-        <td><%= registro.contratista || '' %></td>
-        <td><%= registro.bruto ?? '' %></td>
-        <td><%= registro.neto ?? '' %></td>
-        <td>
-          <% if (!registro.anulado) { %>
-            <!-- Modificar abre formulario (GET) -->
-            <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-warning btn-sm">Modificar</a>
+    <tr style="<%= estilo %>">
+      <td><%= registro.idTicket %></td>
+      <td><%= registro.fecha %></td>
+      <td><%= registro.usuario %></td>
+      <td><%= registro.cargaPara %></td>
+      <td><%= registro.socio || '' %></td>
+      <td><%= registro.pesadaPara %></td>
+      <td><%= registro.transporte || '' %></td>
+      <td><%= registro.patentes %></td>
+      <td><%= registro.chofer || '' %></td>
+      <td><%= registro.brutoEstimado ?? '' %></td>
+      <td><%= registro.tara ?? '' %></td>
+      <td><%= registro.netoEstimado ?? '' %></td>
+      <td><%= registro.campo || '' %></td>
+      <td><%= registro.grano || '' %></td>
+      <td><%= registro.lote || '' %></td>
+      <td><%= registro.cargoDe || '' %></td>
+      <td><%= registro.silobolsa || '' %></td>
+      <td><%= registro.contratista || '' %></td>
+      <td><%= registro.bruto ?? '' %></td>
+      <td>
+        <% if (typeof registro.neto === 'number') { %>
+          <%= registro.neto %>
+        <% } else if (typeof registro.bruto === 'number') { %>
+          <%= registro.bruto - (registro.tara || 0) %>
+        <% } else { %>
+          <!-- vacío -->
+        <% } %>
+      </td>
+      <td>
+        <% if (!registro.anulado) { %>
+          <!-- Modificar (GET) -->
+          <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-warning btn-sm">Modificar</a>
 
-            <!-- Anular: PUT con method-override -->
-            <form action="/anular/<%= registro._id %>?code=<%= observacionCode %>" method="post" style="display:inline">
-              <input type="hidden" name="_method" value="PUT">
-              <button type="submit" class="btn btn-danger btn-sm">Anular</button>
-            </form>
-          <% } else { %>
-            <span class="text-danger">Anulado</span>
-          <% } %>
-        </td>
-      </tr>
-    <% }); %>
+          <!-- Anular (PUT) -->
+          <form action="/anular/<%= registro._id %>?code=<%= observacionCode %>" method="POST" style="display:inline;">
+            <input type="hidden" name="_method" value="PUT">
+            <button type="submit" class="btn btn-danger btn-sm">Anular</button>
+          </form>
+        <% } else { %>
+          <span class="text-danger">Anulado</span>
+        <% } %>
+      </td>
+    </tr>
+  <% }) %>
   </tbody>
 </table>
 
