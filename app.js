@@ -396,72 +396,74 @@ app.post('/guardar-tara', async (req, res) => {
 
 // Confirmar REGULADA (previsualización)
 app.post('/confirmar-regulada', (req, res) => {
-  const bruto =
-    req.body.confirmarBruto === 'SI'
+  const bruto = req.body.confirmarBruto === 'SI'
       ? parseFloat(req.body.brutoEstimado || 0) // typo corregido
       : parseFloat(req.body.bruto || 0);
-
+  const taraFinal = req.body.confirmarTara === 'SI'
+      ? parseFloat(req.body.tara || 0)
+      : parseFloat(req.body.taraNueva || 0);
+      
   res.render('confirmar-regulada', {
     formData: req.body,
     bruto,
-    neto: bruto - parseFloat(req.body.tara || 0),
+    tara: taraFinal,
+    neto: bruto - taraFinal
   });
 });
 
 // Guardar REGULADA
 app.post('/guardar-regulada', async (req, res) => {
   try {
-    const newIdTicket = await calculateNextIdTicket();
-    const bruto =
-      req.body.confirmarBruto === 'SI'
+    // Bruto/tara finales según confirmaciones
+    const bruto = req.body.confirmarBruto === 'SI'
         ? parseFloat(req.body.brutoEstimado || 0)
         : parseFloat(req.body.bruto || 0);
-
-    const registro = {
-      idTicket: newIdTicket,
-      fecha: ymd(new Date()),
-      usuario: req.body.usuario,
-      cargaPara: req.body.cargaPara,
-      socio: req.body.socio || '',
-      pesadaPara: 'REGULADA',
-      patentes: req.body.patentes,
-      campo: req.body.campo,
-      grano: req.body.grano,
-      lote: req.body.lote,
-      cargoDe: req.body.cargoDe,
-      silobolsa: req.body.cargoDe === 'SILOBOLSA' ? req.body.silobolsa : '',
-      contratista: req.body.cargoDe === 'CONTRATISTA' ? req.body.contratista : '',
-      bruto,
-      tara: parseFloat(req.body.tara || 0),
-      neto: bruto - parseFloat(req.body.tara || 0),
-      anulado: false,
-      modificaciones: 0,
-      codigoIngreso: req.body.code,
-    };
+    
+    const taraFinal = req.body.confirmarTara === 'SI'
+        ? parseFloat(req.body.tara || 0)
+        : parseFloat(req.body.taraNueva || 0);
 
     const col = mongoose.connection.db.collection('registros');
 
-    // 1) Insertar REGULADA
-    await col.insertOne(registro);
-
-    // 2) Marcar TARA más reciente de esa patente como confirmada
-    await col.findOneAndUpdate(
+    // BUsco la TARA más reciente (no anulada, no confirmada) de esa patente
+    const taraDoc= await col.findOne(
       {
         pesadaPara: 'TARA',
         patentes: req.body.patentes,
         anulado: { $ne: true },
         confirmada: { $ne: true },
       },
-      {
-        $set: {
-          confirmada: true,
-          idRegulada: newIdTicket,
-          fechaRegulada: ymd(new Date()),
-        },
-      },
       { sort: { idTicket: -1 } }
     );
 
+    if (!taraDoc) {
+      return res.status(400).send('No se encontró TARA pendiente para esa patente' );
+    }
+
+    //Actualizo ESE MISMO documento a REGULADA y completo datos
+    await col.updateOne(
+      { _id: taraDoc._id },
+      {
+        $set: {
+          pesadaPara: 'REGULADA',
+          // datos del destino
+          campo: req.body.campo,
+          grano: req.body.grano,
+          lote: req.body.lote,
+          cargoDe: req.body.cargoDe,
+          silobolsa: req.body.cargoDe === 'SILOBOLSA' ? req.body.silobolsa : '',
+          contratista: req.body.cargoDe === 'CONTRATISTA' ? req.body.contratista : '',
+          // pesos definitivos
+          bruto,
+          tara: taraFinal,
+          neto: bruto - taraFinal,
+          // estado
+          confirmada: true,
+          fechaRegulada: ymd(new Date())
+        }
+      }
+    );
+    
     const codigoObservacion = ingresoAObservacion[req.body.code];
     return res.redirect(`/tabla?code=${codigoObservacion}`);
   } catch (err) {
