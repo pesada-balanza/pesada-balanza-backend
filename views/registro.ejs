@@ -147,6 +147,19 @@
   </div>
 
   <div class="form-group">
+    <label for="confirmarTara">Confirmar Tara</label>
+    <select name="confirmarTara" id="confirmarTara" class="form-control" onchange="toggleTara()">
+      <option value="SI" selected>Sí</option>
+      <option value="NO">No</option>
+    </select>
+  </div>
+
+  <div class="form-group" id="taraNuevaField" style="display:none;">
+    <label for="taraNueva">Tara Nueva (kg)</label>
+    <input type="number" id="taraNueva" name="taraNueva" class="form-control">
+  </div> 
+
+  <div class="form-group">
     <label for="confirmarBruto">Confirmar Bruto</label>
     <select id="confirmarBruto" name="confirmarBruto" class="form-control" onchange="toggleBruto()">
       <option value="SI">Sí</option>
@@ -164,6 +177,15 @@
 </form>
 
 <script>
+  // Completar bruto estimado y tara según la patente elegida
+  const patentesREg = document.getElementById('patentesRegulada');
+  patentesREg.addEventListener('change', function() {
+    const opt   = this.options[this.selectedIndex];
+    const bruto = opt?.dataset?.bruto || '';
+    const tara  = opt?.dataset?.tara  || '';
+    document.getElementById('brutoEstimadoReg').value = bruto;
+    document.getElementById('taraReg').value          = tara;
+  });
   // Publicamos datosSiembra
   window.datosSiembra = <%- JSON.stringify(datosSiembra) %>;
 
@@ -182,8 +204,14 @@
     document.getElementById('contratistaField').style.display = v === 'CONTRATISTA' ? 'block' : 'none';
   }
   function toggleBruto() {
-    const v = document.getElementById('confirmarBruto').value;
-    document.getElementById('brutoField').style.display = v === 'NO' ? 'block' : 'none';
+    const show = document.getElementById('confirmarBruto').value === 'NO';
+    document.getElementById('brutoField').style.display = show ? 'block' : 'none';
+  }
+  function toggleTara() {
+    const show = document.getElementById('confirmarTara').value === 'NO';
+    document.getElementById('taraNuevaField').style.display = show ? 'block' : 'none';
+    // si NO confirma, habilito edición de tara nueva
+    document.getElementById('taraReg').readOnly = true;
   }
 
   const campoSel    = document.getElementById('campo');
@@ -236,7 +264,7 @@
   granoSel.addEventListener('change', fillLotes);
 
   // Estado inicial
-  toggleForm(); toggleSocio(); toggleCargo(); toggleBruto();
+  toggleForm(); toggleSocio(); toggleCargo(); toggleBruto(); toggleTara();
   fillGranos();
 </script>
 
