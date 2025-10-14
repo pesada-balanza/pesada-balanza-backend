@@ -26,7 +26,6 @@
       <th>Contratista</th>
       <th>Bruto</th>
       <th>Neto</th>
-      <th>Acciones</th>
     </tr>
   </thead>
   <tbody>
@@ -60,22 +59,6 @@
           <%= registro.neto %>
         <% } else if (typeof registro.bruto === 'number') { %>
           <%= registro.bruto - (registro.tara || 0) %>
-        <% } else { %>
-          <!-- vacío -->
-        <% } %>
-      </td>
-      <td>
-        <% if (!registro.anulado) { %>
-          <!-- Editar: GET ok -->
-           <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-warning btn-sm">Modificar</a>
-           
-           <!-- Anular: POST + _method=PUT (coincide con la ruta app.put('/anular/:id')) -->
-            <form action="/anular/<%= registro._id %>?code=<%= observacionCode %>" method="post" style="display:inline;">
-              <input type="hidden" name="_method" value="PUT">
-              <button type="submit" class="btn btn-danger btn-sm">Anular</button>
-            </form>
-        <% } else { %>
-          <span class="text-danger">Anulado</span>
         <% } %>
       </td>
     </tr>
