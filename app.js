@@ -557,32 +557,44 @@ app.put(
   }
 );
 
-// Anular (PUT)
-app.put(
-  '/anular/:id',
-  (req, res, next) => {
-    const code = req.query.code || req.body.code;
-    if (codigosObservacion.includes(code)) {
-      req.observacionCode = code;
-      return next();
-    }
-    return res.redirect('/?error=Código incorrecto');
-  },
-  async (req, res) => {
-    try {
-      await mongoose.connection.db
-        .collection('registros')
-        .updateOne(
-          { _id: new mongoose.Types.ObjectId(req.params.id) },
-          { $set: { tara: 0, bruto: 0, neto: 0, anulado: true } }
-        );
+// --- helpers para ANULAR ---
+async function handleAnular(req, res) {
+  try {
+    await mongoose.connection.db.collection('registros').updateOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id) },
+      {
+        $set: {
+          brutoEstimado: 0,
+          netoEstimado: 0,
+          tara: 0,
+          bruto: 0,
+          neto: 0,
+          anulado: true,
+        },
+      }
+    );
 
-      return res.redirect(`/tabla?code=${req.observacionCode}`);
-    } catch (err) {
-      return res.status(500).send('Internal Server Error: ' + err.message);
-    }
+    const code = req.query.code || req.body.code || req.observacionCode || '12341';
+    return res.redirect(`/tabla?code=${encodeURIComponent(code)}`);
+  } catch (err) {
+    return res.status(500).send('Internal Server Error: ' + err.message);
   }
-);
+}
+
+function verificarCodeObservacion(req, res, next) {
+  const code = req.query.code || req.body.code;
+  if (codigosObservacion.includes(code)) {
+    req.observacionCode = code;
+    return next();
+  }
+  return res.redirect('/?error=Código incorrecto');
+}
+
+// Anular por PUT (cuando _method=PUT se aplica)
+app.put('/anular/:id', verificarCodeObservacion, handleAnular);
+
+// Anular por POST (fallback si el method-override no se aplicó)
+app.post('/anular/:id', verificarCodeObservacion, handleAnular);
 
 /* ---------------------------------------------
  * SERVER

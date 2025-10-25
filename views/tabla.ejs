@@ -32,6 +32,7 @@
   <% registros.forEach(registro => { %>
     <% const fechaPasada = new Date(registro.fecha) < new Date(new Date().setHours(0,0,0,0)); %>
     <% let estilo = ''; %>
+    <% if (registro.anulado) { estilo= 'background-color:#f8d7cd !important;' }
     <% if (registro.modificaciones > 0) { estilo = 'background-color:#fff3cd !important;' } else if (fechaPasada) { estilo = 'background-color:#ffe5cc !important;' } %>
 
     <tr style="<%= estilo %>">
