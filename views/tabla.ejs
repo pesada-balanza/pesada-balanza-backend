@@ -26,15 +26,22 @@
       <th>Contratista</th>
       <th>Bruto</th>
       <th>Neto</th>
+      <th>Acciones</th>
     </tr>
   </thead>
   <tbody>
-  <% registros.forEach(registro => { %>
-    <% const fechaPasada = new Date(registro.fecha) < new Date(new Date().setHours(0,0,0,0)); %>
-    <% let estilo = ''; %>
-    <% if (registro.anulado) { estilo= 'background-color:#f8d7cd !important;' }
-    <% if (registro.modificaciones > 0) { estilo = 'background-color:#fff3cd !important;' } else if (fechaPasada) { estilo = 'background-color:#ffe5cc !important;' } %>
-
+  <% registros.forEach(function(registro){ %>
+    <% 
+      const fechaPasada = new Date(registro.fecha) < new Date(new Date().setHours(0,0,0,0));
+      let estilo = '';
+      if (registro.anulado) {
+        estilo = 'background-color:#f8d7da !important;';  // rojo suave
+      } else if ((registro.modificaciones || 0) > 0) {
+        estilo = 'background-color:#fff3cd !important;';  // amarillo suave
+      } else if (fechaPasada) {
+        estilo = 'background-color:#ffe5cc !important;';  // naranja suave
+      }
+    %>
     <tr style="<%= estilo %>">
       <td><%= registro.idTicket %></td>
       <td><%= registro.fecha %></td>
@@ -60,6 +67,17 @@
           <%= registro.neto %>
         <% } else if (typeof registro.bruto === 'number') { %>
           <%= registro.bruto - (registro.tara || 0) %>
+        <% } %>
+      </td>
+      <td>
+        <% if (!registro.anulado) { %>
+          <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-warning btn-sm">Modificar</a>
+          <form action="/anular/<%= registro._id %>?code=<%= observacionCode %>" method="post" style="display:inline;">
+            <input type="hidden" name="_method" value="PUT">
+            <button type="submit" class="btn btn-danger btn-sm">Anular</button>
+          </form>
+        <% } else { %>
+          <span class="text-danger">Anulado</span>
         <% } %>
       </td>
     </tr>
