@@ -124,19 +124,21 @@ const datosSiembra = {
  * -------------------------------------------*/
 const ymd = (d) => d.toISOString().split('T')[0];
 
-// TARA pendientes hoy y ayer (no anuladas, no confirmadas).
+// TARA pendientes: últimos 3 días (hoy, ayer y anteayer), no anuladas y no confirmadas
 async function obtenerTaraPendientesHoyYAyer() {
   const hoy = new Date();
-  const ayer = new Date();
-  ayer.setDate(hoy.getDate() - 1);
-  const hoyStr = ymd(hoy);
-  const ayerStr = ymd(ayer);
+  const fechas = [];
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(hoy);
+    d.setDate(hoy.getDate() - i); // 0=hoy, 1=ayer, 2=anteayer
+    fechas.push(ymd(d));
+  }
 
   const col = mongoose.connection.db.collection('registros');
   const raw = await col
     .find({
       pesadaPara: 'TARA',
-      fecha: { $in: [hoyStr, ayerStr] },
+      fecha: { $in: fechas },
       anulado: { $ne: true },
       confirmada: { $ne: true },
     })
