@@ -124,6 +124,19 @@ const datosSiembra = {
  * -------------------------------------------*/
 const ymd = (d) => d.toISOString().split('T')[0];
 
+// ---- Helpers de rango de fechas (por defecto = hoy) ----
+function getDateRangeFromQuery(req) {
+  const today = ymd(new Date());
+  const from = (req.query.from || '').trim() || today;
+  const to   = (req.query.to   || '').trim() || today;
+  return { from, to };
+}
+
+function withinRange(fechaStr, from, to) {
+  // fecha, from, to están en formato "YYYY-MM-DD"; comparación lexicográfica funciona
+  return (!from || fechaStr >= from) && (!to || fechaStr <= to);
+}
+
 // TARA pendientes: últimos 3 días (hoy, ayer y anteayer), no anuladas y no confirmadas
 async function obtenerTaraPendientesHoyYAyer() {
   const hoy = new Date();
@@ -235,9 +248,11 @@ app.get(
   },
   async (req, res) => {
     try {
+      const { from, to } = getDateRangeFromQuery(req);
+
       let registros = await mongoose.connection.db.collection('registros').find().toArray();
 
-      // Filtrar si no es el master (12341)
+      // Filtrar por código (si no es master 12341)
       if (req.observacionCode !== '12341') {
         const codigoIngreso = Object.keys(ingresoAObservacion).find(
           (key) => ingresoAObservacion[key] === req.observacionCode
@@ -245,7 +260,14 @@ app.get(
         registros = registros.filter((r) => r.codigoIngreso === codigoIngreso);
       }
 
-      return res.render('tabla', { registros, observacionCode: req.observacionCode });
+      // Filtrar por rango de fechas (inclusive)
+      registros = registros.filter((r) => withinRange(r.fecha, from, to));
+
+      return res.render('tabla', { 
+        registros, 
+        observacionCode: req.observacionCode,
+        range: { from, to }
+      });
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
     }
@@ -264,6 +286,8 @@ app.get(
   },
   async (req, res) => {
     try {
+      const { from, to } = getDateRangeFromQuery(req);
+
       let registros = await mongoose.connection.db.collection('registros').find().toArray();
 
       if (req.observacionCode !== '12341') {
@@ -272,6 +296,9 @@ app.get(
         );
         registros = registros.filter((r) => r.codigoIngreso === codigoIngreso);
       }
+
+      // Mismo filtro por fechas que la vista
+      registros = registros.filter((r) => withinRange(r.fecha, from, to));
 
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Registros');
@@ -422,17 +449,17 @@ app.post('/guardar-regulada', async (req, res) => {
   try {
     // Bruto/tara finales según confirmaciones
     const bruto = req.body.confirmarBruto === 'SI'
-        ? parseFloat(req.body.brutoEstimado || 0)
-        : parseFloat(req.body.bruto || 0);
-    
+      ? parseFloat(req.body.brutoEstimado || 0)
+      : parseFloat(req.body.bruto || 0);
+
     const taraFinal = req.body.confirmarTara === 'SI'
-        ? parseFloat(req.body.tara || 0)
-        : parseFloat(req.body.taraNueva || 0);
+      ? parseFloat(req.body.tara || 0)
+      : parseFloat(req.body.taraNueva || 0);
 
     const col = mongoose.connection.db.collection('registros');
 
-    // BUsco la TARA más reciente (no anulada, no confirmada) de esa patente
-    const taraDoc= await col.findOne(
+    // Busco la TARA más reciente (no anulada, no confirmada) de esa patente
+    const taraDoc = await col.findOne(
       {
         pesadaPara: 'TARA',
         patentes: req.body.patentes,
@@ -443,7 +470,7 @@ app.post('/guardar-regulada', async (req, res) => {
     );
 
     if (!taraDoc) {
-      return res.status(400).send('No se encontró TARA pendiente para esa patente' );
+      return res.status(400).send('No se encontró TARA pendiente para esa patente');
     }
 
     //Actualizo ESE MISMO documento a REGULADA y completo datos
@@ -451,6 +478,9 @@ app.post('/guardar-regulada', async (req, res) => {
       { _id: taraDoc._id },
       {
         $set: {
+          // *** clave: la fecha del ticket pasa a ser HOY ***
+          fecha: ymd(new Date()),
+
           pesadaPara: 'REGULADA',
           // datos del destino
           campo: req.body.campo,
@@ -469,7 +499,7 @@ app.post('/guardar-regulada', async (req, res) => {
         }
       }
     );
-    
+
     const codigoObservacion = ingresoAObservacion[req.body.code];
     return res.redirect(`/tabla?code=${codigoObservacion}`);
   } catch (err) {
