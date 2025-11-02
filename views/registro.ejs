@@ -43,22 +43,22 @@
 
   <div class="form-group">
     <label for="transporte">Transporte</label>
-    <input type="text" id="transporte" name="transporte" class="form-control">
+    <input type="text" id="transporte" name="transporte" class="form-control" required>
   </div>
 
   <div class="form-group">
     <label for="patentes">Patentes</label>
-    <input type="text" id="patentes" name="patentes" class="form-control">
+    <input type="text" id="patentes" name="patentes" class="form-control" required>
   </div>
 
   <div class="form-group">
     <label for="chofer">Chofer</label>
-    <input type="text" id="chofer" name="chofer" class="form-control">
+    <input type="text" id="chofer" name="chofer" class="form-control" required>
   </div>
 
   <div class="form-group">
     <label for="brutoEstimadoTara">Bruto Estimado (kg)</label>
-    <select id="brutoEstimadoTara" name="brutoEstimado" class="form-control">
+    <select id="brutoEstimadoTara" name="brutoEstimado" class="form-control" required>
       <option value="">Seleccione</option>
       <option value="45000">45000 kg</option>
       <option value="52500">52500 kg</option>
@@ -66,12 +66,25 @@
     </select>
   </div>
 
-  <div class="form-group">
-    <label for="tara">Tara (kg)</label>
-    <input type="number" id="tara" name="tara" class="form-control" required>
+  <!-- Tara (kg) - OPCIONAL en el primer paso -->
+<div class="mb-3">
+  <label for="tara" class="form-label">Tara (kg)</label>
+  <input
+    type="number"
+    id="tara"
+    name="tara"
+    class="form-control"
+    min="0"
+    step="1"
+    placeholder="Podés dejarlo vacío si aún no la sabés"
+    value="<%= typeof tara !== 'undefined' ? tara : '' %>"
+  />
+  <div class="form-text">
+    Este campo es opcional al crear la TARA. Podés cargarlo después o al cerrar la REGULADA.
   </div>
+</div>
 
-  <input type="hidden" name="code" value="<%= code %>">
+<input type="hidden" name="code" value="<%= code %>">
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
