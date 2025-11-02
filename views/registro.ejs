@@ -67,42 +67,41 @@
   </div>
 
   <!-- Tara (kg) - OPCIONAL en el primer paso -->
-<div class="mb-3">
-  <label for="tara" class="form-label">Tara (kg)</label>
-  <input
-    type="number"
-    id="tara"
-    name="tara"
-    class="form-control"
-    min="0"
-    step="1"
-    placeholder="Podés dejarlo vacío si aún no la sabés"
-    value="<%= typeof tara !== 'undefined' ? tara : '' %>"
-  />
-  <div class="form-text">
-    Este campo es opcional al crear la TARA. Podés cargarlo después o al cerrar la REGULADA.
+  <div class="mb-3">
+    <label for="tara" class="form-label">Tara (kg)</label>
+    <input
+      type="number"
+      id="tara"
+      name="tara"
+      class="form-control"
+      min="0"
+      step="1"
+      placeholder="Podés dejarlo vacío si aún no la sabés"
+      value="<%= typeof tara !== 'undefined' ? tara : '' %>"
+    />
+    <div class="form-text">
+      Este campo es opcional al crear la TARA. Podés cargarlo después o al cerrar la REGULADA.
+    </div>
   </div>
-</div>
 
-<input type="hidden" name="code" value="<%= code %>">
+  <input type="hidden" name="code" value="<%= code %>">
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
 <!-- ====== REGULADA ====== -->
 <form action="/confirmar-regulada" method="post" id="formRegulada" style="display:<%= pesadaPara==='REGULADA' ? 'block':'none' %>">
   <div class="form-group">
-    <label for="patentesRegulada">Patentes (pendientes: hoy + ayer)</label>
+    <label for="patentesRegulada">Patentes (pendientes: últimos 3 días)</label>
     <select id="patentesRegulada" name="patentes" class="form-control" required>
       <option value="">Seleccione</option>
       <% (pendientesTara || []).forEach(reg => { %>
-        <!-- OJO: data-* DENTRO del option -->
         <option value="<%= reg.patentes %>" data-bruto="<%= reg.brutoEstimado %>" data-tara="<%= reg.tara %>">
           <%= reg.patentes %> (Bruto: <%= reg.brutoEstimado %>)
         </option>
       <% }) %>
     </select>
     <% if (!(pendientesTara && pendientesTara.length)) { %>
-      <small class="text-muted">No hay TARA pendientes de hoy/ayer.</small>
+      <small class="text-muted">No hay TARA pendientes de los últimos 3 días.</small>
     <% } %>
   </div>
 
@@ -190,16 +189,7 @@
 </form>
 
 <script>
-  // Completar bruto estimado y tara según la patente elegida
-  const patentesREg = document.getElementById('patentesRegulada');
-  patentesREg.addEventListener('change', function() {
-    const opt   = this.options[this.selectedIndex];
-    const bruto = opt?.dataset?.bruto || '';
-    const tara  = opt?.dataset?.tara  || '';
-    document.getElementById('brutoEstimadoReg').value = bruto;
-    document.getElementById('taraReg').value          = tara;
-  });
-  // Publicamos datosSiembra
+  // Datos siembra para combos dependientes
   window.datosSiembra = <%- JSON.stringify(datosSiembra) %>;
 
   function toggleForm() {
@@ -210,6 +200,7 @@
   function toggleSocio() {
     const v = document.getElementById('cargaPara').value;
     document.getElementById('socioField').style.display = v === 'SOCIO' ? 'block' : 'none';
+    document.getElementById('socio').required = v === 'SOCIO';
   }
   function toggleCargo() {
     const v = document.getElementById('cargoDe').value;
@@ -223,14 +214,12 @@
   function toggleTara() {
     const show = document.getElementById('confirmarTara').value === 'NO';
     document.getElementById('taraNuevaField').style.display = show ? 'block' : 'none';
-    // si NO confirma, habilito edición de tara nueva
     document.getElementById('taraReg').readOnly = true;
   }
 
-  const campoSel    = document.getElementById('campo');
-  const granoSel    = document.getElementById('grano');
-  const loteSel     = document.getElementById('lote');
-  const patentesSel = document.getElementById('patentesRegulada');
+  const campoSel = document.getElementById('campo');
+  const granoSel = document.getElementById('grano');
+  const loteSel  = document.getElementById('lote');
 
   function fillGranos() {
     const campo = campoSel.value;
@@ -264,21 +253,24 @@
     if (lotes.length) loteSel.disabled = false;
   }
 
-  // Completar bruto/tara al elegir patente
-  patentesSel.addEventListener('change', function () {
-    const opt   = this.options[this.selectedIndex];
-    const bruto = opt?.dataset?.bruto || '';
-    const tara  = opt?.dataset?.tara  || '';
-    document.getElementById('brutoEstimadoReg').value = bruto;
-    document.getElementById('taraReg').value          = tara;
-  });
-
   campoSel.addEventListener('change', fillGranos);
   granoSel.addEventListener('change', fillLotes);
 
   // Estado inicial
   toggleForm(); toggleSocio(); toggleCargo(); toggleBruto(); toggleTara();
   fillGranos();
+
+  // Completar bruto/tara al elegir patente de REGULADA
+  const patSel = document.getElementById('patentesRegulada');
+  if (patSel) {
+    patSel.addEventListener('change', function () {
+      const opt   = this.options[this.selectedIndex];
+      const bruto = opt?.dataset?.bruto || '';
+      const tara  = opt?.dataset?.tara  || '';
+      document.getElementById('brutoEstimadoReg').value = bruto;
+      document.getElementById('taraReg').value          = tara;
+    });
+  }
 </script>
 
 <%- include('partials/footer') %>
