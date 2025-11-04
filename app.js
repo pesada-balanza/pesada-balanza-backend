@@ -328,6 +328,8 @@ app.get(
         { header: 'Cargo De', key: 'cargoDe', width: 15 },
         { header: 'Silobolsa', key: 'silobolsa', width: 15 },
         { header: 'Contratista', key: 'contratista', width: 15 },
+        { header: 'Bruto LOTE', key: 'brutolote', width: 14 },
+        { header: 'Comentarios', key: 'comentarios', width: 28 },
         { header: 'Bruto', key: 'bruto', width: 15 },
         { header: 'Neto', key: 'neto', width: 15 },
         { header: 'Anulado', key: 'anulado', width: 10 },
@@ -555,11 +557,21 @@ app.post('/guardar-tara-final', async (req, res) => {
 
 // Confirmar REGULADA (previsualización)
 app.post('/confirmar-regulada', (req, res) => {
-  // Requeridos de REGULADA
-  const requeridosBase = ['patentes', 'campo', 'grano', 'lote', 'cargoDe', 'confirmarTara', 'confirmarBruto'];
+  // Requeridos de REGULADA (ahora incluye brutoLote)
+  const requeridosBase = [
+    'patentes', 'campo', 'grano', 'lote', 'cargoDe',
+    'confirmarTara', 'confirmarBruto',
+    'brutoLote' // NEW
+  ];
   const faltanBase = missingFields(req.body, requeridosBase);
   if (faltanBase.length) {
     return res.status(400).render('error', { error: `Faltan campos obligatorios en REGULADA: ${faltanBase.join(', ')}` });
+  }
+
+  // Validar brutoLote numérico
+  const brutoLote = parseFloat(req.body.brutoLote);
+  if (!Number.isFinite(brutoLote) || brutoLote < 0) {
+    return res.status(400).render('error', { error: 'Bruto LOTE debe ser un número válido (>= 0).' });
   }
 
   // Si NO confirman Tara o Bruto, exigir los valores nuevos
@@ -578,23 +590,40 @@ app.post('/confirmar-regulada', (req, res) => {
       ? parseFloat(req.body.tara || 0)
       : parseFloat(req.body.taraNueva || 0);
 
+  // Comentarios es opcional
+  const comentarios = (req.body.comentarios || '').trim();
+
+  // Pasamos todo a la vista de confirmación (formData ya incluye brutoLote y comentarios)
   res.render('confirmar-regulada', {
     formData: req.body,
     bruto,
     tara: taraFinal,
-    neto: bruto - taraFinal
+    neto: bruto - taraFinal,
+    // por si querés usar explícitos en la vista:
+    brutoLote,
+    comentarios
   });
 });
 
 // Guardar REGULADA
 app.post('/guardar-regulada', async (req, res) => {
   try {
-    // Validaciones iguales a confirmar-regulada
-    const requeridosBase = ['patentes', 'campo', 'grano', 'lote', 'cargoDe', 'confirmarTara', 'confirmarBruto', 'code'];
+    // Validaciones iguales a confirmar-regulada (incluye brutoLote y code)
+    const requeridosBase = [
+      'patentes', 'campo', 'grano', 'lote', 'cargoDe',
+      'confirmarTara', 'confirmarBruto', 'code',
+      'brutoLote' // NEW
+    ];
     const faltanBase = missingFields(req.body, requeridosBase);
     if (faltanBase.length) {
       return res.status(400).render('error', { error: `Faltan campos obligatorios en REGULADA: ${faltanBase.join(', ')}` });
     }
+
+    const brutoLote = parseFloat(req.body.brutoLote);
+    if (!Number.isFinite(brutoLote) || brutoLote < 0) {
+      return res.status(400).render('error', { error: 'Bruto LOTE debe ser un número válido (>= 0).' });
+    }
+
     if (req.body.confirmarTara === 'NO' && !req.body.taraNueva) {
       return res.status(400).render('error', { error: 'Debe informar Tara Nueva (kg) si no confirma la Tara.' });
     }
@@ -610,10 +639,12 @@ app.post('/guardar-regulada', async (req, res) => {
         ? parseFloat(req.body.tara || 0)
         : parseFloat(req.body.taraNueva || 0);
 
+    const comentarios = (req.body.comentarios || '').trim();
+
     const col = mongoose.connection.db.collection('registros');
 
     // TARA pendiente más reciente
-    const taraDoc= await col.findOne(
+    const taraDoc = await col.findOne(
       {
         pesadaPara: 'TARA',
         patentes: req.body.patentes,
@@ -624,10 +655,10 @@ app.post('/guardar-regulada', async (req, res) => {
     );
 
     if (!taraDoc) {
-      return res.status(400).send('No se encontró TARA pendiente para esa patente' );
+      return res.status(400).send('No se encontró TARA pendiente para esa patente');
     }
 
-    // Actualizo ese mismo documento a REGULADA y completo datos
+    // Actualizo ese mismo documento a REGULADA y completo datos (incluye brutoLote y comentarios)
     await col.updateOne(
       { _id: taraDoc._id },
       {
@@ -643,10 +674,16 @@ app.post('/guardar-regulada', async (req, res) => {
           cargoDe: req.body.cargoDe,
           silobolsa: req.body.cargoDe === 'SILOBOLSA' ? req.body.silobolsa : '',
           contratista: req.body.cargoDe === 'CONTRATISTA' ? req.body.contratista : '',
+
+          // NUEVOS CAMPOS
+          brutoLote: brutoLote,
+          comentarios: comentarios,
+
           // pesos definitivos
           bruto,
           tara: taraFinal,
           neto: bruto - taraFinal,
+
           // estado
           confirmada: true,
           fechaRegulada: ymd(new Date())

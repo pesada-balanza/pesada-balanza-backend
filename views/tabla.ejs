@@ -61,6 +61,8 @@
       <th>Cargo De</th>
       <th>Silobolsa</th>
       <th>Contratista</th>
+      <th>Bruto LOTE</th>       <!-- NUEVO -->
+      <th>Comentarios</th>      <!-- NUEVO -->
       <th>Bruto</th>
       <th>Neto</th>
       <th>Acciones</th>
@@ -90,16 +92,18 @@
       <td><%= registro.transporte || '' %></td>
       <td><%= registro.patentes %></td>
       <td><%= registro.chofer || '' %></td>
-      <td><%= registro.brutoEstimado ?? '' %></td>
-      <td><%= registro.tara ?? '' %></td>
-      <td><%= registro.netoEstimado ?? '' %></td>
+      <td><%= (typeof registro.brutoEstimado === 'number') ? registro.brutoEstimado : (registro.brutoEstimado ?? '') %></td>
+      <td><%= (typeof registro.tara === 'number') ? registro.tara : (registro.tara ?? '') %></td>
+      <td><%= (typeof registro.netoEstimado === 'number') ? registro.netoEstimado : (registro.netoEstimado ?? '') %></td>
       <td><%= registro.campo || '' %></td>
       <td><%= registro.grano || '' %></td>
       <td><%= registro.lote || '' %></td>
       <td><%= registro.cargoDe || '' %></td>
       <td><%= registro.silobolsa || '' %></td>
       <td><%= registro.contratista || '' %></td>
-      <td><%= registro.bruto ?? '' %></td>
+      <td><%= (typeof registro.brutoLote === 'number') ? registro.brutoLote : (registro.brutoLote ?? '') %></td> <!-- NUEVO -->
+      <td><%= registro.comentarios || '' %></td> <!-- NUEVO -->
+      <td><%= (typeof registro.bruto === 'number') ? registro.bruto : (registro.bruto ?? '') %></td>
       <td>
         <% if (typeof registro.neto === 'number') { %>
           <%= registro.neto %>
