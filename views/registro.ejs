@@ -234,9 +234,9 @@
 
   function toggleForm() {
     const val = document.getElementById('pesadaPara').value;
-    document.getElementById('formTara').style.display      = val === 'TARA' ? 'block' : 'none';
-    document.getElementById('formTaraFinal').style.display = val === 'TARAFINAL' ? 'block' : 'none';
-    document.getElementById('formRegulada').style.display = val === 'REGULADA' ? 'block' : 'none';
+    document.getElementById('formTara').style.display      = (val === 'TARA') ? 'block' : 'none';
+    document.getElementById('formTaraFinal').style.display = (val === 'TARAFINAL') ? 'block' : 'none';
+    document.getElementById('formRegulada').style.display  = (val === 'REGULADA') ? 'block' : 'none';
   }
   function toggleSocio() {
     const v = document.getElementById('cargaPara').value;
