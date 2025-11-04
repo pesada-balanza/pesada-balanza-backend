@@ -37,6 +37,7 @@
     <select id="pesadaPara" name="pesadaPara" class="form-control" required onchange="toggleForm()">
       <option value="">Seleccione</option>
       <option value="TARA" <%= pesadaPara==='TARA' ? 'selected':'' %>>TARA</option>
+      <option value="TARA_FINAL" <%= pesadaPara==='TARA_FINAL' ? 'selected':'' %>>TARA FINAL</option>
       <option value="REGULADA" <%= pesadaPara==='REGULADA' ? 'selected':'' %>>REGULADA</option>
     </select>
   </div>
@@ -82,6 +83,32 @@
     <div class="form-text">
       Este campo es opcional al crear la TARA. Podés cargarlo después o al cerrar la REGULADA.
     </div>
+  </div>
+
+  <input type="hidden" name="code" value="<%= code %>">
+  <button type="submit" class="btn btn-primary">Confirmar</button>
+</form>
+
+<!-- ====== TARA FINAL ====== -->
+<form action="/confirmar-tara-final" method="post" id="formTaraFinal" style="display:<%= pesadaPara==='TARA_FINAL' ? 'block':'none' %>">
+  <div class="form-group">
+    <label for="patentesTaraFinal">Patentes (TARA pendientes: últimos 3 días)</label>
+    <select id="patentesTaraFinal" name="patentes" class="form-control" required>
+      <option value="">Seleccione</option>
+      <% (pendientesTara || []).forEach(reg => { %>
+        <option value="<%= reg.patentes %>" data-bruto="<%= reg.brutoEstimado %>">
+          <%= reg.patentes %> (Bruto estimado: <%= reg.brutoEstimado %>)
+        </option>
+      <% }) %>
+    </select>
+    <% if (!(pendientesTara && pendientesTara.length)) { %>
+      <small class="text-muted">No hay TARA pendientes de los últimos 3 días.</small>
+    <% } %>
+  </div>
+
+  <div class="form-group">
+    <label for="taraFinal">Tara (kg)</label>
+    <input type="number" id="taraFinal" name="taraFinal" class="form-control" min="0" step="1" required>
   </div>
 
   <input type="hidden" name="code" value="<%= code %>">
@@ -207,7 +234,8 @@
 
   function toggleForm() {
     const val = document.getElementById('pesadaPara').value;
-    document.getElementById('formTara').style.display     = val === 'TARA' ? 'block' : 'none';
+    document.getElementById('formTara').style.display      = val === 'TARA' ? 'block' : 'none';
+    document.getElementById('formTaraFinal').style.display = val === 'TARAFINAL' ? 'block' : 'none';
     document.getElementById('formRegulada').style.display = val === 'REGULADA' ? 'block' : 'none';
   }
   function toggleSocio() {
