@@ -1,0 +1,58 @@
+<%- include('partials/header') %>
+
+<h1 class="mb-3">Confirmar TARA FINAL</h1>
+
+<div class="alert alert-info">
+  Vas a cerrar la <strong>Tara</strong> del ticket pendiente (todavía NO se cierra la REGULADA).
+  Esto actualiza el mismo registro de TARA con la tara definitiva y recalcula el neto estimado.
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">Resumen</div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <tbody>
+        <tr>
+          <th style="width: 220px;">ID Ticket</th>
+          <td><%= taraDoc?.idTicket %></td>
+        </tr>
+        <tr>
+          <th>Patentes</th>
+          <td><%= formData.patentes %></td>
+        </tr>
+        <tr>
+          <th>Fecha (TARA creada)</th>
+          <td><%= taraDoc?.fecha %></td>
+        </tr>
+        <tr>
+          <th>Bruto Estimado (kg)</th>
+          <td><%= brutoEstimado %></td>
+        </tr>
+        <tr>
+          <th>Tara actual (si existía)</th>
+          <td><%= (taraDoc?.tara ?? '') === '' ? '—' : taraDoc.tara %></td>
+        </tr>
+        <tr class="table-warning">
+          <th>Tara NUEVA (kg)</th>
+          <td><strong><%= taraNueva %></strong></td>
+        </tr>
+        <tr class="table-success">
+          <th>NETO Estimado (kg)</th>
+          <td><strong><%= netoEstimado %></strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<form action="/guardar-tara-final" method="post" class="d-flex gap-2">
+  <!-- Mantener los datos necesarios -->
+  <input type="hidden" name="patentes"  value="<%= formData.patentes %>">
+  <input type="hidden" name="taraNueva" value="<%= taraNueva %>">
+  <input type="hidden" name="code"      value="<%= formData.code %>">
+
+  <a href="javascript:history.back()" class="btn btn-outline-secondary">Volver</a>
+  <button type="submit" class="btn btn-primary">Guardar TARA FINAL</button>
+</form>
+
+<%- include('partials/footer') %>

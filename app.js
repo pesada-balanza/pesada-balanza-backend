@@ -457,6 +457,102 @@ app.post('/guardar-tara', async (req, res) => {
   }
 });
 
+// ====== TARA FINAL ======
+
+// Previsualizar TARA FINAL (completar la tara de una TARA pendiente)
+app.post('/confirmar-tara-final', async (req, res) => {
+  try {
+    const requeridos = ['patentes', 'taraNueva', 'code'];
+    const faltan = requeridos.filter(f => !String(req.body[f] || '').trim());
+    if (faltan.length) {
+      return res.status(400).render('error', { error: `Faltan campos en TARA FINAL: ${faltan.join(', ')}` });
+    }
+
+    const taraNueva = parseFloat(req.body.taraNueva || 0);
+    if (!(taraNueva >= 0)) {
+      return res.status(400).render('error', { error: 'Tara Nueva (kg) debe ser un número válido' });
+    }
+
+    // Buscar la TARA pendiente más reciente de esa patente
+    const col = mongoose.connection.db.collection('registros');
+    const taraDoc = await col.findOne(
+      {
+        pesadaPara: 'TARA',
+        patentes: req.body.patentes,
+        anulado: { $ne: true },
+        confirmada: { $ne: true },
+      },
+      { sort: { idTicket: -1 } }
+    );
+
+    if (!taraDoc) {
+      return res.status(404).render('error', { error: 'No se encontró TARA pendiente para esa patente' });
+    }
+
+    const brutoEstimado = parseFloat(taraDoc.brutoEstimado || 0);
+
+    return res.render('confirmar-tara-final', {
+      formData: req.body,               // patentes, taraNueva, code
+      brutoEstimado,
+      taraNueva,
+      netoEstimado: brutoEstimado - taraNueva,
+      taraDoc
+    });
+  } catch (err) {
+    return res.status(500).render('error', { error: 'Error en confirmar TARA FINAL: ' + err.message });
+  }
+});
+
+// Guardar TARA FINAL (actualiza el mismo doc de TARA, NO cierra ticket)
+app.post('/guardar-tara-final', async (req, res) => {
+  try {
+    const requeridos = ['patentes', 'taraNueva', 'code'];
+    const faltan = requeridos.filter(f => !String(req.body[f] || '').trim());
+    if (faltan.length) {
+      return res.status(400).render('error', { error: `Faltan campos en TARA FINAL: ${faltan.join(', ')}` });
+    }
+
+    const taraNueva = parseFloat(req.body.taraNueva || 0);
+    if (!(taraNueva >= 0)) {
+      return res.status(400).render('error', { error: 'Tara Nueva (kg) debe ser un número válido' });
+    }
+
+    const col = mongoose.connection.db.collection('registros');
+
+    const taraDoc = await col.findOne(
+      {
+        pesadaPara: 'TARA',
+        patentes: req.body.patentes,
+        anulado: { $ne: true },
+        confirmada: { $ne: true },
+      },
+      { sort: { idTicket: -1 } }
+    );
+    if (!taraDoc) {
+      return res.status(404).render('error', { error: 'No se encontró TARA pendiente para esa patente' });
+    }
+
+    const brutoEstimado = parseFloat(taraDoc.brutoEstimado || 0);
+
+    await col.updateOne(
+      { _id: taraDoc._id },
+      {
+        $set: {
+          // mantenemos pesadaPara: 'TARA' (no cerramos el ticket)
+          tara: taraNueva,
+          netoEstimado: brutoEstimado - taraNueva,
+          fechaTaraFinal: ymd(new Date())  // marca cuándo se finalizó la Tara
+        }
+      }
+    );
+
+    const codigoObservacion = ingresoAObservacion[req.body.code] || '12341';
+    return res.redirect(`/tabla?code=${codigoObservacion}`);
+  } catch (err) {
+    return res.status(500).render('error', { error: 'Error al guardar TARA FINAL: ' + err.message });
+  }
+});
+
 // Confirmar REGULADA (previsualización)
 app.post('/confirmar-regulada', (req, res) => {
   // Requeridos de REGULADA
