@@ -1,9 +1,7 @@
 <%- include('partials/header') %>
 <h1>Registro de Pesaje</h1>
 
-<!-- ========================= -->
-<!-- ======== TARA ========== -->
-<!-- ========================= -->
+<!-- ====== TARA ====== -->
 <form action="/confirmar-tara" method="post" id="formTara" style="display:<%= pesadaPara==='TARA' ? 'block':'none' %>">
   <div class="form-group">
     <label for="idTicket">ID Ticket</label>
@@ -36,12 +34,10 @@
 
   <div class="form-group">
     <label for="pesadaPara">Pesada para</label>
-    <!-- IMPORTANTE: ahora hay 3 opciones -->
     <select id="pesadaPara" name="pesadaPara" class="form-control" required onchange="toggleForm()">
       <option value="">Seleccione</option>
-      <option value="TARA"       <%= pesadaPara==='TARA' ? 'selected':'' %>>TARA</option>
-      <option value="TARA_FINAL" <%= pesadaPara==='TARA_FINAL' ? 'selected':'' %>>TARA FINAL</option>
-      <option value="REGULADA"   <%= pesadaPara==='REGULADA' ? 'selected':'' %>>REGULADA</option>
+      <option value="TARA" <%= pesadaPara==='TARA' ? 'selected':'' %>>TARA</option>
+      <option value="REGULADA" <%= pesadaPara==='REGULADA' ? 'selected':'' %>>REGULADA</option>
     </select>
   </div>
 
@@ -84,7 +80,7 @@
       value="<%= typeof tara !== 'undefined' ? tara : '' %>"
     />
     <div class="form-text">
-      Este campo es opcional al crear la TARA. Podés cargarlo después en <strong>TARA FINAL</strong> o al cerrar la <strong>REGULADA</strong>.
+      Este campo es opcional al crear la TARA. Podés cargarlo después o al cerrar la REGULADA.
     </div>
   </div>
 
@@ -92,57 +88,7 @@
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
-<!-- ============================== -->
-<!-- ======== TARA FINAL ========= -->
-<!-- ============================== -->
-<form action="/confirmar-tara-final" method="post" id="formTaraFinal" style="display:<%= pesadaPara==='TARA_FINAL' ? 'block':'none' %>">
-  <div class="alert alert-info">
-    Cerrás la <strong>TARA</strong> de un ticket pendiente (NO cierra la REGULADA).  
-    Elegí la patente y cargá la <strong>Tara definitiva</strong>.
-  </div>
-
-  <div class="form-group">
-    <label for="patentesTF">Patentes con TARA pendiente (últimos 3 días)</label>
-    <select id="patentesTF" name="patentes" class="form-control" required>
-      <option value="">Seleccione</option>
-      <% (pendientesTara || []).forEach(reg => { %>
-        <option value="<%= reg.patentes %>" data-bruto="<%= reg.brutoEstimado %>" data-tara="<%= reg.tara %>">
-          <%= reg.patentes %> (Bruto Est.: <%= reg.brutoEstimado %>, Tara actual: <%= reg.tara ?? '—' %>)
-        </option>
-      <% }) %>
-    </select>
-    <% if (!(pendientesTara && pendientesTara.length)) { %>
-      <small class="text-muted">No hay TARA pendientes de los últimos 3 días.</small>
-    <% } %>
-  </div>
-
-  <div class="row">
-    <div class="col-md-6">
-      <div class="form-group">
-        <label for="brutoEstimadoTF">Bruto Estimado (kg)</label>
-        <input type="text" id="brutoEstimadoTF" class="form-control" readonly>
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="form-group">
-        <label for="taraActualTF">Tara actual (si hubiera)</label>
-        <input type="text" id="taraActualTF" class="form-control" readonly>
-      </div>
-    </div>
-  </div>
-
-  <div class="form-group">
-    <label for="taraNueva">Tara NUEVA (kg)</label>
-    <input type="number" id="taraNueva" name="taraNueva" class="form-control" min="0" step="1" required>
-  </div>
-
-  <input type="hidden" name="code" value="<%= code %>">
-  <button type="submit" class="btn btn-primary">Confirmar</button>
-</form>
-
-<!-- ============================= -->
-<!-- ======== REGULADA ========= -->
-<!-- ============================= -->
+<!-- ====== REGULADA ====== -->
 <form action="/confirmar-regulada" method="post" id="formRegulada" style="display:<%= pesadaPara==='REGULADA' ? 'block':'none' %>">
   <div class="form-group">
     <label for="patentesRegulada">Patentes (pendientes: últimos 3 días)</label>
@@ -202,6 +148,13 @@
     <input type="text" id="contratista" name="contratista" class="form-control">
   </div>
 
+  <!-- NUEVO: Bruto LOTE (obligatorio) -->
+  <div class="form-group">
+    <label for="brutoLote">Bruto LOTE (kg)</label>
+    <input type="number" id="brutoLote" name="brutoLote" class="form-control" min="0" step="1" required>
+    <div class="form-text">Dato informativo del lote. No afecta cálculos.</div>
+  </div>
+
   <div class="form-group">
     <label for="brutoEstimadoReg">Bruto Estimado (kg)</label>
     <input type="text" id="brutoEstimadoReg" name="brutoEstimado" class="form-control" readonly>
@@ -221,8 +174,8 @@
   </div>
 
   <div class="form-group" id="taraNuevaField" style="display:none;">
-    <label for="taraNuevaReg">Tara Nueva (kg)</label>
-    <input type="number" id="taraNuevaReg" name="taraNueva" class="form-control">
+    <label for="taraNueva">Tara Nueva (kg)</label>
+    <input type="number" id="taraNueva" name="taraNueva" class="form-control">
   </div> 
 
   <div class="form-group">
@@ -238,19 +191,24 @@
     <input type="number" id="bruto" name="bruto" class="form-control">
   </div>
 
+  <!-- NUEVO: Comentarios (opcional) -->
+  <div class="form-group">
+    <label for="comentarios">Comentarios</label>
+    <textarea id="comentarios" name="comentarios" class="form-control" rows="2" placeholder="Observaciones del balancero (opcional)"></textarea>
+  </div>
+
   <input type="hidden" name="code" value="<%= code %>">
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
 <script>
-  // Publicamos datos siembra para combos dependientes
+  // Datos siembra para combos dependientes
   window.datosSiembra = <%- JSON.stringify(datosSiembra) %>;
 
   function toggleForm() {
     const val = document.getElementById('pesadaPara').value;
-    document.getElementById('formTara').style.display       = val === 'TARA' ? 'block' : 'none';
-    document.getElementById('formTaraFinal').style.display  = val === 'TARA_FINAL' ? 'block' : 'none';
-    document.getElementById('formRegulada').style.display   = val === 'REGULADA' ? 'block' : 'none';
+    document.getElementById('formTara').style.display     = val === 'TARA' ? 'block' : 'none';
+    document.getElementById('formRegulada').style.display = val === 'REGULADA' ? 'block' : 'none';
   }
   function toggleSocio() {
     const v = document.getElementById('cargaPara').value;
@@ -272,7 +230,6 @@
     document.getElementById('taraReg').readOnly = true;
   }
 
-  // ===== Combos dependientes en REGULADA =====
   const campoSel = document.getElementById('campo');
   const granoSel = document.getElementById('grano');
   const loteSel  = document.getElementById('lote');
@@ -309,13 +266,10 @@
     if (lotes.length) loteSel.disabled = false;
   }
 
-  campoSel.addEventListener('change', fillGranos);
-  granoSel.addEventListener('change', fillLotes);
-
-  // ===== Autocompletar BRUTO/TARA según patente elegida =====
-  const patRegSel = document.getElementById('patentesRegulada');
-  if (patRegSel) {
-    patRegSel.addEventListener('change', function () {
+  // Completar bruto/tara al elegir patente de REGULADA
+  const patSel = document.getElementById('patentesRegulada');
+  if (patSel) {
+    patSel.addEventListener('change', function () {
       const opt   = this.options[this.selectedIndex];
       const bruto = opt?.dataset?.bruto || '';
       const tara  = opt?.dataset?.tara  || '';
@@ -324,26 +278,11 @@
     });
   }
 
-  // Para TARA FINAL: completar bruto estimado y tara actual de la opción
-  const patTFSel = document.getElementById('patentesTF');
-  if (patTFSel) {
-    patTFSel.addEventListener('change', function () {
-      const opt   = this.options[this.selectedIndex];
-      const bruto = opt?.dataset?.bruto || '';
-      const tara  = opt?.dataset?.tara  || '';
-      const brutoInp = document.getElementById('brutoEstimadoTF');
-      const taraAct  = document.getElementById('taraActualTF');
-      if (brutoInp) brutoInp.value = bruto;
-      if (taraAct)  taraAct.value  = (tara === '' ? '—' : tara);
-    });
-  }
+  campoSel.addEventListener('change', fillGranos);
+  granoSel.addEventListener('change', fillLotes);
 
   // Estado inicial
-  toggleForm();
-  toggleSocio();
-  toggleCargo();
-  toggleBruto();
-  toggleTara();
+  toggleForm(); toggleSocio(); toggleCargo(); toggleBruto(); toggleTara();
   fillGranos();
 </script>
 

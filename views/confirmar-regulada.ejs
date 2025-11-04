@@ -1,14 +1,71 @@
 <%- include('partials/header') %>
-<h1>Confirmar Registro (REGULADA)</h1>
-<p>Bruto: <%= bruto %> kg</p>
-<p>Neto: <%= neto %> kg</p>
-<form action="/guardar-regulada" method="post">
-    <% for (let key in formData) { %>
-        <input type="hidden" name="<%= key %>" value="<%= formData[key] %>">
-    <% } %>
-    <input type="hidden" name="bruto" value="<%= bruto %>">
-    <input type="hidden" name="neto" value="<%= neto %>">
-    <button type="submit" class="btn btn-success">Guardar</button>
-    <a href="/registro?code=<%= formData.code %>" class="btn btn-danger">Modificar</a>
+<h1>Confirmar REGULADA</h1>
+
+<p class="text-muted">Revisá los datos y, si querés, agregá un comentario antes de guardar.</p>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row mb-2">
+      <div class="col-md-4"><strong>Patentes:</strong> <%= formData.patentes %></div>
+      <div class="col-md-4"><strong>Campo:</strong> <%= formData.campo %></div>
+      <div class="col-md-4"><strong>Grano/Cultivo:</strong> <%= formData.grano %></div>
+    </div>
+    <div class="row mb-2">
+      <div class="col-md-4"><strong>Lote:</strong> <%= formData.lote %></div>
+      <div class="col-md-4"><strong>Cargo de:</strong> <%= formData.cargoDe %></div>
+      <div class="col-md-4">
+        <% if (formData.cargoDe === 'SILOBOLSA') { %>
+          <strong>Silobolsa:</strong> <%= formData.silobolsa %>
+        <% } else if (formData.cargoDe === 'CONTRATISTA') { %>
+          <strong>Contratista:</strong> <%= formData.contratista %>
+        <% } %>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="row mb-2">
+      <div class="col-md-4"><strong>Bruto LOTE (kg):</strong> <%= (typeof brutoLote !== 'undefined' ? brutoLote : formData.brutoLote) %></div>
+      <div class="col-md-4"><strong>Tara (kg):</strong> <%= tara %></div>
+      <div class="col-md-4"><strong>Bruto (kg):</strong> <%= bruto %></div>
+    </div>
+    <div class="row">
+      <div class="col-md-4"><strong>Neto (kg):</strong> <%= neto %></div>
+    </div>
+  </div>
+</div>
+
+<form action="/guardar-regulada" method="post" class="mb-3">
+  <!-- Campos ocultos para reenviar TODO lo necesario -->
+  <input type="hidden" name="code" value="<%= formData.code %>">
+  <input type="hidden" name="patentes" value="<%= formData.patentes %>">
+  <input type="hidden" name="campo" value="<%= formData.campo %>">
+  <input type="hidden" name="grano" value="<%= formData.grano %>">
+  <input type="hidden" name="lote" value="<%= formData.lote %>">
+  <input type="hidden" name="cargoDe" value="<%= formData.cargoDe %>">
+  <input type="hidden" name="silobolsa" value="<%= formData.silobolsa || '' %>">
+  <input type="hidden" name="contratista" value="<%= formData.contratista || '' %>">
+
+  <!-- Confirmaciones y valores base -->
+  <input type="hidden" name="confirmarTara" value="<%= formData.confirmarTara %>">
+  <input type="hidden" name="confirmarBruto" value="<%= formData.confirmarBruto %>">
+  <input type="hidden" name="brutoEstimado" value="<%= formData.brutoEstimado || '' %>">
+  <input type="hidden" name="tara" value="<%= formData.tara || '' %>">
+  <input type="hidden" name="taraNueva" value="<%= formData.taraNueva || '' %>">
+  <input type="hidden" name="bruto" value="<%= formData.bruto || '' %>">
+
+  <!-- NUEVOS CAMPOS -->
+  <input type="hidden" name="brutoLote" value="<%= (typeof brutoLote !== 'undefined' ? brutoLote : formData.brutoLote) %>">
+
+  <!-- Comentarios: editable (opcional) -->
+  <div class="mb-3">
+    <label for="comentarios" class="form-label">Comentarios (opcional)</label>
+    <textarea id="comentarios" name="comentarios" class="form-control" rows="3" placeholder="Observaciones del balancero..."><%= (typeof comentarios !== 'undefined' ? comentarios : (formData.comentarios || '')) %></textarea>
+    <div class="form-text">Este campo es opcional; se guardará junto con el cierre de REGULADA.</div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Guardar REGULADA</button>
+  <a href="javascript:history.back()" class="btn btn-outline-secondary">Volver</a>
 </form>
+
 <%- include('partials/footer') %>
