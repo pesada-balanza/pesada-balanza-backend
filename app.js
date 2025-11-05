@@ -557,51 +557,61 @@ app.post('/guardar-tara-final', async (req, res) => {
 
 // Confirmar REGULADA (previsualización)
 app.post('/confirmar-regulada', (req, res) => {
-  // Requeridos de REGULADA (ahora incluye brutoLote)
+  // Requeridos de REGULADA
   const requeridosBase = [
     'patentes', 'campo', 'grano', 'lote', 'cargoDe',
-    'confirmarTara', 'confirmarBruto',
-    'brutoLote' // NEW
+    'confirmarTara', 'confirmarBruto', 'brutoLote'
   ];
-  const faltanBase = missingFields(req.body, requeridosBase);
+  const faltanBase = requeridosBase.filter(f => {
+    const v = req.body[f];
+    return v === undefined || v === null || String(v).trim() === '';
+  });
   if (faltanBase.length) {
     return res.status(400).render('error', { error: `Faltan campos obligatorios en REGULADA: ${faltanBase.join(', ')}` });
   }
 
-  // Validar brutoLote numérico
-  const brutoLote = parseFloat(req.body.brutoLote);
-  if (!Number.isFinite(brutoLote) || brutoLote < 0) {
+  const toNum = v => {
+    if (v === '' || v === null || v === undefined) return null;
+    const n = Number(v);
+    return Number.isNaN(n) ? null : n;
+  };
+
+  const brutoLote = toNum(req.body.brutoLote);
+  if (brutoLote === null || brutoLote < 0) {
     return res.status(400).render('error', { error: 'Bruto LOTE debe ser un número válido (>= 0).' });
   }
 
-  // Si NO confirman Tara o Bruto, exigir los valores nuevos
-  if (req.body.confirmarTara === 'NO' && !req.body.taraNueva) {
+  if (req.body.confirmarTara === 'NO' && (req.body.taraNueva === undefined || String(req.body.taraNueva).trim() === '')) {
     return res.status(400).render('error', { error: 'Debe informar Tara Nueva (kg) si no confirma la Tara.' });
   }
-  if (req.body.confirmarBruto === 'NO' && !req.body.bruto) {
+  if (req.body.confirmarBruto === 'NO' && (req.body.bruto === undefined || String(req.body.bruto).trim() === '')) {
     return res.status(400).render('error', { error: 'Debe informar Bruto (kg) si no confirma el Bruto estimado.' });
   }
 
-  const bruto = req.body.confirmarBruto === 'SI'
-      ? parseFloat(req.body.brutoEstimado || 0)
-      : parseFloat(req.body.bruto || 0);
+  const brutoEstimado = toNum(req.body.brutoEstimado) ?? 0;
+  const taraOriginal  = toNum(req.body.tara) ?? 0;
 
-  const taraFinal = req.body.confirmarTara === 'SI'
-      ? parseFloat(req.body.tara || 0)
-      : parseFloat(req.body.taraNueva || 0);
+  const bruto = (req.body.confirmarBruto === 'SI')
+    ? brutoEstimado
+    : (toNum(req.body.bruto) ?? 0);
 
-  // Comentarios es opcional
-  const comentarios = (req.body.comentarios || '').trim();
+  const taraFinal = (req.body.confirmarTara === 'SI')
+    ? taraOriginal
+    : (toNum(req.body.taraNueva) ?? 0);
 
-  // Pasamos todo a la vista de confirmación (formData ya incluye brutoLote y comentarios)
-  res.render('confirmar-regulada', {
-    formData: req.body,
+  const neto = (bruto != null && taraFinal != null) ? (bruto - taraFinal) : null;
+
+  // 👉 clave: enviar idTicketOrigen suelta para que la use la vista
+  const idTicketOrigen = req.body.idTicketOrigen || '';
+
+  return res.render('confirmar-regulada', {
+    formData: req.body,         // por si la vista usa formData.*
+    idTicketOrigen,             // <- agrega esta línea
     bruto,
     tara: taraFinal,
-    neto: bruto - taraFinal,
-    // por si querés usar explícitos en la vista:
+    neto: neto ?? '',
     brutoLote,
-    comentarios
+    comentarios: (req.body.comentarios || '').trim()
   });
 });
 
