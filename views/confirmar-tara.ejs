@@ -1,15 +1,68 @@
 <%- include('partials/header') %>
 <h1>Confirmar Registro (TARA)</h1>
-<p>Bruto Estimado: <%= brutoEstimado %> kg</p>
-<p>Tara: <%= tara %> kg</p>
-<p>Neto Estimado: <%= netoEstimado %> kg</p>
+
+<% 
+  // Normalizamos por si vienen undefined
+  const _bruto = typeof brutoEstimado !== 'undefined' ? brutoEstimado : (formData?.brutoEstimado || '');
+  const _tara  = typeof tara !== 'undefined' ? tara : (formData?.tara || '');
+  const taraCargada = (_tara !== '' && _tara !== null && typeof _tara !== 'undefined');
+
+  // Neto estimado si hay tara
+  const _neto = (taraCargada && _bruto) ? (Number(_bruto) - Number(_tara)) : '';
+%>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Resumen de TARA</h5>
+    <p class="mb-1"><strong>Bruto Estimado:</strong> <%= _bruto %> kg</p>
+    <p class="mb-1">
+      <strong>Tara:</strong> 
+      <%= taraCargada ? _tara + ' kg' : 'Sin cargar (podés completarla luego o en REGULADA/TARA FINAL)' %>
+    </p>
+    <p class="mb-0"><strong>Neto Estimado:</strong> <%= taraCargada && _neto !== '' ? _neto + ' kg' : '—' %></p>
+  </div>
+</div>
+
+<!-- Resumen breve de datos generales para validar antes de guardar -->
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="card-subtitle mb-2 text-muted">Datos generales</h6>
+    <ul class="mb-0">
+      <li><strong>Usuario:</strong> <%= formData?.usuario || '-' %></li>
+      <li><strong>Fecha:</strong> <%= formData?.fecha || '-' %></li>
+      <li><strong>Transporte:</strong> <%= formData?.transporte || '-' %></li>
+      <li><strong>Patentes:</strong> <%= formData?.patentes || '-' %></li>
+      <li><strong>Chofer:</strong> <%= formData?.chofer || '-' %></li>
+      <li><strong>Carga para:</strong> <%= formData?.cargaPara || '-' %>
+        <% if (formData?.cargaPara === 'SOCIO') { %>
+          — <strong>Socio:</strong> <%= formData?.socio || '-' %>
+        <% } %>
+      </li>
+    </ul>
+  </div>
+</div>
+
 <form action="/guardar-tara" method="post">
+  <!-- Reenvío todo lo que vino del formulario original -->
+  <% if (typeof formData !== 'undefined' && formData) { %>
     <% for (let key in formData) { %>
-        <input type="hidden" name="<%= key %>" value="<%= formData[key] %>">
+      <input type="hidden" name="<%= key %>" value="<%= formData[key] %>">
     <% } %>
-    <input type="hidden" name="brutoEstimado" value="<%= brutoEstimado %>">
-    <input type="hidden" name="tara" value="<%= tara %>">
-    <button type="submit" class="btn btn-success">Guardar</button>
-    <a href="/registro?code=<%= formData.code %>" class="btn btn-danger">Modificar</a>
+  <% } %>
+
+  <!-- Campos críticos fijados explícitamente -->
+  <input type="hidden" name="brutoEstimado" value="<%= _bruto %>">
+  <input type="hidden" name="tara" value="<%= taraCargada ? _tara : '' %>">
+  <input type="hidden" name="pesadaPara" value="TARA">
+
+  <!-- Si ya venía un idTicket provisorio/visible en la vista anterior, lo preservamos -->
+  <% if (formData?.idTicket) { %>
+    <input type="hidden" name="idTicket" value="<%= formData.idTicket %>">
+  <% } %>
+
+  <!-- Botones -->
+  <button type="submit" class="btn btn-success">Guardar</button>
+  <a href="/registro?code=<%= formData?.code %>" class="btn btn-danger ms-2">Modificar</a>
 </form>
+
 <%- include('partials/footer') %>

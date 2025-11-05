@@ -1,23 +1,74 @@
 <%- include('partials/header') %>
 <h1>Confirmar REGULADA</h1>
-
 <p class="text-muted">Revisá los datos y, si querés, agregá un comentario antes de guardar.</p>
+
+<%
+  // Helpers
+  const num = (v) => (v === '' || v === null || typeof v === 'undefined' ? '' : Number(v));
+  const shown = (v) => {
+    const n = num(v);
+    return (n === '' || Number.isNaN(n)) ? '—' : ('' + n);
+  };
+  const pick = (a, b) => (typeof a !== 'undefined' ? a : b);
+
+  // Orígenes (formData viene del paso anterior / registro.ejs)
+  const _idTicketOrigen  = formData?.idTicketOrigen || idTicketOrigen || ''; // id del ticket TARA a cerrar/actualizar
+  const _patentes        = formData?.patentes || '';
+  const _campo           = formData?.campo || '';
+  const _grano           = formData?.grano || '';
+  const _lote            = formData?.lote || '';
+  const _cargoDe         = formData?.cargoDe || '';
+  const _silobolsa       = formData?.silobolsa || '';
+  const _contratista     = formData?.contratista || '';
+
+  const _brutoLote       = pick(typeof brutoLote !== 'undefined' ? brutoLote : undefined, formData?.brutoLote);
+
+  const _confirmarTara   = formData?.confirmarTara || 'SI';   // 'SI' | 'NO'
+  const _confirmarBruto  = formData?.confirmarBruto || 'SI';  // 'SI' | 'NO'
+
+  const _brutoEstimado   = formData?.brutoEstimado || '';
+  const _tara            = formData?.tara || '';
+  const _taraNueva       = formData?.taraNueva || '';
+  const _bruto           = formData?.bruto || '';
+  const _comentarios     = pick(typeof comentarios !== 'undefined' ? comentarios : undefined, formData?.comentarios || '');
+
+  // Efectivos para cálculo
+  const taraEfectiva  = (_confirmarTara === 'NO') ? _taraNueva : _tara;
+  const brutoEfectivo = (_confirmarBruto === 'NO') ? _bruto : _brutoEstimado;
+
+  const nTara   = num(taraEfectiva);
+  const nBruto  = num(brutoEfectivo);
+  const nNeto   = (nTara !== '' && !Number.isNaN(nTara) && nBruto !== '' && !Number.isNaN(nBruto)) ? (nBruto - nTara) : '';
+
+  // Etiquetas visuales
+  const labelTara = (_confirmarTara === 'NO') ? 'Tara NUEVA (kg)' : 'Tara (kg)';
+  const labelBruto = (_confirmarBruto === 'NO') ? 'Bruto CONFIRMADO (kg)' : 'Bruto Estimado (kg)';
+%>
+
+<% if (!_idTicketOrigen) { %>
+  <div class="alert alert-warning">
+    <strong>Aviso:</strong> No se recibió el <code>idTicketOrigen</code>. Volvé atrás y seleccioná la patente en la pantalla de REGULADA
+    para que el sistema asigne el ticket correcto.
+  </div>
+<% } %>
 
 <div class="card mb-3">
   <div class="card-body">
     <div class="row mb-2">
-      <div class="col-md-4"><strong>Patentes:</strong> <%= formData.patentes %></div>
-      <div class="col-md-4"><strong>Campo:</strong> <%= formData.campo %></div>
-      <div class="col-md-4"><strong>Grano/Cultivo:</strong> <%= formData.grano %></div>
+      <div class="col-md-4"><strong>Patentes:</strong> <%= _patentes || '—' %></div>
+      <div class="col-md-4"><strong>Campo:</strong> <%= _campo || '—' %></div>
+      <div class="col-md-4"><strong>Grano/Cultivo:</strong> <%= _grano || '—' %></div>
     </div>
     <div class="row mb-2">
-      <div class="col-md-4"><strong>Lote:</strong> <%= formData.lote %></div>
-      <div class="col-md-4"><strong>Cargo de:</strong> <%= formData.cargoDe %></div>
+      <div class="col-md-4"><strong>Lote:</strong> <%= _lote || '—' %></div>
+      <div class="col-md-4"><strong>Cargo de:</strong> <%= _cargoDe || '—' %></div>
       <div class="col-md-4">
-        <% if (formData.cargoDe === 'SILOBOLSA') { %>
-          <strong>Silobolsa:</strong> <%= formData.silobolsa %>
-        <% } else if (formData.cargoDe === 'CONTRATISTA') { %>
-          <strong>Contratista:</strong> <%= formData.contratista %>
+        <% if (_cargoDe === 'SILOBOLSA') { %>
+          <strong>Silobolsa:</strong> <%= _silobolsa || '—' %>
+        <% } else if (_cargoDe === 'CONTRATISTA') { %>
+          <strong>Contratista:</strong> <%= _contratista || '—' %>
+        <% } else { %>
+          <strong>&nbsp;</strong>
         <% } %>
       </div>
     </div>
@@ -25,47 +76,58 @@
     <hr>
 
     <div class="row mb-2">
-      <div class="col-md-4"><strong>Bruto LOTE (kg):</strong> <%= (typeof brutoLote !== 'undefined' ? brutoLote : formData.brutoLote) %></div>
-      <div class="col-md-4"><strong>Tara (kg):</strong> <%= tara %></div>
-      <div class="col-md-4"><strong>Bruto (kg):</strong> <%= bruto %></div>
+      <div class="col-md-4"><strong>Bruto LOTE (kg):</strong> <%= shown(_brutoLote) %></div>
+      <div class="col-md-4"><strong><%= labelTara %>:</strong> <%= shown(taraEfectiva) %></div>
+      <div class="col-md-4"><strong><%= labelBruto %>:</strong> <%= shown(brutoEfectivo) %></div>
     </div>
     <div class="row">
-      <div class="col-md-4"><strong>Neto (kg):</strong> <%= neto %></div>
+      <div class="col-md-4"><strong>Neto (kg):</strong> <%= shown(nNeto) %></div>
     </div>
   </div>
 </div>
 
 <form action="/guardar-regulada" method="post" class="mb-3">
-  <!-- Campos ocultos para reenviar TODO lo necesario -->
+  <!-- Identificador clave para actualizar el ticket original de TARA -->
+  <input type="hidden" name="idTicketOrigen" value="<%= _idTicketOrigen %>">
+
+  <!-- Contexto / permisos -->
   <input type="hidden" name="code" value="<%= formData.code %>">
-  <input type="hidden" name="patentes" value="<%= formData.patentes %>">
-  <input type="hidden" name="campo" value="<%= formData.campo %>">
-  <input type="hidden" name="grano" value="<%= formData.grano %>">
-  <input type="hidden" name="lote" value="<%= formData.lote %>">
-  <input type="hidden" name="cargoDe" value="<%= formData.cargoDe %>">
-  <input type="hidden" name="silobolsa" value="<%= formData.silobolsa || '' %>">
-  <input type="hidden" name="contratista" value="<%= formData.contratista || '' %>">
+  <input type="hidden" name="pesadaPara" value="REGULADA">
 
-  <!-- Confirmaciones y valores base -->
-  <input type="hidden" name="confirmarTara" value="<%= formData.confirmarTara %>">
-  <input type="hidden" name="confirmarBruto" value="<%= formData.confirmarBruto %>">
-  <input type="hidden" name="brutoEstimado" value="<%= formData.brutoEstimado || '' %>">
-  <input type="hidden" name="tara" value="<%= formData.tara || '' %>">
-  <input type="hidden" name="taraNueva" value="<%= formData.taraNueva || '' %>">
-  <input type="hidden" name="bruto" value="<%= formData.bruto || '' %>">
+  <!-- Datos de identificación -->
+  <input type="hidden" name="patentes" value="<%= _patentes %>">
+  <input type="hidden" name="campo" value="<%= _campo %>">
+  <input type="hidden" name="grano" value="<%= _grano %>">
+  <input type="hidden" name="lote" value="<%= _lote %>">
+  <input type="hidden" name="cargoDe" value="<%= _cargoDe %>">
+  <input type="hidden" name="silobolsa" value="<%= _silobolsa %>">
+  <input type="hidden" name="contratista" value="<%= _contratista %>">
 
-  <!-- NUEVOS CAMPOS -->
-  <input type="hidden" name="brutoLote" value="<%= (typeof brutoLote !== 'undefined' ? brutoLote : formData.brutoLote) %>">
+  <!-- Confirmaciones originales (para auditoría) -->
+  <input type="hidden" name="confirmarTara" value="<%= _confirmarTara %>">
+  <input type="hidden" name="confirmarBruto" value="<%= _confirmarBruto %>">
+
+  <!-- Valores base recibidos -->
+  <input type="hidden" name="brutoEstimado" value="<%= shown(_brutoEstimado) %>">
+  <input type="hidden" name="tara" value="<%= shown(_tara) %>">
+  <input type="hidden" name="taraNueva" value="<%= shown(_taraNueva) %>">
+  <input type="hidden" name="bruto" value="<%= shown(_bruto) %>">
+
+  <!-- Efectivos (lo que realmente usará el backend para cálculos) -->
+  <input type="hidden" name="taraEfectiva" value="<%= shown(taraEfectiva) %>">
+  <input type="hidden" name="brutoEfectivo" value="<%= shown(brutoEfectivo) %>">
+  <input type="hidden" name="neto" value="<%= shown(nNeto) %>">
+
+  <!-- Campo informativo -->
+  <input type="hidden" name="brutoLote" value="<%= shown(_brutoLote) %>">
 
   <!-- Comentarios: editable (opcional) -->
   <div class="mb-3">
     <label for="comentarios" class="form-label">Comentarios (opcional)</label>
-    <textarea id="comentarios" name="comentarios" class="form-control" rows="3" placeholder="Observaciones del balancero..."><%= (typeof comentarios !== 'undefined' ? comentarios : (formData.comentarios || '')) %></textarea>
+    <textarea id="comentarios" name="comentarios" class="form-control" rows="3" placeholder="Observaciones del balancero..."><%= _comentarios %></textarea>
     <div class="form-text">Este campo es opcional; se guardará junto con el cierre de REGULADA.</div>
   </div>
 
-  <button type="submit" class="btn btn-primary">Guardar REGULADA</button>
+  <button type="submit" class="btn btn-primary" <%= !_idTicketOrigen ? 'disabled' : '' %>>Guardar REGULADA</button>
   <a href="javascript:history.back()" class="btn btn-outline-secondary">Volver</a>
 </form>
-
-<%- include('partials/footer') %>

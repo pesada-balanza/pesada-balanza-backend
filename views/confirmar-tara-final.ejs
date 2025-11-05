@@ -7,6 +7,34 @@
   Esto actualiza el mismo registro de TARA con la tara definitiva y recalcula el neto estimado.
 </div>
 
+<%
+  // Helpers de salida segura / formateo
+  const fmt = (n) => (n === '' || n === null || typeof n === 'undefined' ? '' : Number(n));
+  const show = (n) => {
+    const v = fmt(n);
+    return (v === '' || Number.isNaN(v)) ? '—' : ('' + v);
+  };
+
+  // Normalizaciones
+  const _taraNueva      = typeof taraNueva      !== 'undefined' ? taraNueva      : (formData?.taraNueva || '');
+  const _brutoEstimado  = typeof brutoEstimado  !== 'undefined' ? brutoEstimado  : (formData?.brutoEstimado || taraDoc?.brutoEstimado || '');
+  const _netoEstimado   = typeof netoEstimado   !== 'undefined' ? netoEstimado   : (
+                          (fmt(_taraNueva) !== '' && fmt(_brutoEstimado) !== '') ? (fmt(_brutoEstimado) - fmt(_taraNueva)) : ''
+                        );
+
+  // Id del ticket a cerrar (traerlo de taraDoc, o del formData del paso anterior)
+  const _idTicketFinal  = taraDoc?._id || taraDoc?.idTicket || formData?.idTicketTaraFinal || '';
+  const _patentes       = formData?.patentes || taraDoc?.patentes || '';
+  const _fechaTara      = taraDoc?.fecha || ''; // si querés, en el backend ya mandado con formato YYYY-MM-DD
+%>
+
+<% if (!_idTicketFinal) { %>
+  <div class="alert alert-warning">
+    <strong>Aviso:</strong> No se recibió el <code>idTicketTaraFinal</code>. Volvé atrás y seleccioná la patente en "TARA FINAL"
+    para que el sistema asigne el ticket correcto.
+  </div>
+<% } %>
+
 <div class="card mb-3">
   <div class="card-header">Resumen</div>
   <div class="card-body p-0">
@@ -14,31 +42,31 @@
       <tbody>
         <tr>
           <th style="width: 220px;">ID Ticket</th>
-          <td><%= taraDoc?.idTicket %></td>
+          <td><%= _idTicketFinal || '—' %></td>
         </tr>
         <tr>
           <th>Patentes</th>
-          <td><%= formData.patentes %></td>
+          <td><%= _patentes || '—' %></td>
         </tr>
         <tr>
           <th>Fecha (TARA creada)</th>
-          <td><%= taraDoc?.fecha %></td>
+          <td><%= _fechaTara || '—' %></td>
         </tr>
         <tr>
           <th>Bruto Estimado (kg)</th>
-          <td><%= brutoEstimado %></td>
+          <td><%= show(_brutoEstimado) %></td>
         </tr>
         <tr>
           <th>Tara actual (si existía)</th>
-          <td><%= (taraDoc?.tara ?? '') === '' ? '—' : taraDoc.tara %></td>
+          <td><%= (taraDoc && (taraDoc.tara !== '' && taraDoc.tara !== null && typeof taraDoc.tara !== 'undefined')) ? show(taraDoc.tara) : '—' %></td>
         </tr>
         <tr class="table-warning">
           <th>Tara NUEVA (kg)</th>
-          <td><strong><%= taraNueva %></strong></td>
+          <td><strong><%= show(_taraNueva) %></strong></td>
         </tr>
         <tr class="table-success">
           <th>NETO Estimado (kg)</th>
-          <td><strong><%= netoEstimado %></strong></td>
+          <td><strong><%= (fmt(_netoEstimado) === '' || Number.isNaN(fmt(_netoEstimado))) ? '—' : show(_netoEstimado) %></strong></td>
         </tr>
       </tbody>
     </table>
@@ -46,13 +74,20 @@
 </div>
 
 <form action="/guardar-tara-final" method="post" class="d-flex gap-2">
-  <!-- Mantener los datos necesarios -->
-  <input type="hidden" name="patentes"  value="<%= formData.patentes %>">
-  <input type="hidden" name="taraNueva" value="<%= taraNueva %>">
-  <input type="hidden" name="code"      value="<%= formData.code %>">
+  <!-- Datos indispensables para cerrar el ticket correcto -->
+  <input type="hidden" name="idTicketTaraFinal" value="<%= _idTicketFinal %>">
+
+  <!-- Mantener lo útil para auditoría / validaciones de backend -->
+  <input type="hidden" name="patentes"        value="<%= _patentes %>">
+  <input type="hidden" name="brutoEstimado"   value="<%= show(_brutoEstimado) %>">
+  <input type="hidden" name="taraNueva"       value="<%= show(_taraNueva) %>">
+  <input type="hidden" name="code"            value="<%= formData?.code %>">
+  <input type="hidden" name="pesadaPara"      value="TARA_FINAL">
 
   <a href="javascript:history.back()" class="btn btn-outline-secondary">Volver</a>
-  <button type="submit" class="btn btn-primary">Guardar TARA FINAL</button>
+  <button type="submit" class="btn btn-primary" <%= !_idTicketFinal ? 'disabled' : '' %>>
+    Guardar TARA FINAL
+  </button>
 </form>
 
 <%- include('partials/footer') %>

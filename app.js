@@ -328,7 +328,7 @@ app.get(
         { header: 'Cargo De', key: 'cargoDe', width: 15 },
         { header: 'Silobolsa', key: 'silobolsa', width: 15 },
         { header: 'Contratista', key: 'contratista', width: 15 },
-        { header: 'Bruto LOTE', key: 'brutolote', width: 14 },
+        { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
         { header: 'Comentarios', key: 'comentarios', width: 28 },
         { header: 'Bruto', key: 'bruto', width: 15 },
         { header: 'Neto', key: 'neto', width: 15 },
@@ -691,10 +691,10 @@ app.post('/guardar-regulada', async (req, res) => {
       }
     );
 
-    const codigoObservacion = ingresoAObservacion[req.body.code];
+    const codigoObservacion = ingresoAObservacion[req.body.code] || '12341';
     return res.redirect(`/tabla?code=${codigoObservacion}`);
   } catch (err) {
-    return res.status(500).send('Internal Server Error: ' + err.message);
+    return res.status(500).render('error', {error: 'Internal Server Error: ' + err.message});
   }
 });
 
