@@ -148,6 +148,8 @@ async function obtenerTaraPendientesHoyYAyer() {
   }
 
   const col = mongoose.connection.db.collection('registros');
+
+  // Traigo en orden descendente para que la deduplicación por patente conserve el más reciente
   const raw = await col
     .find({
       pesadaPara: 'TARA',
@@ -165,6 +167,8 @@ async function obtenerTaraPendientesHoyYAyer() {
     if (vistos.has(r.patentes)) continue;
     vistos.add(r.patentes);
     result.push({
+      _id: r._id.toString(),          // <-- NECESARIO PARA idTicketOrigen
+      idTicket: r.idTicket ?? null,
       patentes: r.patentes,
       brutoEstimado: r.brutoEstimado ?? 0,
       tara: r.tara ?? 0,
@@ -614,22 +618,22 @@ app.post('/confirmar-regulada', (req, res) => {
 // Guardar REGULADA
 app.post('/guardar-regulada', async (req, res) => {
   try {
-    // Validaciones iguales a confirmar-regulada (incluye brutoLote y code)
+    // Validaciones
     const requeridosBase = [
-      'patentes', 'campo', 'grano', 'lote', 'cargoDe',
-      'confirmarTara', 'confirmarBruto', 'code',
-      'brutoLote' // NEW
+      'patentes',
+      'campo',
+      'grano',
+      'lote',
+      'cargoDe',
+      'brutoLote',            // <-- requerido
+      'confirmarTara',
+      'confirmarBruto',
+      'code'
     ];
     const faltanBase = missingFields(req.body, requeridosBase);
     if (faltanBase.length) {
       return res.status(400).render('error', { error: `Faltan campos obligatorios en REGULADA: ${faltanBase.join(', ')}` });
     }
-
-    const brutoLote = parseFloat(req.body.brutoLote);
-    if (!Number.isFinite(brutoLote) || brutoLote < 0) {
-      return res.status(400).render('error', { error: 'Bruto LOTE debe ser un número válido (>= 0).' });
-    }
-
     if (req.body.confirmarTara === 'NO' && !req.body.taraNueva) {
       return res.status(400).render('error', { error: 'Debe informar Tara Nueva (kg) si no confirma la Tara.' });
     }
@@ -638,69 +642,85 @@ app.post('/guardar-regulada', async (req, res) => {
     }
 
     const bruto = req.body.confirmarBruto === 'SI'
-        ? parseFloat(req.body.brutoEstimado || 0)
-        : parseFloat(req.body.bruto || 0);
+      ? parseFloat(req.body.brutoEstimado || 0)
+      : parseFloat(req.body.bruto || 0);
 
     const taraFinal = req.body.confirmarTara === 'SI'
-        ? parseFloat(req.body.tara || 0)
-        : parseFloat(req.body.taraNueva || 0);
+      ? parseFloat(req.body.tara || 0)
+      : parseFloat(req.body.taraNueva || 0);
 
-    const comentarios = (req.body.comentarios || '').trim();
+    const brutoLote = parseFloat(req.body.brutoLote || 0);
+    const comentarios = String(req.body.comentarios || '');
 
     const col = mongoose.connection.db.collection('registros');
 
-    // TARA pendiente más reciente
-    const taraDoc = await col.findOne(
-      {
-        pesadaPara: 'TARA',
-        patentes: req.body.patentes,
-        anulado: { $ne: true },
-        confirmada: { $ne: true },
-      },
-      { sort: { idTicket: -1 } }
-    );
+    // Preferí el idTicketOrigen si vino de la vista
+    const { idTicketOrigen } = req.body;
+    let taraDoc = null;
 
-    if (!taraDoc) {
-      return res.status(400).send('No se encontró TARA pendiente para esa patente');
+    if (idTicketOrigen) {
+      try {
+        taraDoc = await col.findOne({ _id: new mongoose.Types.ObjectId(idTicketOrigen) });
+      } catch (_) {
+        // si viene malformado, seguimos con el fallback por patente
+      }
     }
 
-    // Actualizo ese mismo documento a REGULADA y completo datos (incluye brutoLote y comentarios)
+    // Fallback por patente (por si no llegó el hidden o no matchea)
+    if (!taraDoc) {
+      taraDoc = await col.findOne(
+        {
+          pesadaPara: 'TARA',
+          patentes: req.body.patentes,
+          anulado: { $ne: true },
+          confirmada: { $ne: true },
+        },
+        { sort: { idTicket: -1 } }
+      );
+    }
+
+    if (!taraDoc) {
+      return res.status(400).render('error', { error: 'No se encontró TARA pendiente para esa patente.' });
+    }
+
+    // Actualizo ese mismo documento a REGULADA y completo datos
     await col.updateOne(
       { _id: taraDoc._id },
       {
         $set: {
           // FECHA: el ticket pasa a ser HOY al cerrar REGULADA
           fecha: ymd(new Date()),
-
           pesadaPara: 'REGULADA',
-          // datos del destino
+
+          // destino
           campo: req.body.campo,
           grano: req.body.grano,
           lote: req.body.lote,
           cargoDe: req.body.cargoDe,
-          silobolsa: req.body.cargoDe === 'SILOBOLSA' ? req.body.silobolsa : '',
-          contratista: req.body.cargoDe === 'CONTRATISTA' ? req.body.contratista : '',
+          silobolsa: req.body.cargoDe === 'SILOBOLSA' ? (req.body.silobolsa || '') : '',
+          contratista: req.body.cargoDe === 'CONTRATISTA' ? (req.body.contratista || '') : '',
 
-          // NUEVOS CAMPOS
-          brutoLote: brutoLote,
-          comentarios: comentarios,
-
-          // pesos definitivos
+          // pesos
           bruto,
           tara: taraFinal,
           neto: bruto - taraFinal,
 
+          // extras
+          brutoLote,
+          comentarios,
+
           // estado
           confirmada: true,
-          fechaRegulada: ymd(new Date())
+          fechaRegulada: ymd(new Date()),
         }
       }
     );
 
-    const codigoObservacion = ingresoAObservacion[req.body.code] || '12341';
+    const codigoObservacion = ingresoAObservacion[req.body.code];
     return res.redirect(`/tabla?code=${codigoObservacion}`);
   } catch (err) {
-    return res.status(500).render('error', {error: 'Internal Server Error: ' + err.message});
+    console.error('Error en /guardar-regulada:', err);
+    return res.status(500).render('error', { error: 'Internal Server Error: ' + err.message });
   }
 });
 
