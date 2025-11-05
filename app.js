@@ -393,22 +393,20 @@ app.get(
 
 // Confirmar TARA
 app.post('/confirmar-tara', (req, res) => {
-  // Requeridos para el PRIMER ingreso de TARA
-  const requeridos = ['usuario','cargaPara','pesadaPara','transporte','patentes','chofer','brutoEstimado'];
+  // Requeridos para el PRIMER ingreso de TARA (sin 'pesadaPara')
+  const requeridos = ['usuario','cargaPara','transporte','patentes','chofer','brutoEstimado'];
   const faltan = missingFields(req.body, requeridos);
   if (faltan.length) {
     return res.status(400).render('error', { error: `Faltan campos obligatorios en TARA: ${faltan.join(', ')}` });
-  }
-  if (req.body.pesadaPara !== 'TARA') {
-    return res.status(400).render('error', { error: 'Pesada para debe ser TARA en este paso.' });
   }
 
   const brutoEstimado = parseFloat(req.body.brutoEstimado || 0);
   const tara = parseFloat(req.body.tara || 0);
   const netoEstimado = brutoEstimado - tara;
 
+  // Forzamos el paso como TARA sin depender de lo que venga del cliente
   return res.render('confirmar-tara', {
-    formData: req.body,
+    formData: { ...req.body, pesadaPara: 'TARA' },
     brutoEstimado,
     tara,
     netoEstimado,
@@ -418,14 +416,11 @@ app.post('/confirmar-tara', (req, res) => {
 // Guardar TARA
 app.post('/guardar-tara', async (req, res) => {
   try {
-    // Por seguridad, revalidamos lo mismo que en confirmar
-    const requeridos = ['usuario','cargaPara','pesadaPara','transporte','patentes','chofer','brutoEstimado'];
+    // Misma validación que en confirmar (sin 'pesadaPara')
+    const requeridos = ['usuario','cargaPara','transporte','patentes','chofer','brutoEstimado'];
     const faltan = missingFields(req.body, requeridos);
     if (faltan.length) {
       return res.status(400).render('error', { error: `Faltan campos obligatorios en TARA: ${faltan.join(', ')}` });
-    }
-    if (req.body.pesadaPara !== 'TARA') {
-      return res.status(400).render('error', { error: 'Pesada para debe ser TARA.' });
     }
 
     const newIdTicket = await calculateNextIdTicket();
@@ -438,18 +433,19 @@ app.post('/guardar-tara', async (req, res) => {
       usuario: req.body.usuario,
       cargaPara: req.body.cargaPara,
       socio: req.body.socio || '',
-      pesadaPara: 'TARA',
+      pesadaPara: 'TARA',                 // <- fijado en backend
       transporte: req.body.transporte,
       patentes: req.body.patentes,
       chofer: req.body.chofer,
       brutoEstimado: brutoEst,
-      tara: tara,                   // puede ser 0 si no lo cargaron en el primer paso
+      tara: tara,
       netoEstimado: brutoEst - tara,
       anulado: false,
       modificaciones: 0,
-      confirmada: false, // queda pendiente hasta REGULADA
+      confirmada: false,
       codigoIngreso: req.body.code,
     };
+
     await mongoose.connection.db.collection('registros').insertOne(registro);
 
     const codigoObservacion = ingresoAObservacion[req.body.code];
