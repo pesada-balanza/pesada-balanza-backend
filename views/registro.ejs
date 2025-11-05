@@ -1,6 +1,17 @@
 <%- include('partials/header') %>
 <h1>Registro de Pesaje</h1>
 
+<!-- Selector de modo SOLO-UI (no se envía al backend) -->
+<div class="form-group">
+  <label for="modo">Pesada para</label>
+  <select id="modo" class="form-control" required onchange="toggleForm()">
+    <option value="">Seleccione</option>
+    <option value="TARA"       <%= pesadaPara==='TARA' ? 'selected':'' %>>TARA</option>
+    <option value="TARA_FINAL" <%= pesadaPara==='TARA_FINAL' ? 'selected':'' %>>TARA FINAL</option>
+    <option value="REGULADA"   <%= pesadaPara==='REGULADA' ? 'selected':'' %>>REGULADA</option>
+  </select>
+</div>
+
 <!-- ====== TARA ====== -->
 <form action="/confirmar-tara" method="post" id="formTara" style="display:<%= pesadaPara==='TARA' ? 'block':'none' %>">
   <div class="form-group">
@@ -32,16 +43,7 @@
     <input type="text" id="socio" name="socio" class="form-control">
   </div>
 
-  <div class="form-group">
-    <label for="pesadaPara">Pesada para</label>
-    <select id="pesadaPara" name="pesadaPara" class="form-control" required onchange="toggleForm()">
-      <option value="">Seleccione</option>
-      <option value="TARA" <%= pesadaPara==='TARA' ? 'selected':'' %>>TARA</option>
-      <option value="TARA_FINAL" <%= pesadaPara==='TARA_FINAL' ? 'selected':'' %>>TARA FINAL</option>
-      <option value="REGULADA" <%= pesadaPara==='REGULADA' ? 'selected':'' %>>REGULADA</option>
-    </select>
-  </div>
-
+  <!-- Transporte / Patentes / Chofer -->
   <div class="form-group">
     <label for="transporte">Transporte</label>
     <input type="text" id="transporte" name="transporte" class="form-control" required>
@@ -67,7 +69,7 @@
     </select>
   </div>
 
-  <!-- Tara (kg) - OPCIONAL en el primer paso -->
+  <!-- Tara (kg) - OPCIONAL al crear TARA -->
   <div class="mb-3">
     <label for="tara" class="form-label">Tara (kg)</label>
     <input
@@ -85,7 +87,10 @@
     </div>
   </div>
 
+  <!-- Forzar el modo correcto para esta ruta -->
+  <input type="hidden" name="pesadaPara" value="TARA">
   <input type="hidden" name="code" value="<%= code %>">
+
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
@@ -116,8 +121,10 @@
 
   <!-- ID del ticket que se va a cerrar -->
   <input type="hidden" id="idTicketTaraFinal" name="idTicketTaraFinal" value="">
-
+  <!-- (Opcional) marcar el modo -->
+  <input type="hidden" name="pesadaPara" value="TARA_FINAL">
   <input type="hidden" name="code" value="<%= code %>">
+
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
@@ -234,10 +241,12 @@
     <textarea id="comentarios" name="comentarios" class="form-control" rows="2" placeholder="Observaciones del balancero (opcional)"></textarea>
   </div>
 
-  <!-- ID del ticket TARA al que REGULADA se asocia -->
+  <!-- ID del ticket TARA origen -->
   <input type="hidden" id="idTicketOrigen" name="idTicketOrigen" value="">
-
+  <!-- (Opcional) marcar el modo -->
+  <input type="hidden" name="pesadaPara" value="REGULADA">
   <input type="hidden" name="code" value="<%= code %>">
+
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
 
@@ -246,7 +255,7 @@
   window.datosSiembra = <%- JSON.stringify(datosSiembra) %>;
 
   function toggleForm() {
-    const val = document.getElementById('pesadaPara').value;
+    const val = document.getElementById('modo').value;
     document.getElementById('formTara').style.display      = (val === 'TARA') ? 'block' : 'none';
     document.getElementById('formTaraFinal').style.display = (val === 'TARA_FINAL') ? 'block' : 'none';
     document.getElementById('formRegulada').style.display  = (val === 'REGULADA') ? 'block' : 'none';
@@ -268,7 +277,8 @@
   function toggleTara() {
     const show = document.getElementById('confirmarTara').value === 'NO';
     document.getElementById('taraNuevaField').style.display = show ? 'block' : 'none';
-    document.getElementById('taraReg').readOnly = true;
+    const taraReg = document.getElementById('taraReg');
+    if (taraReg) taraReg.readOnly = true;
   }
 
   const campoSel = document.getElementById('campo');
@@ -335,7 +345,6 @@
     });
   }
 
-  // Eventos dependientes campo/grano/lote
   if (campoSel) campoSel.addEventListener('change', fillGranos);
   if (granoSel) granoSel.addEventListener('change', fillLotes);
 
