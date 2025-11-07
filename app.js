@@ -60,10 +60,24 @@ const campos = [
   "El Mataco - SACHAYOJ - SE",
   "La Porfía - ARBOL BLANCO - SE",
   "La Pradera - ARBOL BLANCO - SE",
-  "Tierra Negra - ARBOL BLANCO - SE"
+  "Tierra Negra - ARBOL BLANCO - SE",
+  "El C 1 Ciriaci - TINTINA - SE"
 ].sort();
 
 const datosSiembra = {
+  "El C 1 Ciriaci - TINTINA - SE": {
+    "MAIZ": [
+      "Lote 1 Ciriaci C1",
+      "Lote 2 Ciriaci C1",
+      "Lote 3 Ciriaci C1",
+      "Lote 4 Ciriaci C1",
+      "Lote 5 Ciriaci C1",
+      "Lote 6 Ciriaci C1",
+      "Lote 7 Ciriaci C1",
+      "Lote 8 Ciriaci C1",
+      "Lote 9 Ciriaci C1"
+    ]
+  },
   "El Mataco - SACHAYOJ - SE": {
     "TRIGO": [
       "Lote 1 El Mataco",
