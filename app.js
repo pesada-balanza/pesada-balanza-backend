@@ -774,15 +774,27 @@ app.put(
   },
   async (req, res) => {
     try {
-      const registro = await mongoose.connection.db
-        .collection('registros')
-        .findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
+      const col = mongoose.connection.db.collection('registros');
+      const _id = new mongoose.Types.ObjectId(req.params.id);
 
+      const registro = await col.findOne({ _id });
       if (!registro) return res.render('error', { error: 'Registro no encontrado' });
       if (registro.anulado) return res.render('error', { error: 'Registro anulado' });
-      if (registro.modificaciones >= 2)
+      if ((registro.modificaciones || 0) >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
 
+      // Caso 1: REGISTRO CERRADO (REGULADA confirmada) -> solo comentarios
+      if (registro.confirmada && registro.pesadaPara === 'REGULADA') {
+        const comentarios = (req.body.comentarios || '').trim();
+        await col.updateOne(
+          { _id },
+          { $set: { comentarios, modificaciones: (registro.modificaciones || 0) + 1 } }
+        );
+        const codigoObservacion = ingresoAObservacion[registro.codigoIngreso] || '12341';
+        return res.redirect(`/tabla?code=${codigoObservacion}`);
+      }
+
+      // Caso 2: Aún no cerrado -> mantener edición normal
       const updateData = {
         idTicket: parseInt(req.body.idTicket),
         fecha: req.body.fecha,
@@ -805,12 +817,11 @@ app.put(
         contratista: req.body.contratista || '',
         bruto: parseFloat(req.body.bruto || 0),
         neto: parseFloat(req.body.bruto || 0) - parseFloat(req.body.tara || 0),
+        comentarios: (req.body.comentarios || registro.comentarios || '').trim(),
         modificaciones: (registro.modificaciones || 0) + 1,
       };
 
-      await mongoose.connection.db
-        .collection('registros')
-        .updateOne({ _id: new mongoose.Types.ObjectId(req.params.id) }, { $set: updateData });
+      await col.updateOne({ _id }, { $set: updateData });
 
       const codigoObservacion = ingresoAObservacion[registro.codigoIngreso] || '12341';
       return res.redirect(`/tabla?code=${codigoObservacion}`);

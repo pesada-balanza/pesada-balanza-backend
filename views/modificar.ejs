@@ -1,118 +1,157 @@
 <%- include('partials/header') %>
 <h1>Modificar Registro</h1>
 
-<form action="/modificar/<%= registro._id %>?code=9999" method="post" class="mt-3" autocomplete="off">
-  <input type="hidden" name="_method" value="PUT">
-
-  <div class="form-group">
-    <label for="idTicket">ID Ticket</label>
-    <input type="text" name="idTicket" id="idTicket" class="form-control" value="<%= registro.idTicket %>" readonly>
+<% if (registro.confirmada && registro.pesadaPara === 'REGULADA') { %>
+  <!-- ===== Solo comentarios cuando REGULADA ya está cerrada ===== -->
+  <div class="alert alert-info">
+    Este ticket está <strong>cerrado (REGULADA)</strong>. Solo podés editar <strong>Comentarios</strong>.
   </div>
 
-  <div class="form-group">
-    <label for="fecha">Fecha</label>
-    <input type="date" name="fecha" id="fecha" class="form-control" value="<%= registro.fecha %>" required>
+  <div class="mb-3">
+    <div><strong>ID Ticket:</strong> <%= registro.idTicket %></div>
+    <div><strong>Fecha:</strong> <%= registro.fecha %></div>
+    <div><strong>Patentes:</strong> <%= registro.patentes %></div>
+    <div><strong>Campo:</strong> <%= registro.campo || '-' %></div>
+    <div><strong>Lote:</strong> <%= registro.lote || '-' %></div>
+    <div><strong>Bruto:</strong> <%= registro.bruto || 0 %></div>
+    <div><strong>Tara:</strong> <%= registro.tara || 0 %></div>
+    <div><strong>Neto:</strong> <%= registro.neto || 0 %></div>
   </div>
 
-  <div class="form-group">
-    <label for="usuario">Usuario</label>
-    <input type="text" name="usuario" id="usuario" class="form-control" value="<%= registro.usuario %>" required>
-  </div>
+  <form action="/modificar/<%= registro._id %>?code=9999" method="post" class="mt-3" autocomplete="off">
+    <input type="hidden" name="_method" value="PUT">
 
-  <div class="form-group">
-    <label for="cargaPara">Carga para</label>
-    <select name="cargaPara" id="cargaPara" class="form-control" required onchange="toggleSocio()">
-      <option value="AMH"   <%= registro.cargaPara === 'AMH'   ? 'selected' : '' %>>AMH</option>
-      <option value="SOCIO" <%= registro.cargaPara === 'SOCIO' ? 'selected' : '' %>>SOCIO</option>
-    </select>
-  </div>
-
-  <div class="form-group" id="socioField" style="display:<%= registro.cargaPara === 'SOCIO' ? 'block' : 'none' %>;">
-    <label for="socio">Nombre del Socio</label>
-    <input type="text" name="socio" id="socio" class="form-control" value="<%= registro.socio || '' %>">
-  </div>
-
-  <div class="form-group">
-    <label for="pesadaPara">Pesada para</label>
-    <select name="pesadaPara" id="pesadaPara" class="form-control" required onchange="toggleForm()">
-      <option value="TARA"     <%= registro.pesadaPara === 'TARA'     ? 'selected' : '' %>>TARA</option>
-      <option value="REGULADA" <%= registro.pesadaPara === 'REGULADA' ? 'selected' : '' %>>REGULADA</option>
-    </select>
-  </div>
-
-  <div id="taraFields" style="display:<%= registro.pesadaPara === 'TARA' ? 'block' : 'none' %>;">
-    <label>Transporte</label>
-    <input type="text" name="transporte" class="form-control" value="<%= registro.transporte || '' %>">
-    <label>Patentes</label>
-    <input type="text" name="patentes" class="form-control" value="<%= registro.patentes || '' %>">
-    <label>Chofer</label>
-    <input type="text" name="chofer" class="form-control" value="<%= registro.chofer || '' %>">
-    <label>Bruto Estimado (kg)</label>
-    <select name="brutoEstimado" class="form-control">
-      <option value="45000" <%= registro.brutoEstimado === 45000 ? 'selected' : '' %>>45000 kg</option>
-      <option value="52500" <%= registro.brutoEstimado === 52500 ? 'selected' : '' %>>52500 kg</option>
-      <option value="55000" <%= registro.brutoEstimado === 55000 ? 'selected' : '' %>>55000 kg</option>
-    </select>
-    <label>Tara (kg)</label>
-    <input type="number" name="tara" class="form-control" value="<%= registro.tara || 0 %>">
-  </div>
-
-  <div id="reguladaFields" style="display:<%= registro.pesadaPara === 'REGULADA' ? 'block' : 'none' %>;">
-    <label>Patentes</label>
-    <input type="text" name="patentes" class="form-control" value="<%= registro.patentes || '' %>">
-
-    <label>Campo</label>
-    <select name="campo" id="campo" class="form-control" required>
-      <option value="">Seleccione un campo</option>
-      <% (campos || []).forEach(campo => { %>
-        <option value="<%= campo %>" <%= registro.campo === campo ? 'selected' : '' %>><%= campo %></option>
-      <% }) %>
-    </select>
-
-    <label>Grano / Cultivo</label>
-    <input type="text" name="grano" class="form-control" value="<%= registro.grano || '' %>">
-
-    <label>Lote</label>
-    <input type="text" name="lote" class="form-control" value="<%= registro.lote || '' %>">
-
-    <label>Cargo de</label>
-    <select name="cargoDe" id="cargoDe" class="form-control" onchange="toggleCargo()">
-      <option value="">Seleccione</option>
-      <option value="SILOBOLSA"   <%= registro.cargoDe === 'SILOBOLSA'   ? 'selected' : '' %>>Silobolsa</option>
-      <option value="CONTRATISTA" <%= registro.cargoDe === 'CONTRATISTA' ? 'selected' : '' %>>Contratista</option>
-    </select>
-
-    <div id="silobolsaField" style="display:<%= registro.cargoDe === 'SILOBOLSA' ? 'block' : 'none' %>;">
-      <label>Número Silobolsa</label>
-      <input type="text" name="silobolsa" class="form-control" value="<%= registro.silobolsa || '' %>">
-    </div>
-    <div id="contratistaField" style="display:<%= registro.cargoDe === 'CONTRATISTA' ? 'block' : 'none' %>;">
-      <label>Nombre Contratista</label>
-      <input type="text" name="contratista" class="form-control" value="<%= registro.contratista || '' %>">
+    <div class="form-group">
+      <label for="comentarios">Comentarios</label>
+      <textarea name="comentarios" id="comentarios" class="form-control" rows="3"
+        placeholder="Observaciones del balancero (opcional)"><%= registro.comentarios || '' %></textarea>
     </div>
 
-    <label>Bruto (kg)</label>
-    <input type="number" name="bruto" class="form-control" value="<%= registro.bruto || 0 %>">
-  </div>
+    <button type="submit" class="btn btn-primary mt-3">Guardar</button>
+  </form>
 
-  <button type="submit" class="btn btn-primary mt-3">Guardar Cambios</button>
-</form>
+<% } else { %>
+  <!-- ===== Formulario completo para registros NO cerrados ===== -->
+  <form action="/modificar/<%= registro._id %>?code=9999" method="post" class="mt-3" autocomplete="off">
+    <input type="hidden" name="_method" value="PUT">
 
-<script>
-  function toggleForm() {
-    const p = document.getElementById('pesadaPara').value;
-    document.getElementById('taraFields').style.display     = p === 'TARA' ? 'block' : 'none';
-    document.getElementById('reguladaFields').style.display = p === 'REGULADA' ? 'block' : 'none';
-  }
-  function toggleSocio() {
-    const c = document.getElementById('cargaPara').value;
-    document.getElementById('socioField').style.display = c === 'SOCIO' ? 'block' : 'none';
-  }
-  function toggleCargo() {
-    const c = document.getElementById('cargoDe').value;
-    document.getElementById('silobolsaField').style.display   = c === 'SILOBOLSA' ? 'block' : 'none';
-    document.getElementById('contratistaField').style.display = c === 'CONTRATISTA' ? 'block' : 'none';
-  }
-</script>
+    <div class="form-group">
+      <label for="idTicket">ID Ticket</label>
+      <input type="text" name="idTicket" id="idTicket" class="form-control" value="<%= registro.idTicket %>" readonly>
+    </div>
+
+    <div class="form-group">
+      <label for="fecha">Fecha</label>
+      <input type="date" name="fecha" id="fecha" class="form-control" value="<%= registro.fecha %>" required>
+    </div>
+
+    <div class="form-group">
+      <label for="usuario">Usuario</label>
+      <input type="text" name="usuario" id="usuario" class="form-control" value="<%= registro.usuario %>" required>
+    </div>
+
+    <div class="form-group">
+      <label for="cargaPara">Carga para</label>
+      <select name="cargaPara" id="cargaPara" class="form-control" required onchange="toggleSocio()">
+        <option value="AMH"   <%= registro.cargaPara === 'AMH'   ? 'selected' : '' %>>AMH</option>
+        <option value="SOCIO" <%= registro.cargaPara === 'SOCIO' ? 'selected' : '' %>>SOCIO</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="socioField" style="display:<%= registro.cargaPara === 'SOCIO' ? 'block' : 'none' %>;">
+      <label for="socio">Nombre del Socio</label>
+      <input type="text" name="socio" id="socio" class="form-control" value="<%= registro.socio || '' %>">
+    </div>
+
+    <div class="form-group">
+      <label for="pesadaPara">Pesada para</label>
+      <select name="pesadaPara" id="pesadaPara" class="form-control" required onchange="toggleForm()">
+        <option value="TARA"       <%= registro.pesadaPara === 'TARA'       ? 'selected' : '' %>>TARA</option>
+        <option value="TARA_FINAL" <%= registro.pesadaPara === 'TARA_FINAL' ? 'selected' : '' %>>TARA FINAL</option>
+        <option value="REGULADA"   <%= registro.pesadaPara === 'REGULADA'   ? 'selected' : '' %>>REGULADA</option>
+      </select>
+    </div>
+
+    <div id="taraFields" style="display:<%= registro.pesadaPara !== 'REGULADA' ? 'block' : 'none' %>;">
+      <label>Transporte</label>
+      <input type="text" name="transporte" class="form-control" value="<%= registro.transporte || '' %>">
+      <label>Patentes</label>
+      <input type="text" name="patentes" class="form-control" value="<%= registro.patentes || '' %>">
+      <label>Chofer</label>
+      <input type="text" name="chofer" class="form-control" value="<%= registro.chofer || '' %>">
+      <label>Bruto Estimado (kg)</label>
+      <select name="brutoEstimado" class="form-control">
+        <option value="45000" <%= registro.brutoEstimado === 45000 ? 'selected' : '' %>>45000 kg</option>
+        <option value="52500" <%= registro.brutoEstimado === 52500 ? 'selected' : '' %>>52500 kg</option>
+        <option value="55000" <%= registro.brutoEstimado === 55000 ? 'selected' : '' %>>55000 kg</option>
+      </select>
+      <label>Tara (kg)</label>
+      <input type="number" name="tara" class="form-control" value="<%= registro.tara || 0 %>">
+    </div>
+
+    <div id="reguladaFields" style="display:<%= registro.pesadaPara === 'REGULADA' ? 'block' : 'none' %>;">
+      <label>Patentes</label>
+      <input type="text" name="patentes" class="form-control" value="<%= registro.patentes || '' %>">
+
+      <label>Campo</label>
+      <select name="campo" id="campo" class="form-control">
+        <option value="">Seleccione un campo</option>
+        <% (campos || []).forEach(campo => { %>
+          <option value="<%= campo %>" <%= registro.campo === campo ? 'selected' : '' %>><%= campo %></option>
+        <% }) %>
+      </select>
+
+      <label>Grano / Cultivo</label>
+      <input type="text" name="grano" class="form-control" value="<%= registro.grano || '' %>">
+
+      <label>Lote</label>
+      <input type="text" name="lote" class="form-control" value="<%= registro.lote || '' %>">
+
+      <label>Cargo de</label>
+      <select name="cargoDe" id="cargoDe" class="form-control" onchange="toggleCargo()">
+        <option value="">Seleccione</option>
+        <option value="SILOBOLSA"   <%= registro.cargoDe === 'SILOBOLSA'   ? 'selected' : '' %>>Silobolsa</option>
+        <option value="CONTRATISTA" <%= registro.cargoDe === 'CONTRATISTA' ? 'selected' : '' %>>Contratista</option>
+      </select>
+
+      <div id="silobolsaField" style="display:<%= registro.cargoDe === 'SILOBOLSA' ? 'block' : 'none' %>;">
+        <label>Número Silobolsa</label>
+        <input type="text" name="silobolsa" class="form-control" value="<%= registro.silobolsa || '' %>">
+      </div>
+      <div id="contratistaField" style="display:<%= registro.cargoDe === 'CONTRATISTA' ? 'block' : 'none' %>;">
+        <label>Nombre Contratista</label>
+        <input type="text" name="contratista" class="form-control" value="<%= registro.contratista || '' %>">
+      </div>
+
+      <label>Bruto (kg)</label>
+      <input type="number" name="bruto" class="form-control" value="<%= registro.bruto || 0 %>">
+    </div>
+
+    <!-- Permite también editar comentarios si NO está cerrada -->
+    <div class="form-group mt-3">
+      <label for="comentarios">Comentarios</label>
+      <textarea name="comentarios" id="comentarios" class="form-control" rows="3"><%= registro.comentarios || '' %></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-3">Guardar Cambios</button>
+  </form>
+
+  <script>
+    function toggleForm() {
+      const p = document.getElementById('pesadaPara').value;
+      document.getElementById('taraFields').style.display     = p === 'REGULADA' ? 'none'  : 'block';
+      document.getElementById('reguladaFields').style.display = p === 'REGULADA' ? 'block' : 'none';
+    }
+    function toggleSocio() {
+      const c = document.getElementById('cargaPara').value;
+      document.getElementById('socioField').style.display = c === 'SOCIO' ? 'block' : 'none';
+    }
+    function toggleCargo() {
+      const c = document.getElementById('cargoDe').value;
+      document.getElementById('silobolsaField').style.display   = c === 'SILOBOLSA' ? 'block' : 'none';
+      document.getElementById('contratistaField').style.display = c === 'CONTRATISTA' ? 'block' : 'none';
+    }
+  </script>
+<% } %>
 
 <%- include('partials/footer') %>
