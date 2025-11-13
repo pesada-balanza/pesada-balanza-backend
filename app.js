@@ -757,7 +757,7 @@ app.get(
       if (registro.modificaciones >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
 
-      return res.render('modificar', { registro, campos, datosSiembra });
+      return res.render('modificar', { registro, campos, datosSiembra, observacionCode: '9999' });
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
     }

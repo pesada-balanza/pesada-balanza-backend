@@ -32,7 +32,7 @@
 
 <% } else { %>
   <!-- ===== Formulario completo para registros NO cerrados ===== -->
-  <form action="/modificar/<%= registro._id %>?code=9999" method="post" class="mt-3" autocomplete="off">
+  <form action="/modificar/<%= registro._id %>?code=9999&_method=PUT" method="post" class="mt-3" autocomplete="off">
     <input type="hidden" name="_method" value="PUT">
 
     <div class="form-group">
