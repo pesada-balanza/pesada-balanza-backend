@@ -18,7 +18,7 @@
     <div><strong>Neto:</strong> <%= registro.neto || 0 %></div>
   </div>
 
-  <form action="/modificar/<%= registro._id %>?code=9999" method="post" class="mt-3" autocomplete="off">
+  <form action="/modificar/<%= registro._id %>?_method=PUT&code=<%= observacionCode %>" method="post" class="mt-3" autocomplete="off">
     <input type="hidden" name="_method" value="PUT">
 
     <div class="form-group">
