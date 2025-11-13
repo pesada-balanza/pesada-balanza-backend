@@ -186,6 +186,7 @@ async function obtenerTaraPendientesHoyYAyer() {
       patentes: r.patentes,
       brutoEstimado: r.brutoEstimado ?? 0,
       tara: r.tara ?? 0,
+      fechaTaraFinal: r.fechaTaraFinal || null, // <-- importante
     });
   }
   return result;
@@ -391,8 +392,10 @@ app.get(
         .toArray();
       const ultimoUsuario = ultimoRegistro.length ? ultimoRegistro[0].usuario : '';
 
-      // TARA pendientes hoy/ayer para REGULADA
+      // Traemos TARA de últimos 3 días y separamos:
       const pendientesTara = await obtenerTaraPendientesHoyYAyer();
+      const pendientesConFinal =  pendientesTara.filter(r => !!r.fechaTaraFinal);
+      const pendientesSinFinal = pendientesTara.filter(r => !r.fechaTaraFinal);
 
       return res.render('registro', {
         code: req.ingresoCode,
@@ -400,7 +403,9 @@ app.get(
         ultimoUsuario,
         campos,
         datosSiembra,
-        pendientesTara,
+        // pasamos las dos listas
+        pendientesConFinal,
+        pendientesSinFinal,
         pesadaPara: 'TARA', // mostrar TARA por defecto
       });
     } catch (err) {

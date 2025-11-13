@@ -97,20 +97,20 @@
 <!-- ====== TARA FINAL ====== -->
 <form action="/confirmar-tara-final" method="post" id="formTaraFinal" style="display:<%= pesadaPara==='TARA_FINAL' ? 'block':'none' %>">
   <div class="form-group">
-    <label for="patentesTaraFinal">Patentes (TARA pendientes: últimos 3 días)</label>
+    <label for="patentesTaraFinal">Patentes (solo TARA pendientes: últimos 3 días)</label>
     <select id="patentesTaraFinal" name="patentes" class="form-control" required>
       <option value="">Seleccione</option>
-      <% (pendientesTara || []).forEach(reg => { %>
-        <option
-          value="<%= reg.patentes %>"
-          data-idticket="<%= reg._id || reg.idTicket %>"
-          data-bruto="<%= reg.brutoEstimado %>">
+      <% (pendientesSinFinal || []).forEach(reg => { %>
+        < option
+           value="<%= reg.patentes %>"
+           data-idticket="<%= reg._id %>"
+           data-bruto="<%= reg.brutoEstimado %>">
           <%= reg.patentes %> (Bruto estimado: <%= reg.brutoEstimado %>)
         </option>
       <% }) %>
     </select>
-    <% if (!(pendientesTara && pendientesTara.length)) { %>
-      <small class="text-muted">No hay TARA pendientes de los últimos 3 días.</small>
+    <% if (!(pendientesSinFinal && pendientesSinFinal.length)) { %>
+      <small class="text-muted">No hay patentes con TARA pendiente (sin TARA FINAL) en los últimos 3 días.</small>
     <% } %>
   </div>
 
@@ -131,21 +131,21 @@
 <!-- ====== REGULADA ====== -->
 <form action="/confirmar-regulada" method="post" id="formRegulada" style="display:<%= pesadaPara==='REGULADA' ? 'block':'none' %>">
   <div class="form-group">
-    <label for="patentesRegulada">Patentes (pendientes: últimos 3 días)</label>
+    <label for="patentesRegulada">Patentes (con TARA FINAL: últimos 3 días)</label>
     <select id="patentesRegulada" name="patentes" class="form-control" required>
       <option value="">Seleccione</option>
-      <% (pendientesTara || []).forEach(reg => { %>
+      <% (pendientesConFinal || []).forEach(reg => { %>
         <option
           value="<%= reg.patentes %>"
-          data-idticket="<%= reg._id || reg.idTicket %>"
+          data-idticket="<%= reg._id %>"
           data-bruto="<%= reg.brutoEstimado %>"
           data-tara="<%= reg.tara %>">
-          <%= reg.patentes %> (Bruto: <%= reg.brutoEstimado %>)
+          <%= reg.patentes %> - TARA FINAL
         </option>
       <% }) %>
     </select>
-    <% if (!(pendientesTara && pendientesTara.length)) { %>
-      <small class="text-muted">No hay TARA pendientes de los últimos 3 días.</small>
+    <% if (!(pendientesConFinal && pendientesConFinal.length)) { %>
+      <small class="text-muted">No hay patentes con TARA FINAL en los últimos 3 días.</small>
     <% } %>
   </div>
 
