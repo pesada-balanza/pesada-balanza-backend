@@ -1,7 +1,7 @@
 <%- include('partials/header') %>
 <h1>Registro de Pesaje</h1>
 
-<!-- Selector de modo SOLO-UI (no se envía al backend) -->
+<!-- Selector de modo SOLO UI -->
 <div class="form-group">
   <label for="modo">Pesada para</label>
   <select id="modo" class="form-control" required onchange="toggleForm()">
@@ -43,7 +43,6 @@
     <input type="text" id="socio" name="socio" class="form-control">
   </div>
 
-  <!-- Transporte / Patentes / Chofer -->
   <div class="form-group">
     <label for="transporte">Transporte</label>
     <input type="text" id="transporte" name="transporte" class="form-control" required>
@@ -69,25 +68,11 @@
     </select>
   </div>
 
-  <!-- Tara (kg) - OPCIONAL al crear TARA -->
   <div class="mb-3">
     <label for="tara" class="form-label">Tara (kg)</label>
-    <input
-      type="number"
-      id="tara"
-      name="tara"
-      class="form-control"
-      min="0"
-      step="1"
-      placeholder="Podés dejarlo vacío si aún no la sabés"
-      value="<%= typeof tara !== 'undefined' ? tara : '' %>"
-    />
-    <div class="form-text">
-      Este campo es opcional al crear la TARA. Podés cargarlo después o al cerrar la REGULADA.
-    </div>
+    <input type="number" id="tara" name="tara" class="form-control" min="0" step="1" placeholder="Opcional">
   </div>
 
-  <!-- Forzar el modo correcto para esta ruta -->
   <input type="hidden" name="pesadaPara" value="TARA">
   <input type="hidden" name="code" value="<%= code %>">
 
@@ -101,10 +86,10 @@
     <select id="patentesTaraFinal" name="patentes" class="form-control" required>
       <option value="">Seleccione</option>
       <% (pendientesSinFinal || []).forEach(reg => { %>
-        < option
-           value="<%= reg.patentes %>"
-           data-idticket="<%= reg._id %>"
-           data-bruto="<%= reg.brutoEstimado %>">
+        <option
+          value="<%= reg.patentes %>"
+          data-idticket="<%= reg._id %>"
+          data-bruto="<%= reg.brutoEstimado %>">
           <%= reg.patentes %> (Bruto estimado: <%= reg.brutoEstimado %>)
         </option>
       <% }) %>
@@ -119,9 +104,7 @@
     <input type="number" id="taraNueva" name="taraNueva" class="form-control" min="0" step="1" required>
   </div>
 
-  <!-- ID del ticket que se va a cerrar -->
   <input type="hidden" id="idTicketTaraFinal" name="idTicketTaraFinal" value="">
-  <!-- (Opcional) marcar el modo -->
   <input type="hidden" name="pesadaPara" value="TARA_FINAL">
   <input type="hidden" name="code" value="<%= code %>">
 
@@ -192,7 +175,6 @@
     <input type="text" id="contratista" name="contratista" class="form-control">
   </div>
 
-  <!-- Bruto LOTE (obligatorio, informativo) -->
   <div class="form-group">
     <label for="brutoLote">Bruto LOTE (kg)</label>
     <input type="number" id="brutoLote" name="brutoLote" class="form-control" min="0" step="1" required>
@@ -235,15 +217,12 @@
     <input type="number" id="bruto" name="bruto" class="form-control">
   </div>
 
-  <!-- Comentarios (opcional) -->
   <div class="form-group">
     <label for="comentarios">Comentarios</label>
     <textarea id="comentarios" name="comentarios" class="form-control" rows="2" placeholder="Observaciones del balancero (opcional)"></textarea>
   </div>
 
-  <!-- ID del ticket TARA origen -->
   <input type="hidden" id="idTicketOrigen" name="idTicketOrigen" value="">
-  <!-- (Opcional) marcar el modo -->
   <input type="hidden" name="pesadaPara" value="REGULADA">
   <input type="hidden" name="code" value="<%= code %>">
 
@@ -251,7 +230,6 @@
 </form>
 
 <script>
-  // Datos siembra para combos dependientes
   window.datosSiembra = <%- JSON.stringify(datosSiembra) %>;
 
   function toggleForm() {
@@ -263,7 +241,8 @@
   function toggleSocio() {
     const v = document.getElementById('cargaPara').value;
     document.getElementById('socioField').style.display = v === 'SOCIO' ? 'block' : 'none';
-    document.getElementById('socio').required = v === 'SOCIO';
+    const s = document.getElementById('socio');
+    if (s) s.required = v === 'SOCIO';
   }
   function toggleCargo() {
     const v = document.getElementById('cargoDe').value;
@@ -294,14 +273,11 @@
     const ds = window.datosSiembra || {};
     if (campo && ds[campo]) {
       Object.keys(ds[campo]).forEach(g => {
-        const op = document.createElement('option');
-        op.value = op.text = g;
-        granoSel.appendChild(op);
+        const op = document.createElement('option'); op.value = op.text = g; granoSel.appendChild(op);
       });
       granoSel.disabled = false;
     }
   }
-
   function fillLotes() {
     const campo = campoSel.value;
     const grano = granoSel.value;
@@ -310,14 +286,10 @@
 
     const ds = window.datosSiembra || {};
     const lotes = (campo && grano && ds[campo] && ds[campo][grano]) ? ds[campo][grano] : [];
-    lotes.forEach(l => {
-      const op = document.createElement('option'); op.value = op.text = l;
-      loteSel.appendChild(op);
-    });
+    lotes.forEach(l => { const op = document.createElement('option'); op.value = op.text = l; loteSel.appendChild(op); });
     if (lotes.length) loteSel.disabled = false;
   }
 
-  // Completar bruto/tara + setear idTicket en REGULADA
   const patSel = document.getElementById('patentesRegulada');
   if (patSel) {
     patSel.addEventListener('change', function () {
@@ -334,7 +306,6 @@
     });
   }
 
-  // Setear hidden id del ticket en TARA FINAL
   const patTaraFinalSel = document.getElementById('patentesTaraFinal');
   if (patTaraFinalSel) {
     patTaraFinalSel.addEventListener('change', function(){

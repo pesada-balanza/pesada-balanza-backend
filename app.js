@@ -43,13 +43,13 @@ const codigosIngreso = ['56781', '5679', '5680', '5681', '5682', '5683', '5684',
 const codigosObservacion = ['12341', '1235', '1236', '1237', '1238', '1239', '1240', '1241'];
 const ingresoAObservacion = {
   '56781': '12341',
-  '5679': '1235',
-  '5680': '1236',
-  '5681': '1237',
-  '5682': '1238',
-  '5683': '1239',
-  '5684': '1240',
-  '5685': '1241',
+  '5679':  '1235',
+  '5680':  '1236',
+  '5681':  '1237',
+  '5682':  '1238',
+  '5683':  '1239',
+  '5684':  '1240',
+  '5685':  '1241',
 };
 
 /* ---------------------------------------------
@@ -67,68 +67,31 @@ const campos = [
 const datosSiembra = {
   "El C 1 Ciriaci - TINTINA - SE": {
     "MAIZ": [
-      "Lote 1 Ciriaci C1",
-      "Lote 2 Ciriaci C1",
-      "Lote 3 Ciriaci C1",
-      "Lote 4 Ciriaci C1",
-      "Lote 5 Ciriaci C1",
-      "Lote 6 Ciriaci C1",
-      "Lote 7 Ciriaci C1",
-      "Lote 8 Ciriaci C1",
-      "Lote 9 Ciriaci C1"
+      "Lote 1 Ciriaci C1","Lote 2 Ciriaci C1","Lote 3 Ciriaci C1",
+      "Lote 4 Ciriaci C1","Lote 5 Ciriaci C1","Lote 6 Ciriaci C1",
+      "Lote 7 Ciriaci C1","Lote 8 Ciriaci C1","Lote 9 Ciriaci C1"
     ]
   },
   "El Mataco - SACHAYOJ - SE": {
     "TRIGO": [
-      "Lote 1 El Mataco",
-      "Lote 2 El Mataco",
-      "Lote 3 El Mataco",
-      "Lote 4 El Mataco",
-      "Lote 5 El Mataco",
-      "Lote Banquina El Mat"
+      "Lote 1 El Mataco","Lote 2 El Mataco","Lote 3 El Mataco",
+      "Lote 4 El Mataco","Lote 5 El Mataco","Lote Banquina El Mat"
     ]
   },
-  "La Porfía - ARBOL BLANCO - SE": {
-    "TRIGO": [
-      "Lote 10 La Porfía",
-      "Lote 11 La Porfía"
-    ]
-  },
-  "Charata - CHARATA - CH": {
-    "TRIGO": [
-      "Lote 1 Charata",
-      "Lote 3 Charata"
-    ]
-  },
+  "La Porfía - ARBOL BLANCO - SE": { "TRIGO": ["Lote 10 La Porfía","Lote 11 La Porfía"] },
+  "Charata - CHARATA - CH":        { "TRIGO": ["Lote 1 Charata","Lote 3 Charata"] },
   "Tierra Negra - ARBOL BLANCO - SE": {
     "TRIGO": [
-      "Lote 4 Tierra Negra",
-      "Lote 5 Tierra Negra",
-      "Lote 6 Tierra Negra",
-      "Lote 7 Tierra Negra",
-      "Lote 8 Tierra Negra",
-      "Lote 9 Tierra Negra",
-      "Lote 10 Tierra Negra",
-      "Loter Banq. Tierra N"
+      "Lote 4 Tierra Negra","Lote 5 Tierra Negra","Lote 6 Tierra Negra","Lote 7 Tierra Negra",
+      "Lote 8 Tierra Negra","Lote 9 Tierra Negra","Lote 10 Tierra Negra","Loter Banq. Tierra N"
     ]
   },
   "La Pradera - ARBOL BLANCO - SE": {
     "TRIGO": [
-      "Lote 34 La Pradera",
-      "Lote 17 La Pradera",
-      "Lote 20 La Pradera",
-      "Lote 21 La Pradera",
-      "Lote 31 La Pradera",
-      "Lote 37 La Pradera",
-      "Lote 38 W La Pradera",
-      "Lote 41.E.3 La Prade",
-      "Lote 41.E.4 La Prade",
-      "Lote 41.E.5 La Prade",
-      "Lote 41.E.6 La Prade",
-      "Lote 41.E.7 La Prade",
-      "Lote 41.E.8 La Prade",
-      "Lote 38 E La Pradera",
-      "Cabezeras L. 39 y 43"
+      "Lote 34 La Pradera","Lote 17 La Pradera","Lote 20 La Pradera","Lote 21 La Pradera",
+      "Lote 31 La Pradera","Lote 37 La Pradera","Lote 38 W La Pradera",
+      "Lote 41.E.3 La Prade","Lote 41.E.4 La Prade","Lote 41.E.5 La Prade","Lote 41.E.6 La Prade",
+      "Lote 41.E.7 La Prade","Lote 41.E.8 La Prade","Lote 38 E La Pradera","Cabezeras L. 39 y 43"
     ]
   }
 };
@@ -138,7 +101,6 @@ const datosSiembra = {
  * -------------------------------------------*/
 const ymd = (d) => d.toISOString().split('T')[0];
 
-// ---- Helpers de rango de fechas (por defecto = hoy) ----
 function getDateRangeFromQuery(req) {
   const today = ymd(new Date());
   const from = (req.query.from || '').trim() || today;
@@ -147,52 +109,10 @@ function getDateRangeFromQuery(req) {
 }
 
 function withinRange(fechaStr, from, to) {
-  // fecha, from, to están en formato "YYYY-MM-DD"; comparación lexicográfica funciona
   return (!from || fechaStr >= from) && (!to || fechaStr <= to);
 }
 
-// TARA pendientes: últimos 3 días (hoy, ayer y anteayer), no anuladas y no confirmadas
-async function obtenerTaraPendientesHoyYAyer() {
-  const hoy = new Date();
-  const fechas = [];
-  for (let i = 0; i < 3; i++) {
-    const d = new Date(hoy);
-    d.setDate(hoy.getDate() - i); // 0=hoy, 1=ayer, 2=anteayer
-    fechas.push(ymd(d));
-  }
-
-  const col = mongoose.connection.db.collection('registros');
-
-  // Traigo en orden descendente para que la deduplicación por patente conserve el más reciente
-  const raw = await col
-    .find({
-      pesadaPara: 'TARA',
-      fecha: { $in: fechas },
-      anulado: { $ne: true },
-      confirmada: { $ne: true },
-    })
-    .sort({ idTicket: -1 })
-    .toArray();
-
-  // Deduplicar por patente (quedarse con la más reciente)
-  const vistos = new Set();
-  const result = [];
-  for (const r of raw) {
-    if (vistos.has(r.patentes)) continue;
-    vistos.add(r.patentes);
-    result.push({
-      _id: r._id.toString(),          // <-- NECESARIO PARA idTicketOrigen
-      idTicket: r.idTicket ?? null,
-      patentes: r.patentes,
-      brutoEstimado: r.brutoEstimado ?? 0,
-      tara: r.tara ?? 0,
-      fechaTaraFinal: r.fechaTaraFinal || null, // <-- importante
-    });
-  }
-  return result;
-}
-
-// Permitir estados "connected (1)" y "connecting (2)".
+// Permitir estados "connected (1)" y "connecting (2)"
 app.use((req, res, next) => {
   const state = mongoose.connection.readyState; // 0=disc,1=conn,2=connecting,3=disconnecting
   if (state === 0 || state === 3) {
@@ -205,11 +125,8 @@ app.use((req, res, next) => {
 // idTicket siguiente (buscando el último)
 const calculateNextIdTicket = async () => {
   const col = mongoose.connection.db.collection('registros');
-  const ultimo = await col
-    .find({}, { projection: { idTicket: 1 } })
-    .sort({ idTicket: -1 })
-    .limit(1)
-    .toArray();
+  const ultimo = await col.find({}, { projection: { idTicket: 1 } })
+    .sort({ idTicket: -1 }).limit(1).toArray();
   return ultimo.length ? (parseInt(ultimo[0].idTicket, 10) + 1) : 1;
 };
 
@@ -218,6 +135,58 @@ function missingFields(body, fields) {
     const v = body[f];
     return v === undefined || v === null || String(v).trim() === '';
   });
+}
+
+/* ---------------------------------------------
+ * QUERIES para combos
+ * -------------------------------------------*/
+// Trae TARA pendientes (no confirmadas) desde los últimos N días.
+// Devuelve 1 registro por patente (el más reciente) + marca si ya tiene TARA FINAL.
+async function obtenerPendientesTaraAgrupadas(dias = 3) {
+  const hoy = new Date();
+  const desde = new Date(hoy);
+  desde.setDate(hoy.getDate() - (dias - 1));
+  const from = ymd(desde);
+
+  const col = mongoose.connection.db.collection('registros');
+  const raw = await col.find({
+      pesadaPara: 'TARA',
+      anulado: { $ne: true },
+      confirmada: { $ne: true },   // todavía no REGULADA
+      fecha: { $gte: from }
+    })
+    .sort({ idTicket: -1 }) // más nuevo primero para dedup
+    .toArray();
+
+  const vistos = new Set();
+  const out = [];
+  for (const r of raw) {
+    if (vistos.has(r.patentes)) continue;
+    vistos.add(r.patentes);
+
+    const tieneTaraFinal = (typeof r.tara === 'number' && r.tara > 0) || !!r.fechaTaraFinal;
+
+    out.push({
+      _id: r._id.toString(),
+      idTicket: r.idTicket ?? null,
+      patentes: r.patentes,
+      brutoEstimado: Number(r.brutoEstimado) || 0,
+      tara: Number.isFinite(r.tara) ? r.tara : 0,
+      fechaTaraFinal: r.fechaTaraFinal || null,
+      tieneTaraFinal
+    });
+  }
+  return out;
+}
+
+// Helpers que usan la consulta agrupada:
+async function obtenerTaraPendientesUltimosDias(dias = 3) {
+  const todos = await obtenerPendientesTaraAgrupadas(dias);
+  return todos.filter(x => !x.tieneTaraFinal); // → para TARA FINAL
+}
+async function obtenerPatentesConTaraFinalUltimosDias(dias = 3) {
+  const todos = await obtenerPendientesTaraAgrupadas(dias);
+  return todos.filter(x => x.tieneTaraFinal); // → para REGULADA
 }
 
 /* ---------------------------------------------
@@ -246,13 +215,10 @@ app.post('/', (req, res) => {
     const esObservacion = codigosObservacion.includes(code);
 
     if (!esIngreso && !esObservacion) {
-      return res.redirect(
-        '/?error=Código incorrecto&redirect=' + encodeURIComponent(redirect || '/tabla')
-      );
+      return res.redirect('/?error=Código incorrecto&redirect=' + encodeURIComponent(redirect || '/tabla'));
     }
 
-    const redirectValido = (r) =>
-      typeof r === 'string' && (r.includes('/registro') || r.includes('/tabla'));
+    const redirectValido = (r) => typeof r === 'string' && (r.includes('/registro') || r.includes('/tabla'));
     const destino = redirectValido(redirect) ? redirect : (esIngreso ? '/registro' : '/tabla');
 
     return res.redirect(destino + '?code=' + encodeURIComponent(code));
@@ -262,35 +228,29 @@ app.post('/', (req, res) => {
   }
 });
 
+// Tabla
 app.get(
   '/tabla',
   (req, res, next) => {
     const code = req.query.code || req.body.code;
-    if (codigosObservacion.includes(code)) {
-      req.observacionCode = code;
-      return next();
-    }
+    if (codigosObservacion.includes(code)) { req.observacionCode = code; return next(); }
     return res.redirect('/?error=Código incorrecto&redirect=/tabla');
   },
   async (req, res) => {
     try {
       const { from, to } = getDateRangeFromQuery(req);
-
       let registros = await mongoose.connection.db.collection('registros').find().toArray();
 
-      // Filtrar por código (si no es master 12341)
       if (req.observacionCode !== '12341') {
-        const codigoIngreso = Object.keys(ingresoAObservacion).find(
-          (key) => ingresoAObservacion[key] === req.observacionCode
-        );
+        const codigoIngreso = Object.keys(ingresoAObservacion)
+          .find((key) => ingresoAObservacion[key] === req.observacionCode);
         registros = registros.filter((r) => r.codigoIngreso === codigoIngreso);
       }
 
-      // Filtrar por rango de fechas (inclusive)
       registros = registros.filter((r) => withinRange(r.fecha, from, to));
 
-      return res.render('tabla', { 
-        registros, 
+      return res.render('tabla', {
+        registros,
         observacionCode: req.observacionCode,
         range: { from, to }
       });
@@ -300,30 +260,25 @@ app.get(
   }
 );
 
+// Export
 app.get(
   '/export',
   (req, res, next) => {
     const code = req.query.code || req.body.code;
-    if (codigosObservacion.includes(code)) {
-      req.observacionCode = code;
-      return next();
-    }
+    if (codigosObservacion.includes(code)) { req.observacionCode = code; return next(); }
     return res.redirect('/?error=Código incorrecto');
   },
   async (req, res) => {
     try {
       const { from, to } = getDateRangeFromQuery(req);
-
       let registros = await mongoose.connection.db.collection('registros').find().toArray();
 
       if (req.observacionCode !== '12341') {
-        const codigoIngreso = Object.keys(ingresoAObservacion).find(
-          (key) => ingresoAObservacion[key] === req.observacionCode
-        );
+        const codigoIngreso = Object.keys(ingresoAObservacion)
+          .find((key) => ingresoAObservacion[key] === req.observacionCode);
         registros = registros.filter((r) => r.codigoIngreso === codigoIngreso);
       }
 
-      // Mismo filtro por fechas que la vista
       registros = registros.filter((r) => withinRange(r.fecha, from, to));
 
       const workbook = new ExcelJS.Workbook();
@@ -356,10 +311,7 @@ app.get(
       ];
       registros.forEach((registro) => worksheet.addRow(registro));
 
-      res.header(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      );
+      res.header('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.attachment('registros.xlsx');
       await workbook.xlsx.write(res);
       return res.end();
@@ -369,31 +321,26 @@ app.get(
   }
 );
 
+// Registro (formulario)
 app.get(
   '/registro',
   (req, res, next) => {
     const code = req.query.code || req.body.code;
-    if (codigosIngreso.includes(code)) {
-      req.ingresoCode = code;
-      return next();
-    }
+    if (codigosIngreso.includes(code)) { req.ingresoCode = code; return next(); }
     return res.redirect('/?error=Código incorrecto&redirect=/registro');
   },
   async (req, res) => {
     try {
       const newIdTicket = await calculateNextIdTicket();
 
+      // Usuario previo
       const ultimoRegistro = await mongoose.connection.db
-        .collection('registros')
-        .find()
-        .sort({ idTicket: -1 })
-        .limit(1)
-        .toArray();
+        .collection('registros').find().sort({ idTicket: -1 }).limit(1).toArray();
       const ultimoUsuario = ultimoRegistro.length ? ultimoRegistro[0].usuario : '';
 
-      // 👇 listas para los combos
-      const pendientesTara = await obtenerTaraPendientesUltimosDias(3);
-      const patentesConTaraFinal = await obtenerPatentesConTaraFinalUltimosDias(3);
+      // Listas para combos (¡nombres alineados con la vista!)
+      const pendientesSinFinal   = await obtenerTaraPendientesUltimosDias(3);
+      const pendientesConFinal   = await obtenerPatentesConTaraFinalUltimosDias(3);
 
       return res.render('registro', {
         code: req.ingresoCode,
@@ -401,9 +348,9 @@ app.get(
         ultimoUsuario,
         campos,
         datosSiembra,
-        pendientesTara,          // ← para TARA FINAL
-        patentesConTaraFinal,    // ← para REGULADA
-        pesadaPara: 'TARA',
+        pendientesSinFinal,   // ← TARA FINAL
+        pendientesConFinal,   // ← REGULADA
+        pesadaPara: 'TARA'
       });
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
@@ -411,9 +358,8 @@ app.get(
   }
 );
 
-// Confirmar TARA
+/* ------------------- TARA ------------------- */
 app.post('/confirmar-tara', (req, res) => {
-  // Requeridos para el PRIMER ingreso de TARA (sin 'pesadaPara')
   const requeridos = ['usuario','cargaPara','transporte','patentes','chofer','brutoEstimado'];
   const faltan = missingFields(req.body, requeridos);
   if (faltan.length) {
@@ -424,19 +370,14 @@ app.post('/confirmar-tara', (req, res) => {
   const tara = parseFloat(req.body.tara || 0);
   const netoEstimado = brutoEstimado - tara;
 
-  // Forzamos el paso como TARA sin depender de lo que venga del cliente
   return res.render('confirmar-tara', {
     formData: { ...req.body, pesadaPara: 'TARA' },
-    brutoEstimado,
-    tara,
-    netoEstimado,
+    brutoEstimado, tara, netoEstimado,
   });
 });
 
-// Guardar TARA
 app.post('/guardar-tara', async (req, res) => {
   try {
-    // Misma validación que en confirmar (sin 'pesadaPara')
     const requeridos = ['usuario','cargaPara','transporte','patentes','chofer','brutoEstimado'];
     const faltan = missingFields(req.body, requeridos);
     if (faltan.length) {
@@ -453,7 +394,7 @@ app.post('/guardar-tara', async (req, res) => {
       usuario: req.body.usuario,
       cargaPara: req.body.cargaPara,
       socio: req.body.socio || '',
-      pesadaPara: 'TARA',                 // <- fijado en backend
+      pesadaPara: 'TARA',
       transporte: req.body.transporte,
       patentes: req.body.patentes,
       chofer: req.body.chofer,
@@ -475,11 +416,7 @@ app.post('/guardar-tara', async (req, res) => {
   }
 });
 
-
-
-// ====== TARA FINAL ======
-
-// Previsualizar TARA FINAL (completar la tara de una TARA pendiente)
+/* ------------------- TARA FINAL ------------------- */
 app.post('/confirmar-tara-final', async (req, res) => {
   try {
     const requeridos = ['patentes', 'taraNueva', 'code'];
@@ -493,18 +430,11 @@ app.post('/confirmar-tara-final', async (req, res) => {
       return res.status(400).render('error', { error: 'Tara Nueva (kg) debe ser un número válido' });
     }
 
-    // Buscar la TARA pendiente más reciente de esa patente
     const col = mongoose.connection.db.collection('registros');
     const taraDoc = await col.findOne(
-      {
-        pesadaPara: 'TARA',
-        patentes: req.body.patentes,
-        anulado: { $ne: true },
-        confirmada: { $ne: true },
-      },
+      { pesadaPara: 'TARA', patentes: req.body.patentes, anulado: { $ne: true }, confirmada: { $ne: true } },
       { sort: { idTicket: -1 } }
     );
-
     if (!taraDoc) {
       return res.status(404).render('error', { error: 'No se encontró TARA pendiente para esa patente' });
     }
@@ -512,7 +442,7 @@ app.post('/confirmar-tara-final', async (req, res) => {
     const brutoEstimado = parseFloat(taraDoc.brutoEstimado || 0);
 
     return res.render('confirmar-tara-final', {
-      formData: req.body,               // patentes, taraNueva, code
+      formData: req.body,
       brutoEstimado,
       taraNueva,
       netoEstimado: brutoEstimado - taraNueva,
@@ -521,47 +451,8 @@ app.post('/confirmar-tara-final', async (req, res) => {
   } catch (err) {
     return res.status(500).render('error', { error: 'Error en confirmar TARA FINAL: ' + err.message });
   }
-
-  async function obtenerPatentesConTaraFinalUltimosDias(dias = 3) {
-  const hoy = new Date();
-  const desde = new Date(hoy);
-  desde.setDate(hoy.getDate() - (dias - 1));
-  const ymd = (d) => d.toISOString().split('T')[0];
-  const from = ymd(desde);
-
-  const col = mongoose.connection.db.collection('registros');
-  const raw = await col
-    .find({
-      pesadaPara: 'TARA',           // sigue siendo TARA (todavía no REGULADA)
-      anulado: { $ne: true },
-      confirmada: { $ne: true },
-      fecha: { $gte: from },
-      $or: [
-        { fechaTaraFinal: { $exists: true } }, // marcamos TARA FINAL explícita
-        { tara: { $type: 'number', $gte: 1 } } // o tara numérica > 0
-      ],
-    })
-    .sort({ idTicket: -1 })
-    .toArray();
-
-  const vistos = new Set();
-  const out = [];
-  for (const r of raw) {
-    if (vistos.has(r.patentes)) continue;
-    vistos.add(r.patentes);
-    out.push({
-      _id: r._id.toString(),
-      idTicket: r.idTicket ?? null,
-      patentes: r.patentes,
-      brutoEstimado: Number(r.brutoEstimado) || 0,
-      tara: Number.isFinite(r.tara) ? r.tara : 0,
-    });
-  }
-  return out;
-}
 });
 
-// Guardar TARA FINAL (actualiza el mismo doc de TARA, NO cierra ticket)
 app.post('/guardar-tara-final', async (req, res) => {
   try {
     const requeridos = ['patentes', 'taraNueva', 'code'];
@@ -578,12 +469,7 @@ app.post('/guardar-tara-final', async (req, res) => {
     const col = mongoose.connection.db.collection('registros');
 
     const taraDoc = await col.findOne(
-      {
-        pesadaPara: 'TARA',
-        patentes: req.body.patentes,
-        anulado: { $ne: true },
-        confirmada: { $ne: true },
-      },
+      { pesadaPara: 'TARA', patentes: req.body.patentes, anulado: { $ne: true }, confirmada: { $ne: true } },
       { sort: { idTicket: -1 } }
     );
     if (!taraDoc) {
@@ -594,14 +480,7 @@ app.post('/guardar-tara-final', async (req, res) => {
 
     await col.updateOne(
       { _id: taraDoc._id },
-      {
-        $set: {
-          // mantenemos pesadaPara: 'TARA' (no cerramos el ticket)
-          tara: taraNueva,
-          netoEstimado: brutoEstimado - taraNueva,
-          fechaTaraFinal: ymd(new Date())  // marca cuándo se finalizó la Tara
-        }
-      }
+      { $set: { tara: taraNueva, netoEstimado: brutoEstimado - taraNueva, fechaTaraFinal: ymd(new Date()) } }
     );
 
     const codigoObservacion = ingresoAObservacion[req.body.code] || '12341';
@@ -611,16 +490,11 @@ app.post('/guardar-tara-final', async (req, res) => {
   }
 });
 
-// Confirmar REGULADA (previsualización)
+/* ------------------- REGULADA ------------------- */
 app.post('/confirmar-regulada', (req, res) => {
-  // Requeridos de REGULADA
-  const requeridosBase = [
-    'patentes', 'campo', 'grano', 'lote', 'cargoDe',
-    'confirmarTara', 'confirmarBruto', 'brutoLote'
-  ];
+  const requeridosBase = ['patentes','campo','grano','lote','cargoDe','confirmarTara','confirmarBruto','brutoLote'];
   const faltanBase = requeridosBase.filter(f => {
-    const v = req.body[f];
-    return v === undefined || v === null || String(v).trim() === '';
+    const v = req.body[f]; return v === undefined || v === null || String(v).trim() === '';
   });
   if (faltanBase.length) {
     return res.status(400).render('error', { error: `Faltan campos obligatorios en REGULADA: ${faltanBase.join(', ')}` });
@@ -628,8 +502,7 @@ app.post('/confirmar-regulada', (req, res) => {
 
   const toNum = v => {
     if (v === '' || v === null || v === undefined) return null;
-    const n = Number(v);
-    return Number.isNaN(n) ? null : n;
+    const n = Number(v); return Number.isNaN(n) ? null : n;
   };
 
   const brutoLote = toNum(req.body.brutoLote);
@@ -647,22 +520,15 @@ app.post('/confirmar-regulada', (req, res) => {
   const brutoEstimado = toNum(req.body.brutoEstimado) ?? 0;
   const taraOriginal  = toNum(req.body.tara) ?? 0;
 
-  const bruto = (req.body.confirmarBruto === 'SI')
-    ? brutoEstimado
-    : (toNum(req.body.bruto) ?? 0);
-
-  const taraFinal = (req.body.confirmarTara === 'SI')
-    ? taraOriginal
-    : (toNum(req.body.taraNueva) ?? 0);
-
+  const bruto = (req.body.confirmarBruto === 'SI') ? brutoEstimado : (toNum(req.body.bruto) ?? 0);
+  const taraFinal = (req.body.confirmarTara === 'SI') ? taraOriginal : (toNum(req.body.taraNueva) ?? 0);
   const neto = (bruto != null && taraFinal != null) ? (bruto - taraFinal) : null;
 
-  // 👉 clave: enviar idTicketOrigen suelta para que la use la vista
   const idTicketOrigen = req.body.idTicketOrigen || '';
 
   return res.render('confirmar-regulada', {
-    formData: req.body,         // por si la vista usa formData.*
-    idTicketOrigen,             // <- agrega esta línea
+    formData: req.body,
+    idTicketOrigen,
     bruto,
     tara: taraFinal,
     neto: neto ?? '',
@@ -671,21 +537,9 @@ app.post('/confirmar-regulada', (req, res) => {
   });
 });
 
-// Guardar REGULADA
 app.post('/guardar-regulada', async (req, res) => {
   try {
-    // Validaciones
-    const requeridosBase = [
-      'patentes',
-      'campo',
-      'grano',
-      'lote',
-      'cargoDe',
-      'brutoLote',            // <-- requerido
-      'confirmarTara',
-      'confirmarBruto',
-      'code'
-    ];
+    const requeridosBase = ['patentes','campo','grano','lote','cargoDe','brutoLote','confirmarTara','confirmarBruto','code'];
     const faltanBase = missingFields(req.body, requeridosBase);
     if (faltanBase.length) {
       return res.status(400).render('error', { error: `Faltan campos obligatorios en REGULADA: ${faltanBase.join(', ')}` });
@@ -710,27 +564,18 @@ app.post('/guardar-regulada', async (req, res) => {
 
     const col = mongoose.connection.db.collection('registros');
 
-    // Preferí el idTicketOrigen si vino de la vista
     const { idTicketOrigen } = req.body;
     let taraDoc = null;
 
     if (idTicketOrigen) {
       try {
         taraDoc = await col.findOne({ _id: new mongoose.Types.ObjectId(idTicketOrigen) });
-      } catch (_) {
-        // si viene malformado, seguimos con el fallback por patente
-      }
+      } catch (_) { /* sigue fallback */ }
     }
 
-    // Fallback por patente (por si no llegó el hidden o no matchea)
     if (!taraDoc) {
       taraDoc = await col.findOne(
-        {
-          pesadaPara: 'TARA',
-          patentes: req.body.patentes,
-          anulado: { $ne: true },
-          confirmada: { $ne: true },
-        },
+        { pesadaPara: 'TARA', patentes: req.body.patentes, anulado: { $ne: true }, confirmada: { $ne: true } },
         { sort: { idTicket: -1 } }
       );
     }
@@ -739,33 +584,23 @@ app.post('/guardar-regulada', async (req, res) => {
       return res.status(400).render('error', { error: 'No se encontró TARA pendiente para esa patente.' });
     }
 
-    // Actualizo ese mismo documento a REGULADA y completo datos
     await col.updateOne(
       { _id: taraDoc._id },
       {
         $set: {
-          // FECHA: el ticket pasa a ser HOY al cerrar REGULADA
           fecha: ymd(new Date()),
           pesadaPara: 'REGULADA',
-
-          // destino
           campo: req.body.campo,
           grano: req.body.grano,
           lote: req.body.lote,
           cargoDe: req.body.cargoDe,
           silobolsa: req.body.cargoDe === 'SILOBOLSA' ? (req.body.silobolsa || '') : '',
           contratista: req.body.cargoDe === 'CONTRATISTA' ? (req.body.contratista || '') : '',
-
-          // pesos
           bruto,
           tara: taraFinal,
           neto: bruto - taraFinal,
-
-          // extras
           brutoLote,
           comentarios,
-
-          // estado
           confirmada: true,
           fechaRegulada: ymd(new Date()),
         }
@@ -780,7 +615,7 @@ app.post('/guardar-regulada', async (req, res) => {
   }
 });
 
-// Modificar (GET)
+/* ------------------- MODIFICAR / ANULAR ------------------- */
 app.get(
   '/modificar/:id',
   (req, res, next) => {
@@ -796,7 +631,7 @@ app.get(
 
       if (!registro) return res.render('error', { error: 'Registro no encontrado' });
       if (registro.anulado) return res.render('error', { error: 'Registro anulado' });
-      if (registro.modificaciones >= 2)
+      if ((registro.modificaciones || 0) >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
 
       return res.render('modificar', { registro, campos, datosSiembra, observacionCode: '9999' });
@@ -806,7 +641,6 @@ app.get(
   }
 );
 
-// Modificar (PUT)
 app.put(
   '/modificar/:id',
   (req, res, next) => {
@@ -825,7 +659,6 @@ app.put(
       if ((registro.modificaciones || 0) >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
 
-      // Caso 1: REGISTRO CERRADO (REGULADA confirmada) -> solo comentarios
       if (registro.confirmada && registro.pesadaPara === 'REGULADA') {
         const comentarios = (req.body.comentarios || '').trim();
         await col.updateOne(
@@ -836,7 +669,6 @@ app.put(
         return res.redirect(`/tabla?code=${codigoObservacion}`);
       }
 
-      // Caso 2: Aún no cerrado -> mantener edición normal
       const updateData = {
         idTicket: parseInt(req.body.idTicket),
         fecha: req.body.fecha,
@@ -849,8 +681,7 @@ app.put(
         chofer: req.body.chofer,
         brutoEstimado: parseFloat(req.body.brutoEstimado || 0),
         tara: parseFloat(req.body.tara || 0),
-        netoEstimado:
-          parseFloat(req.body.brutoEstimado || 0) - parseFloat(req.body.tara || 0),
+        netoEstimado: parseFloat(req.body.brutoEstimado || 0) - parseFloat(req.body.tara || 0),
         campo: req.body.campo,
         grano: req.body.grano || registro.grano,
         lote: req.body.lote,
@@ -873,43 +704,25 @@ app.put(
   }
 );
 
-// --- helpers para ANULAR ---
+// Helpers ANULAR
 async function handleAnular(req, res) {
   try {
     await mongoose.connection.db.collection('registros').updateOne(
       { _id: new mongoose.Types.ObjectId(req.params.id) },
-      {
-        $set: {
-          brutoEstimado: 0,
-          netoEstimado: 0,
-          tara: 0,
-          bruto: 0,
-          neto: 0,
-          anulado: true,
-        },
-      }
+      { $set: { brutoEstimado: 0, netoEstimado: 0, tara: 0, bruto: 0, neto: 0, anulado: true } }
     );
-
     const code = req.query.code || req.body.code || req.observacionCode || '12341';
     return res.redirect(`/tabla?code=${encodeURIComponent(code)}`);
   } catch (err) {
     return res.status(500).send('Internal Server Error: ' + err.message);
   }
 }
-
 function verificarCodeObservacion(req, res, next) {
   const code = req.query.code || req.body.code;
-  if (codigosObservacion.includes(code)) {
-    req.observacionCode = code;
-    return next();
-  }
+  if (codigosObservacion.includes(code)) { req.observacionCode = code; return next(); }
   return res.redirect('/?error=Código incorrecto');
 }
-
-// Anular por PUT (cuando _method=PUT se aplica)
 app.put('/anular/:id', verificarCodeObservacion, handleAnular);
-
-// Anular por POST (fallback si el method-override no se aplicó)
 app.post('/anular/:id', verificarCodeObservacion, handleAnular);
 
 /* ---------------------------------------------
