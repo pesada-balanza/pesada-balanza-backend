@@ -138,13 +138,6 @@ const datosSiembra = {
  * -------------------------------------------*/
 const ymd = (d) => d.toISOString().split('T')[0];
 
-/* =========================================================
- * HELPERS
- * =======================================================*/
-const ymd = (d) => d.toISOString().split('T')[0];
-
-// ===== Helpers de TARA para combos (últimos N días) =====
-
 // TARA pendientes SIN TARA FINAL (lista para el combo de "TARA FINAL")
 async function obtenerTaraPendientesUltimosDias(dias = 3) {
   const hoy = new Date();
@@ -282,8 +275,8 @@ app.get(
       const ultimoUsuario = ultimoRegistro.length ? ultimoRegistro[0].usuario : '';
 
       // *** NUEVAS LISTAS ***
-      const pendientesSinFinal = await obtenerPatentesTaraPendiente(); // TARA sin TARA FINAL
-      const pendientesConFinal = await obtenerPatentesConTaraFinal(); // con TARA FINAL
+      const pendientesTaraFinal = await obtenerTaraPendientesUltimosDias(3);
+      const pendientesConTaraFinal = await obtenerPatentesConTaraFinalUltimosDias(3);
 
       return res.render('registro', {
         code: req.ingresoCode,
