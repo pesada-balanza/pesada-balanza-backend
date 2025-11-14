@@ -225,7 +225,6 @@ async function obtenerPatentesConTaraFinalUltimosDias(dias = 3) {
   return out;
 }
 
-
 async function obtenerPatentesConTaraFinal() {
   const fechas = fechasUltimos3Dias();
   const col = mongoose.connection.db.collection('registros');
