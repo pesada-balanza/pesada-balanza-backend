@@ -248,20 +248,19 @@ app.get(
       const ultimoUsuario = ultimoRegistro.length ? ultimoRegistro[0].usuario : '';
 
       // *** NUEVAS LISTAS ***
-     const pendientesSinFinal = await obtenerTaraPendientesUltimosDias(3);
-     const pendientesConFinal = await obtenerPatentesConTaraFinalUltimosDias(3);
-     
-     return res.render('registro', {
-      code: req.ingresoCode,
-      newIdTicket,
-      ultimoUsuario,
-      campos,
-      datosSiembra,
-      pendientesSinFinal,
-      pendientesConFinal,
-      pesadaPara: 'TARA',
-    });
+      const pendientesSinFinal = await obtenerTaraPendientesUltimosDias(3);
+      const pendientesConFinal = await obtenerPatentesConTaraFinalUltimosDias(3);
 
+      return res.render('registro', {
+        code: req.ingresoCode,
+        newIdTicket,
+        ultimoUsuario,
+        campos,
+        datosSiembra,
+        pendientesSinFinal,
+        pendientesConFinal,
+        pesadaPara: 'TARA',
+      });
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
     }
