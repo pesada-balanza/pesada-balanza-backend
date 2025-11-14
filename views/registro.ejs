@@ -104,7 +104,7 @@
     <select id="patentesTaraFinal" name="patentes"
             class="form-control" required>
       <option value="">Seleccione</option>
-      <% (pendientesTara || []).forEach(reg => { %>
+      <% (pendientesSinFinal || []).forEach(reg => { %>
         <option value="<%= reg.patentes %>"
                 data-idticket="<%= reg._id %>"
                 data-bruto="<%= reg.brutoEstimado %>">
@@ -113,7 +113,7 @@
       <% }) %>
     </select>
 
-    <% if (!(pendientesTara && pendientesTara.length)) { %>
+    <% if (!(pendientesSinFinal && pendientesSinFinal.length)) { %>
       <small class="text-muted">No hay TARA pendientes.</small>
     <% } %>
   </div>
@@ -142,7 +142,7 @@
     <select id="patentesRegulada" name="patentes"
             class="form-control" required>
       <option value="">Seleccione</option>
-      <% (patentesConTaraFinal || []).forEach(reg => { %>
+      <% (patentesConFinal || []).forEach(reg => { %>
         <option value="<%= reg.patentes %>"
                 data-idticket="<%= reg._id %>"
                 data-bruto="<%= reg.brutoEstimado %>"
@@ -152,7 +152,7 @@
       <% }) %>
     </select>
 
-    <% if (!(pendientesConTaraFinal && pendientesConTaraFinal.length)) { %>
+    <% if (!(pendientesConFinal && pendientesConFinal.length)) { %>
       <small class="text-muted">No hay TARA FINAL disponibles.</small>
     <% } %>
   </div>
