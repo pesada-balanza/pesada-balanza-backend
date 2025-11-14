@@ -138,12 +138,14 @@ const datosSiembra = {
  * -------------------------------------------*/
 const ymd = (d) => d.toISOString().split('T')[0];
 
+// ===== Helpers de TARA para combos (últimos N días) =====
+
 // TARA pendientes SIN TARA FINAL (lista para el combo de "TARA FINAL")
 async function obtenerTaraPendientesUltimosDias(dias = 3) {
   const hoy = new Date();
   const desde = new Date(hoy);
-  desde.setDate(hoy.getDate() - (dias - 1)); // ej. 3 días: hoy, ayer, anteayer
-  const from = ymd(desde); // "YYYY-MM-DD"
+  desde.setDate(hoy.getDate() - (dias - 1)); 
+  const from = ymd(desde);
 
   const col = mongoose.connection.db.collection('registros');
 
@@ -151,9 +153,8 @@ async function obtenerTaraPendientesUltimosDias(dias = 3) {
     .find({
       pesadaPara: 'TARA',
       anulado: { $ne: true },
-      confirmada: { $ne: true },    // todavía NO REGULADA
+      confirmada: { $ne: true },
       fecha: { $gte: from },
-      // sin TARA FINAL: no tiene fechaTaraFinal
       $or: [
         { fechaTaraFinal: { $exists: false } },
         { fechaTaraFinal: null },
@@ -164,16 +165,18 @@ async function obtenerTaraPendientesUltimosDias(dias = 3) {
 
   const vistos = new Set();
   const out = [];
+
   for (const r of raw) {
-    if (vistos.has(r.patentes)) continue;
-    vistos.add(r.patentes);
-    out.push({
-      _id: r._id.toString(),
-      idTicket: r.idTicket ?? null,
-      patentes: r.patentes,
-      brutoEstimado: Number(r.brutoEstimado) || 0,
-      tara: Number.isFinite(r.tara) ? r.tara : 0,
-    });
+    if (!vistos.has(r.patentes)) {
+      vistos.add(r.patentes);
+      out.push({
+        _id: r._id.toString(),
+        idTicket: r.idTicket ?? null,
+        patentes: r.patentes,
+        brutoEstimado: Number(r.brutoEstimado) || 0,
+        tara: Number.isFinite(r.tara) ? r.tara : 0,
+      });
+    }
   }
   return out;
 }
@@ -182,7 +185,7 @@ async function obtenerTaraPendientesUltimosDias(dias = 3) {
 async function obtenerPatentesConTaraFinalUltimosDias(dias = 3) {
   const hoy = new Date();
   const desde = new Date(hoy);
-  desde.setDate(hoy.getDate() - (dias - 1));
+  desde.setDate(hoy.getDate() - (dias - 1)); 
   const from = ymd(desde);
 
   const col = mongoose.connection.db.collection('registros');
@@ -191,9 +194,8 @@ async function obtenerPatentesConTaraFinalUltimosDias(dias = 3) {
     .find({
       pesadaPara: 'TARA',
       anulado: { $ne: true },
-      confirmada: { $ne: true },   // aún no REGULADA
+      confirmada: { $ne: true },
       fecha: { $gte: from },
-      // con TARA FINAL: o tiene fechaTaraFinal, o tara numérica > 0
       $or: [
         { fechaTaraFinal: { $exists: true } },
         { tara: { $type: 'number', $gt: 0 } },
@@ -204,51 +206,22 @@ async function obtenerPatentesConTaraFinalUltimosDias(dias = 3) {
 
   const vistos = new Set();
   const out = [];
+
   for (const r of raw) {
-    if (vistos.has(r.patentes)) continue;
-    vistos.add(r.patentes);
-    out.push({
-      _id: r._id.toString(),
-      idTicket: r.idTicket ?? null,
-      patentes: r.patentes,
-      brutoEstimado: Number(r.brutoEstimado) || 0,
-      tara: Number.isFinite(r.tara) ? r.tara : 0,
-    });
+    if (!vistos.has(r.patentes)) {
+      vistos.add(r.patentes);
+      out.push({
+        _id: r._id.toString(),
+        idTicket: r.idTicket ?? null,
+        patentes: r.patentes,
+        brutoEstimado: Number(r.brutoEstimado) || 0,
+        tara: Number.isFinite(r.tara) ? r.tara : 0,
+      });
+    }
   }
   return out;
 }
 
-async function obtenerPatentesConTaraFinal() {
-  const fechas = fechasUltimos3Dias();
-  const col = mongoose.connection.db.collection('registros');
-
-  const raw = await col.find({
-    pesadaPara: 'TARA',
-    fecha: { $in: fechas },
-    anulado: { $ne: true },
-    confirmada: { $ne: true },
-    fechaTaraFinal: { $exists: true }   // CON TARA FINAL
-  })
-  .sort({ idTicket: -1 })
-  .toArray();
-
-  const vistos = new Set();
-  const list = [];
-
-  raw.forEach(r => {
-    if (!vistos.has(r.patentes)) {
-      vistos.add(r.patentes);
-      list.push({
-        _id: r._id.toString(),
-        patentes: r.patentes,
-        brutoEstimado: r.brutoEstimado || 0,
-        tara: r.tara || 0
-      });
-    }
-  });
-
-  return list;
-}
 /* ---------------------------------------------
  * RUTA /registro
  * -------------------------------------------*/
@@ -275,19 +248,20 @@ app.get(
       const ultimoUsuario = ultimoRegistro.length ? ultimoRegistro[0].usuario : '';
 
       // *** NUEVAS LISTAS ***
-      const pendientesTaraFinal = await obtenerTaraPendientesUltimosDias(3);
-      const pendientesConTaraFinal = await obtenerPatentesConTaraFinalUltimosDias(3);
+     const pendientesSinFinal = await obtenerTaraPendientesUltimosDias(3);
+     const pendientesConFinal = await obtenerPatentesConTaraFinalUltimosDias(3);
+     
+     return res.render('registro', {
+      code: req.ingresoCode,
+      newIdTicket,
+      ultimoUsuario,
+      campos,
+      datosSiembra,
+      pendientesSinFinal,
+      pendientesConFinal,
+      pesadaPara: 'TARA',
+    });
 
-      return res.render('registro', {
-        code: req.ingresoCode,
-        newIdTicket,
-        ultimoUsuario,
-        campos,
-        datosSiembra,
-        pendientesSinFinal,
-        pendientesConFinal,
-        pesadaPara: 'TARA',
-      });
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
     }
