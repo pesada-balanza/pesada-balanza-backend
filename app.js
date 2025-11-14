@@ -138,51 +138,93 @@ const datosSiembra = {
  * -------------------------------------------*/
 const ymd = (d) => d.toISOString().split('T')[0];
 
-// hoy–ayer–anteayer
-function fechasUltimos3Dias() {
-  const hoy = new Date();
-  const arr = [];
-  for (let i = 0; i < 3; i++) {
-    const d = new Date(hoy);
-    d.setDate(hoy.getDate() - i);
-    arr.push(ymd(d));
-  }
-  return arr;
-}
+/* =========================================================
+ * HELPERS
+ * =======================================================*/
+const ymd = (d) => d.toISOString().split('T')[0];
 
-/* ---------------------------------------------
- * CONSULTAS PARA PATENTES
- * -------------------------------------------*/
-async function obtenerPatentesTaraPendiente() {
-  const fechas = fechasUltimos3Dias();
+// ===== Helpers de TARA para combos (últimos N días) =====
+
+// TARA pendientes SIN TARA FINAL (lista para el combo de "TARA FINAL")
+async function obtenerTaraPendientesUltimosDias(dias = 3) {
+  const hoy = new Date();
+  const desde = new Date(hoy);
+  desde.setDate(hoy.getDate() - (dias - 1)); // ej. 3 días: hoy, ayer, anteayer
+  const from = ymd(desde); // "YYYY-MM-DD"
+
   const col = mongoose.connection.db.collection('registros');
 
-  const raw = await col.find({
-    pesadaPara: 'TARA',
-    fecha: { $in: fechas },
-    anulado: { $ne: true },
-    confirmada: { $ne: true },
-    fechaTaraFinal: { $exists: false }   // SIN TARA FINAL
-  })
-  .sort({ idTicket: -1 })
-  .toArray();
+  const raw = await col
+    .find({
+      pesadaPara: 'TARA',
+      anulado: { $ne: true },
+      confirmada: { $ne: true },    // todavía NO REGULADA
+      fecha: { $gte: from },
+      // sin TARA FINAL: no tiene fechaTaraFinal
+      $or: [
+        { fechaTaraFinal: { $exists: false } },
+        { fechaTaraFinal: null },
+      ],
+    })
+    .sort({ idTicket: -1 })
+    .toArray();
 
   const vistos = new Set();
-  const list = [];
-
-  raw.forEach(r => {
-    if (!vistos.has(r.patentes)) {
-      vistos.add(r.patentes);
-      list.push({
-        _id: r._id.toString(),
-        patentes: r.patentes,
-        brutoEstimado: r.brutoEstimado || 0
-      });
-    }
-  });
-
-  return list;
+  const out = [];
+  for (const r of raw) {
+    if (vistos.has(r.patentes)) continue;
+    vistos.add(r.patentes);
+    out.push({
+      _id: r._id.toString(),
+      idTicket: r.idTicket ?? null,
+      patentes: r.patentes,
+      brutoEstimado: Number(r.brutoEstimado) || 0,
+      tara: Number.isFinite(r.tara) ? r.tara : 0,
+    });
+  }
+  return out;
 }
+
+// TARA con TARA FINAL (lista para el combo de "REGULADA")
+async function obtenerPatentesConTaraFinalUltimosDias(dias = 3) {
+  const hoy = new Date();
+  const desde = new Date(hoy);
+  desde.setDate(hoy.getDate() - (dias - 1));
+  const from = ymd(desde);
+
+  const col = mongoose.connection.db.collection('registros');
+
+  const raw = await col
+    .find({
+      pesadaPara: 'TARA',
+      anulado: { $ne: true },
+      confirmada: { $ne: true },   // aún no REGULADA
+      fecha: { $gte: from },
+      // con TARA FINAL: o tiene fechaTaraFinal, o tara numérica > 0
+      $or: [
+        { fechaTaraFinal: { $exists: true } },
+        { tara: { $type: 'number', $gt: 0 } },
+      ],
+    })
+    .sort({ idTicket: -1 })
+    .toArray();
+
+  const vistos = new Set();
+  const out = [];
+  for (const r of raw) {
+    if (vistos.has(r.patentes)) continue;
+    vistos.add(r.patentes);
+    out.push({
+      _id: r._id.toString(),
+      idTicket: r.idTicket ?? null,
+      patentes: r.patentes,
+      brutoEstimado: Number(r.brutoEstimado) || 0,
+      tara: Number.isFinite(r.tara) ? r.tara : 0,
+    });
+  }
+  return out;
+}
+
 
 async function obtenerPatentesConTaraFinal() {
   const fechas = fechasUltimos3Dias();
