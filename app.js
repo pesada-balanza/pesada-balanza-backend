@@ -383,7 +383,6 @@ app.get(
     try {
       const newIdTicket = await calculateNextIdTicket();
 
-      // Usuario previo
       const ultimoRegistro = await mongoose.connection.db
         .collection('registros')
         .find()
@@ -392,10 +391,9 @@ app.get(
         .toArray();
       const ultimoUsuario = ultimoRegistro.length ? ultimoRegistro[0].usuario : '';
 
-      // Traemos TARA de últimos 3 días y separamos:
-      const pendientesTara = await obtenerTaraPendientesHoyYAyer();
-      const pendientesConFinal =  pendientesTara.filter(r => !!r.fechaTaraFinal);
-      const pendientesSinFinal = pendientesTara.filter(r => !r.fechaTaraFinal);
+      // 👇 listas para los combos
+      const pendientesTara = await obtenerTaraPendientesUltimosDias(3);
+      const patentesConTaraFinal = await obtenerPatentesConTaraFinalUltimosDias(3);
 
       return res.render('registro', {
         code: req.ingresoCode,
@@ -403,10 +401,9 @@ app.get(
         ultimoUsuario,
         campos,
         datosSiembra,
-        // pasamos las dos listas
-        pendientesConFinal,
-        pendientesSinFinal,
-        pesadaPara: 'TARA', // mostrar TARA por defecto
+        pendientesTara,          // ← para TARA FINAL
+        patentesConTaraFinal,    // ← para REGULADA
+        pesadaPara: 'TARA',
       });
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
@@ -478,6 +475,8 @@ app.post('/guardar-tara', async (req, res) => {
   }
 });
 
+
+
 // ====== TARA FINAL ======
 
 // Previsualizar TARA FINAL (completar la tara de una TARA pendiente)
@@ -522,6 +521,44 @@ app.post('/confirmar-tara-final', async (req, res) => {
   } catch (err) {
     return res.status(500).render('error', { error: 'Error en confirmar TARA FINAL: ' + err.message });
   }
+
+  async function obtenerPatentesConTaraFinalUltimosDias(dias = 3) {
+  const hoy = new Date();
+  const desde = new Date(hoy);
+  desde.setDate(hoy.getDate() - (dias - 1));
+  const ymd = (d) => d.toISOString().split('T')[0];
+  const from = ymd(desde);
+
+  const col = mongoose.connection.db.collection('registros');
+  const raw = await col
+    .find({
+      pesadaPara: 'TARA',           // sigue siendo TARA (todavía no REGULADA)
+      anulado: { $ne: true },
+      confirmada: { $ne: true },
+      fecha: { $gte: from },
+      $or: [
+        { fechaTaraFinal: { $exists: true } }, // marcamos TARA FINAL explícita
+        { tara: { $type: 'number', $gte: 1 } } // o tara numérica > 0
+      ],
+    })
+    .sort({ idTicket: -1 })
+    .toArray();
+
+  const vistos = new Set();
+  const out = [];
+  for (const r of raw) {
+    if (vistos.has(r.patentes)) continue;
+    vistos.add(r.patentes);
+    out.push({
+      _id: r._id.toString(),
+      idTicket: r.idTicket ?? null,
+      patentes: r.patentes,
+      brutoEstimado: Number(r.brutoEstimado) || 0,
+      tara: Number.isFinite(r.tara) ? r.tara : 0,
+    });
+  }
+  return out;
+}
 });
 
 // Guardar TARA FINAL (actualiza el mismo doc de TARA, NO cierra ticket)
