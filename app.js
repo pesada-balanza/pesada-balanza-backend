@@ -842,10 +842,14 @@ app.get(
       if ((registro.modificaciones || 0) >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
 
+      const observacionCode =
+        req.query.code || req.query.observacionCode || req.body.code || '';
+
       return res.render('modificar', {
         registro,
         campos,
-        datosSiembra
+        datosSiembra,
+        observacionCode
       });
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
