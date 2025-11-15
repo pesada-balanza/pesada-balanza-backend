@@ -378,10 +378,11 @@ app.get(
       const ultimoUsuario = ultimoRegistro.length
         ? ultimoRegistro[0].usuario
         : '';
+      
+      const col = mongoose.connection.db.collection('registros');
 
-      // Tara pendientes (sin FINAL todavía)
-      const pendientesSinFinal = await mongoose.connection.db
-        .collection('registros')
+      // Tara pendientes (sin TARA FINAL)
+      const pendientesTara = await col
         .find({
           pesadaPara: 'TARA',
           anulado: { $ne: true },
@@ -392,8 +393,7 @@ app.get(
         .toArray();
       
       // Registros con TARA FINAL (disponibles para REGULADA)
-      const pendientesConFinal = await mongoose.connection.db
-        .collection('registros')
+      const pendientesConFinal = await col
         .find({
           pesadaPara: 'TARA',
           anulado: { $ne: true },
@@ -410,7 +410,7 @@ app.get(
         ultimoUsuario,
         campos,
         datosSiembra,
-        pendientesSinFinal,
+        pendientesTara,
         pendientesConFinal,
         pesadaPara: 'TARA', // Muestra TARA por defecto en el formulario
       });
