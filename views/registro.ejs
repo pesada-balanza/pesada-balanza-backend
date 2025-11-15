@@ -104,7 +104,7 @@
     <select id="patentesTaraFinal" name="patentes"
             class="form-control" required>
       <option value="">Seleccione</option>
-      <% (pendientesSinFinal || []).forEach(reg => { %>
+      <% (pendientesTara || []).forEach(reg => { %>
         <option value="<%= reg.patentes %>"
                 data-idticket="<%= reg._id %>"
                 data-bruto="<%= reg.brutoEstimado %>">
@@ -113,7 +113,7 @@
       <% }) %>
     </select>
 
-    <% if (!(pendientesSinFinal && pendientesSinFinal.length)) { %>
+    <% if (!(pendientesTara && pendientesTara.length)) { %>
       <small class="text-muted">No hay TARA pendientes.</small>
     <% } %>
   </div>
@@ -142,7 +142,7 @@
     <select id="patentesRegulada" name="patentes"
             class="form-control" required>
       <option value="">Seleccione</option>
-      <% (patentesConFinal || []).forEach(reg => { %>
+      <% (patentesConTaraFinal || []).forEach(reg => { %>
         <option value="<%= reg.patentes %>"
                 data-idticket="<%= reg._id %>"
                 data-bruto="<%= reg.brutoEstimado %>"
@@ -152,13 +152,13 @@
       <% }) %>
     </select>
 
-    <% if (!(pendientesConFinal && pendientesConFinal.length)) { %>
+    <% if (!(patentesConTaraFinal && patentesConTaraFinal.length)) { %>
       <small class="text-muted">No hay TARA FINAL disponibles.</small>
     <% } %>
   </div>
 
   <!-- DETIENE ACA —>>> SEGUIR CON PARTE 2 -->
-     <div class="form-group">
+  <div class="form-group">
     <label for="campo">Campo</label>
     <select id="campo" name="campo" class="form-control" required>
       <option value="">Seleccione un campo</option>
