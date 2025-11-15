@@ -398,7 +398,7 @@ app.get(
           pesadaPara: 'TARA',
           anulado: { $ne: true },
           confirmada: { $ne: true },
-          fechaTaraFinal: { $exists: true }
+          fechaTaraFinal: { $exists: true },
           fechaRegulada: { $exists: false }
         })
         .sort({ idTicket: -1 })
