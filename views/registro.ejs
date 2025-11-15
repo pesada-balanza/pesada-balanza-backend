@@ -142,7 +142,7 @@
     <select id="patentesRegulada" name="patentes"
             class="form-control" required>
       <option value="">Seleccione</option>
-      <% (patentesConTaraFinal || []).forEach(reg => { %>
+      <% (pendientesConFinal || []).forEach(reg => { %>
         <option value="<%= reg.patentes %>"
                 data-idticket="<%= reg._id %>"
                 data-bruto="<%= reg.brutoEstimado %>"
@@ -152,7 +152,7 @@
       <% }) %>
     </select>
 
-    <% if (!(patentesConTaraFinal && patentesConTaraFinal.length)) { %>
+    <% if (!(pendientesConFinal && pendientesConFinal.length)) { %>
       <small class="text-muted">No hay TARA FINAL disponibles.</small>
     <% } %>
   </div>
