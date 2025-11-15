@@ -379,16 +379,39 @@ app.get(
         ? ultimoRegistro[0].usuario
         : '';
 
-      // Tara pendientes hoy/ayer
-      const pendientesTara = await obtenerTaraPendientesHoyYAyer();
-
+      // Tara pendientes (sin FINAL todavía)
+      const pendientesSinFinal = await mongoose.connection.db
+        .collection('registros')
+        .find({
+          pesadaPara: 'TARA',
+          anulado: { $ne: true },
+          confirmada: { $ne: true },
+          fechaTaraFinal: { $exists: false }
+        })
+        .sort({ idTicket: -1 })
+        .toArray();
+      
+      // Registros con TARA FINAL (disponibles para REGULADA)
+      const pendientesConFinal = await mongoose.connection.db
+        .collection('registros')
+        .find({
+          pesadaPara: 'TARA',
+          anulado: { $ne: true },
+          confirmada: { $ne: true },
+          fechaTaraFinal: { $exists: true }
+          fechaRegulada: { $exists: false }
+        })
+        .sort({ idTicket: -1 })
+        .toArray();
+      
       return res.render('registro', {
         code: req.ingresoCode,
         newIdTicket,
         ultimoUsuario,
         campos,
         datosSiembra,
-        pendientesTara,
+        pendientesSinFinal,
+        pendientesConFinal,
         pesadaPara: 'TARA', // Muestra TARA por defecto en el formulario
       });
 
@@ -430,7 +453,6 @@ app.post('/confirmar-tara', (req, res) => {
     netoEstimado,
   });
 });
-
 
 /* ---------------------------------------------
  * GUARDAR TARA (primer paso del ticket)
