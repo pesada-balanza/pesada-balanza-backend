@@ -260,12 +260,10 @@
 </form>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-
   window.datosSiembra = <%- JSON.stringify(datosSiembra) %>;
 
   function toggleForm() {
-    const v = document.getElementById('modo')?.value || 'REGULADA';
+    const v = document.getElementById('modo').value;
     document.getElementById('formTara').style.display =
       v === 'TARA' ? 'block' : 'none';
     document.getElementById('formTaraFinal').style.display =
@@ -274,58 +272,41 @@ document.addEventListener('DOMContentLoaded', () => {
       v === 'REGULADA' ? 'block' : 'none';
   }
 
-  function toggleSocio() {
-    const carga = document.getElementById('cargaPara');
-    const socioField = document.getElementById('socioField');
-    if (!carga || !socioField) return;
-    const show = carga.value === 'SOCIO';
-    socioField.style.display = show ? 'block' : 'none';
-    const socio = document.getElementById('socio');
-    if (socio) socio.required = show;
+ function toggleSocio() {
+    const v = document.getElementById('cargaPara').value;
+    const show = v === 'SOCIO';
+    document.getElementById('socioField').style.display = show ? 'block' : 'none';
+    document.getElementById('socio').required = show;
   }
 
   function toggleCargo() {
-    const cargo = document.getElementById('cargoDe');
-    if (!cargo) return;
-    const v = cargo.value;
-    const silobolsa = document.getElementById('silobolsaField');
-    const contratista = document.getElementById('contratistaField');
-    if (silobolsa) silobolsa.style.display = (v === 'SILOBOLSA') ? 'block' : 'none';
-    if (contratista) contratista.style.display = (v === 'CONTRATISTA') ? 'block' : 'none';
+    const v = document.getElementById('cargoDe').value;
+    document.getElementById('silobolsaField').style.display = v === 'SILOBOLSA';
+    document.getElementById('contratistaField').style.display = v === 'CONTRATISTA';
   }
 
-  function toggleTara() {
-    const confirmar = document.getElementById('confirmarTara');
-    const field = document.getElementById('taraNuevaField');
-    if (!confirmar || !field) return;
-    field.style.display = confirmar.value === 'NO' ? 'block' : 'none';
+ function toggleTara() {
+    const show = document.getElementById('confirmarTara').value === 'NO';
+    document.getElementById('taraNuevaField').style.display = show;
   }
 
   function toggleBruto() {
-    const confirmar = document.getElementById('confirmarBruto');
-    const field = document.getElementById('brutoField');
-    if (!confirmar || !field) return;
-    field.style.display = confirmar.value === 'NO' ? 'block' : 'none';
+    const show = document.getElementById('confirmarBruto').value === 'NO';
+    document.getElementById('brutoField').style.display = show;
   }
 
-  // --- Eventos
-  document.getElementById('cargoDe')?.addEventListener('change', toggleCargo);
-  document.getElementById('confirmarTara')?.addEventListener('change', toggleTara);
-  document.getElementById('confirmarBruto')?.addEventListener('change', toggleBruto);
-
-  // --- Campos de siembra
-  const campoSel = document.getElementById('campo');
+ const campoSel = document.getElementById('campo');
   const granoSel = document.getElementById('grano');
   const loteSel  = document.getElementById('lote');
 
-  campoSel?.addEventListener('change', () => {
+  campoSel.addEventListener('change', () => {
     const campo = campoSel.value;
     granoSel.innerHTML = '<option value="">Seleccione un cultivo</option>';
     loteSel.innerHTML  = '<option value="">Seleccione un lote</option>';
     granoSel.disabled = true;
     loteSel.disabled = true;
 
-    const d = window.datosSiembra[campo] || {};
+   const d = window.datosSiembra[campo] || {};
     Object.keys(d).forEach(gr => {
       const op = document.createElement('option');
       op.text = op.value = gr;
@@ -334,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
     granoSel.disabled = !Object.keys(d).length;
   });
 
-  granoSel?.addEventListener('change', () => {
+ granoSel.addEventListener('change', () => {
     const campo = campoSel.value;
     const grano = granoSel.value;
     loteSel.innerHTML = '<option value="">Seleccione un lote</option>';
@@ -358,21 +339,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('idTicketOrigen').value = op.dataset.idticket || '';
   });
 
-  // --- Completar id en TARA FINAL
+ // --- Completar id en TARA FINAL
   const selTaraFinal = document.getElementById('patentesTaraFinal');
   selTaraFinal?.addEventListener('change', function () {
     const op = this.options[this.selectedIndex];
     document.getElementById('idTicketTaraFinal').value = op.dataset.idticket || '';
   });
 
-  // --- Estado inicial
+// Estado inicial
   toggleForm();
   toggleSocio();
   toggleCargo();
   toggleTara();
   toggleBruto();
-
-});
 </script>
 
 <%- include('partials/footer') %>
