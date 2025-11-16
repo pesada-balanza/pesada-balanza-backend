@@ -229,8 +229,7 @@
 
   <div id="taraNuevaField" class="form-group" style="display:none;">
     <label for="taraNueva">Tara Nueva (kg)</label>
-    <input type="number" id="taraNueva" name="taraNueva"
-           class="form-control">
+    <input type="number" id="taraNueva" name="taraNueva" class="form-control">
   </div>
 
   <div class="form-group">
@@ -281,21 +280,21 @@
 
   function toggleCargo() {
     const v = document.getElementById('cargoDe').value;
-    document.getElementById('silobolsaField').style.display = v === 'SILOBOLSA';
-    document.getElementById('contratistaField').style.display = v === 'CONTRATISTA';
+    document.getElementById('silobolsaField').style.display = v === 'SILOBOLSA' ? 'block' : 'none';
+    document.getElementById('contratistaField').style.display = v === 'CONTRATISTA' ? 'block' : 'none';
   }
 
  function toggleTara() {
     const show = document.getElementById('confirmarTara').value === 'NO';
-    document.getElementById('taraNuevaField').style.display = show;
+    document.getElementById('taraNuevaField').style.display = show ? 'block' : 'none';
   }
 
   function toggleBruto() {
     const show = document.getElementById('confirmarBruto').value === 'NO';
-    document.getElementById('brutoField').style.display = show;
+    document.getElementById('brutoField').style.display = show ? 'block' : 'none';
   }
 
- const campoSel = document.getElementById('campo');
+  const campoSel = document.getElementById('campo');
   const granoSel = document.getElementById('grano');
   const loteSel  = document.getElementById('lote');
 
@@ -315,7 +314,7 @@
     granoSel.disabled = !Object.keys(d).length;
   });
 
- granoSel.addEventListener('change', () => {
+    granoSel.addEventListener('change', () => {
     const campo = campoSel.value;
     const grano = granoSel.value;
     loteSel.innerHTML = '<option value="">Seleccione un lote</option>';
