@@ -62,7 +62,8 @@ const campos = [
   "La Porfía - ARBOL BLANCO - SE",
   "La Pradera - ARBOL BLANCO - SE",
   "Tierra Negra - ARBOL BLANCO - SE",
-  "El C 1 Ciriaci - TINTINA - SE"
+  "El C 1 Ciriaci - TINTINA - SE",
+  "Wichi - SACHAYOJ - SE"
 ].sort();
 
 const datosSiembra = {
