@@ -66,6 +66,13 @@ const campos = [
 ].sort();
 
 const datosSiembra = {
+  "Wichi - SACHAYOJ - SE": {
+    "MAIZ": [
+      "Lote 1 Wichi","Lote 2 Wichi","Lote 3 Wichi",
+      "Lote 4 Wichi","Lote 5 Wichi","Lote 6 Wichi",
+      "Lote 7 Wichi"
+    ]
+  },
   "El C 1 Ciriaci - TINTINA - SE": {
     "MAIZ": [
       "Lote 1 Ciriaci C1","Lote 2 Ciriaci C1","Lote 3 Ciriaci C1",
