@@ -57,6 +57,9 @@ const ingresoAObservacion = {
  * DATOS (campos y datosSiembra)
  * -------------------------------------------*/
 const campos = [
+  "El Centinela - ESTACION RAMS SF",
+  "El Rodeo - TOSTADO SF",
+  "Los Molinos - TOSTADO SF",
   "Charata - CHARATA - CH",
   "El Mataco - SACHAYOJ - SE",
   "La Porfía - ARBOL BLANCO - SE",
@@ -67,6 +70,26 @@ const campos = [
 ].sort();
 
 const datosSiembra = {
+  "El Centinela - ESTACION RAMS SF" {
+    "GIRASOL": [
+      "LOTE 1 - El Centinela", "LOTE 2 - El Centinela", "LOTE 3 - El Centinela",
+      "LOTE 4 - El Centinela", "LOTE 5 - El Centinela", "LOTE 6 - El Centinela"
+    ]
+  },
+  "El Rodeo - TOSTADO SF": {
+    "GIRASOL": [
+      "Lote 1 Chico - El Rodeo", "Lote 1 Grande - El Rodeo", "Lote 2 Este - El Rodeo",
+      "Lote 2 Oeste - El Rodeo", "Lote 3 Este - El Rodeo", "Lote 3 Oeste - El Rodeo",
+      "Lote 4 Este - El Rodeo", "Lote 4 Oeste - El Rodeo", "Lote 5 Este - El Rodeo",
+      "Lote 5 Oeste - El Rodeo", "Lote 6 - El Rodeo", "Lote 7 - El Rodeo", "Lote 8 - El Rodeo",
+      "Lote 9 E - El Rodeo", "Lote 9 O - El Rodeo", "Lote Banquina - El Rodeo", "Lote Camino - El Rodeo"
+    ]
+  },
+  "Los Molinos - TOSTADO SF": {
+    "GIRASOL": [
+      "Lote2 - Los Molinos", "Lote4 - Los Molinos"
+    ]
+  },
   "Wichi - SACHAYOJ - SE": {
     "MAIZ": [
       "Lote 1 Wichi","Lote 2 Wichi","Lote 3 Wichi",
@@ -84,14 +107,18 @@ const datosSiembra = {
   "El Mataco - SACHAYOJ - SE": {
     "TRIGO": [
       "Lote 1 El Mataco","Lote 2 El Mataco","Lote 3 El Mataco",
-      "Lote 4 El Mataco","Lote 5 El Mataco","Lote Banquina El Mat"
+      "Lote 4 El Mataco","Lote 5 El Mataco","Lote Banquina El Mataco"
     ]
   },
   "La Porfía - ARBOL BLANCO - SE": {
-    "TRIGO": ["Lote 10 La Porfía","Lote 11 La Porfía"]
+    "TRIGO": [
+      "Lote 10 La Porfía","Lote 11 La Porfía"
+    ]
   },
   "Charata - CHARATA - CH": {
-    "TRIGO": ["Lote 1 Charata","Lote 3 Charata"]
+    "TRIGO": [
+      "Lote 1 Charata","Lote 3 Charata"
+    ]
   },
   "Tierra Negra - ARBOL BLANCO - SE": {
     "TRIGO": [
