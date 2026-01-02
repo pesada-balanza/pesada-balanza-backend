@@ -70,7 +70,7 @@ const campos = [
 ].sort();
 
 const datosSiembra = {
-  "El Centinela - ESTACION RAMS SF" {
+  "El Centinela - ESTACION RAMS SF": {
     "GIRASOL": [
       "LOTE 1 - El Centinela", "LOTE 2 - El Centinela", "LOTE 3 - El Centinela",
       "LOTE 4 - El Centinela", "LOTE 5 - El Centinela", "LOTE 6 - El Centinela"
