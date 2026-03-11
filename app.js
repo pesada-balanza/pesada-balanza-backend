@@ -12,9 +12,11 @@ const app = express();
  * MONGODB
  * -------------------------------------------*/
 mongoose.set('strictQuery', true);
-const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  'mongodb+srv://pesadabalanzauser:mongo405322@pesada-balanza-cluster.dnc7i.mongodb.net/pesada-balanza?retryWrites=true&w=majority&appName=pesada-balanza-cluster';
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
+  console.error('ERROR: Variable MONGODB_URI no configurada en las variables de entorno');
+  process.exit(1);
+}
 
 mongoose
   .connect(MONGODB_URI)
