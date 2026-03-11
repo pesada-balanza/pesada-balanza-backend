@@ -36,7 +36,6 @@
 <div class="d-flex align-items-end gap-2 mb-3">
   <!-- Filtro por fechas (GET) -->
   <form class="d-flex align-items-end gap-2" method="get" action="/tabla">
-    <input type="hidden" name="code" value="<%= observacionCode %>">
 
     <div>
       <label for="from" class="form-label mb-0">Desde</label>
@@ -53,12 +52,11 @@
     <button type="submit" class="btn btn-info">Filtrar</button>
 
     <!-- Atajo rápido a HOY -->
-    <a class="btn btn-outline-secondary"
-       href="/tabla?code=<%= observacionCode %>">Hoy</a>
+    <a class="btn btn-outline-secondary" href="/tabla">Hoy</a>
   </form>
 
   <!-- Exportar a Excel respetando el filtro actual -->
-  <a href="/export?code=<%= observacionCode %><% if (range && range.from) { %>&from=<%= range.from %><% } %><% if (range && range.to) { %>&to=<%= range.to %><% } %>"
+  <a href="/export<% if (range && range.from) { %>?from=<%= range.from %><% if (range.to) { %>&to=<%= range.to %><% } %><% } else if (range && range.to) { %>?to=<%= range.to %><% } %>"
      class="btn btn-success ms-auto">Exportar a Excel</a>
 </div>
 
@@ -147,8 +145,8 @@
       </td>
       <td>
         <% if (!registro.anulado) { %>
-          <a href="/modificar/<%= registro._id %>?code=9999" class="btn btn-warning btn-sm">Modificar</a>
-          <form action="/anular/<%= registro._id %>?code=<%= observacionCode %>" method="post" style="display:inline;">
+          <a href="/modificar/<%= registro._id %>" class="btn btn-warning btn-sm">Modificar</a>
+          <form action="/anular/<%= registro._id %>" method="post" style="display:inline;">
             <input type="hidden" name="_method" value="PUT">
             <button type="submit" class="btn btn-danger btn-sm">Anular</button>
           </form>

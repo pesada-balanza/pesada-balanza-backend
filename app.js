@@ -5,6 +5,8 @@ const expressLayouts = require('express-ejs-layouts');
 const methodOverride = require('method-override');
 const ExcelJS = require('exceljs');
 const path = require('path');
+const session    = require('express-session');
+const MongoStore = require('connect-mongo');
 
 const app = express();
 
@@ -15,6 +17,12 @@ mongoose.set('strictQuery', true);
 const MONGODB_URI = process.env.MONGODB_URI;
 if (!MONGODB_URI) {
   console.error('ERROR: Variable MONGODB_URI no configurada en las variables de entorno');
+  process.exit(1);
+}
+
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  console.error('ERROR: Variable SESSION_SECRET no configurada en las variables de entorno');
   process.exit(1);
 }
 
@@ -33,6 +41,21 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Necesario para que las cookies seguras funcionen correctamente en Render (HTTPS)
+app.set('trust proxy', 1);
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({ mongoUrl: MONGODB_URI }),
+  cookie: {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict',
+    maxAge: 8 * 60 * 60 * 1000  // 8 horas
+  }
+}));
 
 app.use(expressLayouts);
 app.set('view engine', 'ejs');
@@ -254,18 +277,29 @@ app.post('/', (req, res) => {
       );
     }
 
-    const redirectValido = (r) =>
-      typeof r === 'string' && (r.includes('/registro') || r.includes('/tabla'));
+    // Guardar sesión en el servidor (el código ya no viaja en la URL)
+    req.session.autenticado = true;
+    req.session.tipo = esIngreso ? 'ingreso' : 'observacion';
+    req.session.codigoIngreso = esIngreso ? code : null;
+    req.session.codigoObservacion = esIngreso ? ingresoAObservacion[code] : code;
 
-    const destino = redirectValido(redirect)
+    const RUTAS_PERMITIDAS = ['/registro', '/tabla'];
+    const destino = RUTAS_PERMITIDAS.includes(redirect)
       ? redirect
       : (esIngreso ? '/registro' : '/tabla');
 
-    return res.redirect(destino + '?code=' + encodeURIComponent(code));
+    return res.redirect(destino);
   } catch (err) {
     console.error('Error en POST /:', err);
     return res.status(500).send('Internal Server Error');
   }
+});
+
+// Cerrar sesión
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.redirect('/');
+  });
 });
 
 /* ---------------------------------------------
@@ -274,12 +308,11 @@ app.post('/', (req, res) => {
 app.get(
   '/tabla',
   (req, res, next) => {
-    const code = req.query.code || req.body.code;
-    if (codigosObservacion.includes(code)) {
-      req.observacionCode = code;
-      return next();
+    if (!req.session || !req.session.autenticado) {
+      return res.redirect('/?error=Sesión expirada. Ingresá nuevamente.&redirect=/tabla');
     }
-    return res.redirect('/?error=Código incorrecto&redirect=/tabla');
+    req.observacionCode = req.session.codigoObservacion;
+    return next();
   },
   async (req, res) => {
     try {
@@ -316,12 +349,11 @@ app.get(
 app.get(
   '/export',
   (req, res, next) => {
-    const code = req.query.code || req.body.code;
-    if (codigosObservacion.includes(code)) {
-      req.observacionCode = code;
-      return next();
+    if (!req.session || !req.session.autenticado) {
+      return res.redirect('/?error=Sesión expirada. Ingresá nuevamente.');
     }
-    return res.redirect('/?error=Código incorrecto');
+    req.observacionCode = req.session.codigoObservacion;
+    return next();
   },
   async (req, res) => {
     try {
@@ -393,12 +425,11 @@ app.get(
 app.get(
   '/registro',
   (req, res, next) => {
-    const code = req.query.code || req.body.code;
-    if (codigosIngreso.includes(code)) {
-      req.ingresoCode = code;
-      return next();
+    if (!req.session || !req.session.autenticado || req.session.tipo !== 'ingreso') {
+      return res.redirect('/?error=Acceso denegado&redirect=/registro');
     }
-    return res.redirect('/?error=Código incorrecto&redirect=/registro');
+    req.ingresoCode = req.session.codigoIngreso;
+    return next();
   },
   async (req, res) => {
     try {
@@ -442,14 +473,13 @@ app.get(
         .toArray();
       
       return res.render('registro', {
-        code: req.ingresoCode,
         newIdTicket,
         ultimoUsuario,
         campos,
         datosSiembra,
         pendientesTara,
         pendientesConFinal,
-        pesadaPara: 'TARA', // Muestra TARA por defecto en el formulario
+        pesadaPara: 'TARA',
       });
 
     } catch (err) {
@@ -537,8 +567,7 @@ app.post('/guardar-tara', async (req, res) => {
 
     await mongoose.connection.db.collection('registros').insertOne(registro);
 
-    const codigoObservacion = ingresoAObservacion[req.body.code];
-    return res.redirect(`/tabla?code=${codigoObservacion}`);
+    return res.redirect('/tabla');
   } catch (err) {
     return res.status(500).send('Internal Server Error: ' + err.message);
   }
@@ -656,8 +685,7 @@ app.post('/guardar-tara-final', async (req, res) => {
       }
     );
 
-    const codigoObservacion = ingresoAObservacion[req.body.code] || '12341';
-    return res.redirect(`/tabla?code=${codigoObservacion}`);
+    return res.redirect('/tabla');
 
   } catch (err) {
     return res.status(500).render('error', {
@@ -843,8 +871,7 @@ app.post('/guardar-regulada', async (req, res) => {
       }
     );
 
-    const codigoObservacion = ingresoAObservacion[req.body.code] || '12341';
-    return res.redirect(`/tabla?code=${codigoObservacion}`);
+    return res.redirect('/tabla');
 
   } catch (err) {
     console.error('Error en /guardar-regulada:', err);
@@ -860,9 +887,10 @@ app.post('/guardar-regulada', async (req, res) => {
 app.get(
   '/modificar/:id',
   (req, res, next) => {
-    const code = req.query.code || req.body.code || req.query.observacionCode;
-    if (code === '9999') return next();
-    return res.redirect('/?error=Código incorrecto');
+    if (!req.session || !req.session.autenticado) {
+      return res.redirect('/?error=Sesión expirada');
+    }
+    return next();
   },
   async (req, res) => {
     try {
@@ -879,14 +907,10 @@ app.get(
       if ((registro.modificaciones || 0) >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
 
-      const observacionCode =
-        req.query.code || req.query.observacionCode || req.body.code || '';
-
       return res.render('modificar', {
         registro,
         campos,
         datosSiembra,
-        observacionCode
       });
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
@@ -900,9 +924,10 @@ app.get(
 app.put(
   '/modificar/:id',
   (req, res, next) => {
-    const code = req.query.code || req.body.code || req.query.observacionCode;
-    if (code === '9999') return next();
-    return res.redirect('/?error=Código incorrecto');
+    if (!req.session || !req.session.autenticado) {
+      return res.redirect('/?error=Sesión expirada');
+    }
+    return next();
   },
   async (req, res) => {
     try {
@@ -935,10 +960,7 @@ app.put(
           }
         );
 
-        const codigoObservacion =
-          ingresoAObservacion[registro.codigoIngreso] || '12341';
-
-        return res.redirect(`/tabla?code=${codigoObservacion}`);
+        return res.redirect('/tabla');
       }
 
       /* -------------------------------------------------------
@@ -987,10 +1009,7 @@ app.put(
 
       await col.updateOne({ _id }, { $set: updateData });
 
-      const codigoObservacion =
-        ingresoAObservacion[registro.codigoIngreso] || '12341';
-
-      return res.redirect(`/tabla?code=${codigoObservacion}`);
+      return res.redirect('/tabla');
 
     } catch (err) {
       return res.status(500).send('Internal Server Error: ' + err.message);
@@ -1017,9 +1036,7 @@ async function handleAnular(req, res) {
       }
     );
 
-    const code = req.query.code || req.body.code || req.observacionCode || '12341';
-
-    return res.redirect(`/tabla?code=${encodeURIComponent(code)}`);
+    return res.redirect('/tabla');
   } catch (err) {
     return res.status(500).send('Internal Server Error: ' + err.message);
   }
@@ -1029,14 +1046,11 @@ async function handleAnular(req, res) {
  * Verificar Código Observación
  * -------------------------------------------*/
 function verificarCodeObservacion(req, res, next) {
-  const code = req.query.code || req.body.code;
-
-  if (codigosObservacion.includes(code)) {
-    req.observacionCode = code;
-    return next();
+  if (!req.session || !req.session.autenticado) {
+    return res.redirect('/?error=Sesión expirada');
   }
-
-  return res.redirect('/?error=Código incorrecto');
+  req.observacionCode = req.session.codigoObservacion;
+  return next();
 }
 
 /* ---------------------------------------------
