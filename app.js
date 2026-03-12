@@ -1162,16 +1162,20 @@ app.post('/guardar-tara', async (req, res) => {
     if (!vBruto.ok) {
       return res.status(400).render('error', { error: `Bruto Estimado inválido: ${vBruto.error}` });
     }
-    const vTara = req.body.tara
-      ? validarNumero(req.body.tara, 0, 30000)
-      : { ok: true, valor: 0 };
-    if (!vTara.ok) {
-      return res.status(400).render('error', { error: `Tara inválida: ${vTara.error}` });
+    // Tara es OPCIONAL en TARA: puede dejarse vacía o en 0.
+    // Normalizamos posible array (confirmar-tara.ejs puede enviar el campo duplicado).
+    const taraRawTara = [].concat(req.body.tara || '').filter(v => v !== '').pop() || '';
+    let tara = 0;
+    if (taraRawTara !== '') {
+      const vTara = validarNumero(taraRawTara, 0, 30000);
+      if (!vTara.ok) {
+        return res.status(400).render('error', { error: `Tara inválida: ${vTara.error}` });
+      }
+      tara = vTara.valor;
     }
 
     const newIdTicket = await calculateNextIdTicket();
     const brutoEst = vBruto.valor;
-    const tara = vTara.valor;
 
     const registro = {
       idTicket: newIdTicket,
@@ -1216,11 +1220,11 @@ app.post('/confirmar-tara-final', async (req, res) => {
       });
     }
 
-    // VUL-04: validar tara nueva (confirmar-tara-final)
-    const vTaraNuevaConf = validarNumero(req.body.taraNueva, 0, 30000);
+    // VUL-04: taraNueva es OBLIGATORIA en TARA FINAL, entre 1000 y 30000 kg
+    const vTaraNuevaConf = validarNumero(req.body.taraNueva, 1000, 30000);
     if (!vTaraNuevaConf.ok) {
       return res.status(400).render('error', {
-        error: `Tara Nueva inválida: ${vTaraNuevaConf.error}`
+        error: `Tara Final inválida: ${vTaraNuevaConf.error}`
       });
     }
     const taraNueva = vTaraNuevaConf.valor;
@@ -1276,11 +1280,11 @@ app.post('/guardar-tara-final', async (req, res) => {
       });
     }
 
-    // VUL-04: validar tara nueva (guardar-tara-final)
-    const vTaraNuevaGuard = validarNumero(req.body.taraNueva, 0, 30000);
+    // VUL-04: taraNueva es OBLIGATORIA en TARA FINAL, entre 1000 y 30000 kg
+    const vTaraNuevaGuard = validarNumero(req.body.taraNueva, 1000, 30000);
     if (!vTaraNuevaGuard.ok) {
       return res.status(400).render('error', {
-        error: `Tara Nueva inválida: ${vTaraNuevaGuard.error}`
+        error: `Tara Final inválida: ${vTaraNuevaGuard.error}`
       });
     }
     const taraNueva = vTaraNuevaGuard.valor;
@@ -1439,14 +1443,21 @@ app.post('/guardar-regulada', async (req, res) => {
     }
     const bruto = vBrutoReg.valor;
 
+    // Si confirmarTara='SI' se usa la tara original del ticket (ya validada al crear).
+    // Si confirmarTara='NO' el operador ingresa una nueva → mismas reglas que TARA FINAL (1000–30000 kg).
     const taraRaw = req.body.confirmarTara === 'SI'
       ? req.body.tara
       : req.body.taraNueva;
-    const vTaraReg = validarNumero(taraRaw, 0, 30000);
-    if (!vTaraReg.ok) {
-      return res.status(400).render('error', { error: `Tara inválida: ${vTaraReg.error}` });
+    let taraFinal;
+    if (req.body.confirmarTara === 'NO') {
+      const vTaraReg = validarNumero(taraRaw, 1000, 30000);
+      if (!vTaraReg.ok) {
+        return res.status(400).render('error', { error: `Tara corregida inválida: ${vTaraReg.error}` });
+      }
+      taraFinal = vTaraReg.valor;
+    } else {
+      taraFinal = parseFloat(taraRaw) || 0;
     }
-    const taraFinal = vTaraReg.valor;
 
     const vBrutoLote = validarNumero(req.body.brutoLote, 0, 60000);
     if (!vBrutoLote.ok) {
