@@ -7,6 +7,7 @@ const ExcelJS = require('exceljs');
 const path = require('path');
 const session    = require('express-session');
 const MongoStore = require('connect-mongo');
+const cors = require('cors');
 
 const app = express();
 
@@ -41,6 +42,34 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// VUL-07: CORS — solo acepta requests desde el dominio de producción
+app.use(cors({
+  origin: process.env.FRONTEND_ORIGIN || 'https://pesada-balanza-backend-1.onrender.com',
+  credentials: true,
+}));
+
+// VUL-06: Rate limiting en login — máx. 10 intentos cada 15 minutos por IP
+const _loginAttempts = new Map();
+function rateLimitLogin(req, res, next) {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const ahora = Date.now();
+  const VENTANA_MS = 15 * 60 * 1000;
+  const MAX_INTENTOS = 10;
+  const entrada = _loginAttempts.get(ip) || { count: 0, resetAt: ahora + VENTANA_MS };
+  if (ahora > entrada.resetAt) {
+    entrada.count = 0;
+    entrada.resetAt = ahora + VENTANA_MS;
+  }
+  entrada.count++;
+  _loginAttempts.set(ip, entrada);
+  if (entrada.count > MAX_INTENTOS) {
+    return res.status(429).render('error', {
+      error: 'Demasiados intentos de acceso. Esperá 15 minutos e intentá de nuevo.',
+    });
+  }
+  return next();
+}
 
 // Necesario para que las cookies seguras funcionen correctamente en Render (HTTPS)
 app.set('trust proxy', 1);
@@ -875,7 +904,7 @@ app.get('/login/tabla', (req, res) => {
 });
 
 // POST login
-app.post('/', (req, res) => {
+app.post('/', rateLimitLogin, (req, res) => {
   try {
     const code = String(req.body.code || '').trim();
     const redirect = String(req.body.redirect || '').trim();
@@ -1610,6 +1639,17 @@ app.put(
       if (registro.confirmada && registro.pesadaPara === 'REGULADA') {
         const comentarios = (req.body.comentarios || '').trim();
 
+        // Auditoría: guardar estado anterior antes de modificar
+        const auditCol = mongoose.connection.db.collection('registros_auditoria');
+        await auditCol.insertOne({
+          tipoOperacion: 'MODIFICACION',
+          registroId: _id,
+          camposAnteriores: { comentarios: registro.comentarios },
+          camposNuevos:     { comentarios },
+          usuario: req.session.codigoIngreso || req.session.codigoObservacion || 'desconocido',
+          timestamp: new Date(),
+        });
+
         await col.updateOne(
           { _id },
           {
@@ -1666,6 +1706,21 @@ app.put(
 
         modificaciones: (registro.modificaciones || 0) + 1,
       };
+
+      // Auditoría: guardar estado anterior completo antes de modificar
+      const auditCol2 = mongoose.connection.db.collection('registros_auditoria');
+      const camposAnteriores = {};
+      Object.keys(updateData).forEach(k => {
+        if (registro[k] !== updateData[k]) camposAnteriores[k] = registro[k];
+      });
+      await auditCol2.insertOne({
+        tipoOperacion: 'MODIFICACION',
+        registroId: _id,
+        camposAnteriores,
+        camposNuevos: updateData,
+        usuario: req.session.codigoIngreso || req.session.codigoObservacion || 'desconocido',
+        timestamp: new Date(),
+      });
 
       await col.updateOne({ _id }, { $set: updateData });
 
