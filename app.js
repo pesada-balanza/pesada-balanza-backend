@@ -578,6 +578,7 @@ app.post('/guardar-tara', async (req, res) => {
  * -------------------------------------------*/
 app.post('/confirmar-tara-final', async (req, res) => {
   try {
+    if (!req.body.code) req.body.code = req.session.codigoIngreso || '';
     const requeridos = ['patentes', 'taraNueva', 'code'];
     const faltan = requeridos.filter(f => !String(req.body[f] || '').trim());
 
@@ -635,6 +636,7 @@ app.post('/confirmar-tara-final', async (req, res) => {
  * -------------------------------------------*/
 app.post('/guardar-tara-final', async (req, res) => {
   try {
+    if (!req.body.code) req.body.code = req.session.codigoIngreso || '';
     const requeridos = ['patentes', 'taraNueva', 'code'];
     const faltan = requeridos.filter(f => !String(req.body[f] || '').trim());
 
@@ -749,7 +751,7 @@ app.post('/confirmar-regulada', (req, res) => {
   const idTicketOrigen = req.body.idTicketOrigen || '';
 
   return res.render('confirmar-regulada', {
-    formData: req.body,
+    formData: { ...req.body, code: req.body.code || req.session.codigoIngreso || '' },
     idTicketOrigen,
     bruto,
     tara: taraFinal,
@@ -764,6 +766,7 @@ app.post('/confirmar-regulada', (req, res) => {
  * -------------------------------------------*/
 app.post('/guardar-regulada', async (req, res) => {
   try {
+    if (!req.body.code) req.body.code = req.session.codigoIngreso || '';
 
     const requeridosBase = [
       'patentes', 'campo', 'grano', 'lote',

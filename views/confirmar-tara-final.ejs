@@ -82,6 +82,7 @@
   <input type="hidden" name="brutoEstimado"   value="<%= show(_brutoEstimado) %>">
   <input type="hidden" name="taraNueva"       value="<%= show(_taraNueva) %>">
   <input type="hidden" name="pesadaPara"      value="TARA_FINAL">
+  <input type="hidden" name="code"            value="<%= formData?.code || '' %>">
 
   <a href="javascript:history.back()" class="btn btn-outline-secondary">Volver</a>
   <button type="submit" class="btn btn-primary" <%= !_idTicketFinal ? 'disabled' : '' %>>

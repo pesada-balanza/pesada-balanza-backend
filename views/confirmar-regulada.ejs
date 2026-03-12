@@ -119,6 +119,9 @@
   <!-- Campo informativo -->
   <input type="hidden" name="brutoLote" value="<%= shown(_brutoLote) %>">
 
+  <!-- Código de operador (requerido por el backend) -->
+  <input type="hidden" name="code" value="<%= formData?.code || '' %>">
+
   <!-- Comentarios: editable (opcional) -->
   <div class="mb-3">
     <label for="comentarios" class="form-label">Comentarios (opcional)</label>
