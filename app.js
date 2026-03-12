@@ -82,85 +82,682 @@ const ingresoAObservacion = {
  * DATOS (campos y datosSiembra)
  * -------------------------------------------*/
 const campos = [
-  "El Centinela - ESTACION RAMS SF",
-  "El Rodeo - TOSTADO SF",
-  "Los Molinos - TOSTADO SF",
+  "AMAMÁ - Villa Brana - SE",
+  "AVELLEIRA",
+  "Aguero - SACHAYOJ - SE",
+  "Bandera - AVERIAS - SE",
+  "Campo Cesar Bressan",
+  "Cejolao - CEJOLAO - SE",
   "Charata - CHARATA - CH",
+  "Cueto - CEJOLAO - SE",
+  "Doble Cero (Fermaneli) - AEROLITO - SE",
+  "Don Paco - ARBOL BLANCO - SE",
+  "Don Pascual - ARBOL BLANCO - SE",
+  "El 44 - ARBOL BLANCO - SE",
+  "El 90 Red Surcos - TINTINA - SE",
+  "El Búfalo - H. MEJ. MIRAVAL - SE",
+  "El C 1 Ciriaci - TINTINA - SE",
+  "El C 1 GyM - TINTINA - SE",
+  "El Centinela 2 - LOGROÑO - SF",
+  "El Centinela 3 - LOGROÑO - SF",
   "El Mataco - SACHAYOJ - SE",
+  "Ferulo Guido 2 - SACHAYOJ - SE",
+  "Gioda - SAN FRANCISCO - SE",
+  "Gomez - VILELAS - SE",
+  "Grifa - Zunesma - TINTINA - SE",
+  "Hidalgo - TINTINA - SE",
+  "La Juanita - Ciriaci  (Ex Lote Lalo) - H. M. Miraval - SE",
+  "La Juanita - H.M. MIRAVAL - SE",
   "La Porfía - ARBOL BLANCO - SE",
   "La Pradera - ARBOL BLANCO - SE",
+  "La Purificada - QUIMILI - SE",
+  "La Unión - LA UNION - SE",
+  "Los Molinos - Tostado",
+  "Martina - ALHUAMPA - SE",
+  "Martinoli - SACHAYOJ - SE",
+  "Panuncio - ARBOL BLANCO - SE",
+  "Poncho Perdido Guido F - SACHAYOJ - SE",
+  "Santa Justina Cura Malal - QUIMILI - SE",
+  "Santa Justina Mahuida - QUIMILI - SE",
+  "Santa Rosa (Sonzogni) - ARBOL BLANCO - SE",
   "Tierra Negra - ARBOL BLANCO - SE",
-  "El C 1 Ciriaci - TINTINA - SE",
-  "Wichi - SACHAYOJ - SE"
+  "Wichí - SACHAYOJ - SE",
 ].sort();
 
 const datosSiembra = {
-  "El Centinela - ESTACION RAMS SF": {
-    "GIRASOL": [
-      "LOTE 1 - El Centinela", "LOTE 2 - El Centinela", "LOTE 3 - El Centinela",
-      "LOTE 4 - El Centinela", "LOTE 5 - El Centinela", "LOTE 6 - El Centinela"
-    ]
-  },
-  "El Rodeo - TOSTADO SF": {
-    "GIRASOL": [
-      "Lote 1 Chico - El Rodeo", "Lote 1 Grande - El Rodeo", "Lote 2 Este - El Rodeo",
-      "Lote 2 Oeste - El Rodeo", "Lote 3 Este - El Rodeo", "Lote 3 Oeste - El Rodeo",
-      "Lote 4 Este - El Rodeo", "Lote 4 Oeste - El Rodeo", "Lote 5 Este - El Rodeo",
-      "Lote 5 Oeste - El Rodeo", "Lote 6 - El Rodeo", "Lote 7 - El Rodeo", "Lote 8 - El Rodeo",
-      "Lote 9 E - El Rodeo", "Lote 9 O - El Rodeo", "Lote Banquina - El Rodeo", "Lote Camino - El Rodeo"
-    ]
-  },
-  "Los Molinos - TOSTADO SF": {
-    "GIRASOL": [
-      "Lote2 - Los Molinos", "Lote4 - Los Molinos"
-    ]
-  },
-  "Wichi - SACHAYOJ - SE": {
+  "AMAMÁ - Villa Brana - SE": {
     "MAIZ": [
-      "Lote 1 Wichi","Lote 2 Wichi","Lote 3 Wichi",
-      "Lote 4 Wichi","Lote 5 Wichi","Lote 6 Wichi",
-      "Lote 7 Wichi"
+      "lotes 1 Amama",
+      "lotes 2 Amama",
+      "lotes 3 Amama",
+      "lotes 4 Amama",
+      "lotes 5 Amama",
+      "lotes 6 Amama",
+      "lotes 7 Amama",
+      "lotes 8 Amama"
     ]
   },
-  "El C 1 Ciriaci - TINTINA - SE": {
+  "AVELLEIRA": {
     "MAIZ": [
-      "Lote 1 Ciriaci C1","Lote 2 Ciriaci C1","Lote 3 Ciriaci C1",
-      "Lote 4 Ciriaci C1","Lote 5 Ciriaci C1","Lote 6 Ciriaci C1",
-      "Lote 7 Ciriaci C1","Lote 8 Ciriaci C1","Lote 9 Ciriaci C1"
+      "Lote Avelleira1 La C",
+      "Lote Avelleira2 La C"
     ]
   },
-  "El Mataco - SACHAYOJ - SE": {
-    "TRIGO": [
-      "Lote 1 El Mataco","Lote 2 El Mataco","Lote 3 El Mataco",
-      "Lote 4 El Mataco","Lote 5 El Mataco","Lote Banquina El Mataco"
+  "Aguero - SACHAYOJ - SE": {
+    "SOJA": [
+      "Lote 1",
+      "Lote 2",
+      "Lote 3",
+      "Lote 4",
+      "Lote 5",
+      "Lote 6"
     ]
   },
-  "La Porfía - ARBOL BLANCO - SE": {
-    "TRIGO": [
-      "Lote 10 La Porfía","Lote 11 La Porfía"
+  "Bandera - AVERIAS - SE": {
+    "SOJA": [
+      "Lote 1 Bandera",
+      "Lote 2 Bandera"
+    ]
+  },
+  "Campo Cesar Bressan": {
+    "MAIZ": [
+      "Cesar Bressan"
+    ]
+  },
+  "Cejolao - CEJOLAO - SE": {
+    "MAIZ": [
+      "Lote 1 Este Cejolao",
+      "Lote 2 Este Cejolao",
+      "Lote 3 Este Cejolao",
+      "Lote 4 Este Cejolao",
+      "Lote 5 Este Cejolao",
+      "Lote 6 Este Cejolao",
+      "Lote 7 Este Cejolao",
+      "Lote 8 Este Cejolao",
+      "Lote 9 Este Cejolao",
+      "Lote 10 Este Cejolao"
     ]
   },
   "Charata - CHARATA - CH": {
-    "TRIGO": [
-      "Lote 1 Charata","Lote 3 Charata"
+    "SOJA": [
+      "Lote 1 Charata",
+      "Lote 2 Charata",
+      "Lote 6 Charata"
+    ],
+    "MAIZ": [
+      "Lote 3 Charata"
     ]
   },
-  "Tierra Negra - ARBOL BLANCO - SE": {
-    "TRIGO": [
-      "Lote 4 Tierra Negra","Lote 5 Tierra Negra","Lote 6 Tierra Negra",
-      "Lote 7 Tierra Negra","Lote 8 Tierra Negra","Lote 9 Tierra Negra",
-      "Lote 10 Tierra Negra","Loter Banq. Tierra N"
+  "Cueto - CEJOLAO - SE": {
+    "SOJA": [
+      "Lote 8",
+      "Lote 9",
+      "Lote 10",
+      "Lote 11",
+      "Lote 12",
+      "Lote 13",
+      "Lote 7"
+    ],
+    "MAIZ": [
+      "Lote 1",
+      "Lote 2",
+      "Lote 3",
+      "Lote 4",
+      "Lote 5",
+      "Lote 6",
+      "Lote Nuevo",
+      "Lote Hornos"
+    ]
+  },
+  "Doble Cero (Fermaneli) - AEROLITO - SE": {
+    "SOJA": [
+      "Lote 1",
+      "Lote 2",
+      "Lote 22",
+      "Lote 29",
+      "Lote 3",
+      "Lote 30",
+      "Lote 31",
+      "Lote 32",
+      "Lote 33",
+      "Lote 35",
+      "Lote 4",
+      "Lote 5",
+      "Lote 6"
+    ],
+    "MAIZ": [
+      "Lote 10",
+      "Lote 11",
+      "Lote 12",
+      "Lote 13",
+      "Lote 14",
+      "Lote 15",
+      "Lote 16",
+      "Lote 17",
+      "Lote 18",
+      "Lote 19 A",
+      "Lote 19 B",
+      "Lote 19 C",
+      "Lote 19 D",
+      "Lote 20",
+      "Lote 21",
+      "Lote 23",
+      "Lote 24",
+      "Lote 25",
+      "Lote 26",
+      "Lote 27",
+      "Lote 28",
+      "Lote 34",
+      "Lote 7",
+      "Lote 8",
+      "Lote 9",
+      "Lote propio Fermanelli"
+    ]
+  },
+  "Don Paco - ARBOL BLANCO - SE": {
+    "SOJA": [
+      "Lote 1 Don Paco",
+      "Lote 2 Don Paco",
+      "Lote 3 Don Paco",
+      "Lote 4 Don Paco",
+      "Lote 5 Don Paco",
+      "Lote 6 Don Paco",
+      "Lote 7 Don Paco",
+      "Lote 8 Don Paco"
+    ]
+  },
+  "Don Pascual - ARBOL BLANCO - SE": {
+    "MAIZ": [
+      "Lote 1 Don Pascual",
+      "Lote 2 Don Pascual",
+      "Lote 3 Don Pascual",
+      "Lote 4 Don Pascual",
+      "Lote 5 Don Pascual",
+      "Lote 6 Don Pascual",
+      "Lote 7 Don Pascual",
+      "Lote 8 Don Pascual",
+      "Lote Perímetro Don P"
+    ]
+  },
+  "El 44 - ARBOL BLANCO - SE": {
+    "SOJA": [
+      "Lote 1 El 44",
+      "Lote 4 El 44",
+      "Lote 5 El 44",
+      "Lote Banquina el 44"
+    ],
+    "MAIZ": [
+      "Lote 2 El 44",
+      "Lote 3 El 44"
+    ]
+  },
+  "El 90 Red Surcos - TINTINA - SE": {
+    "SOJA": [
+      "Lote 2 El 90",
+      "Lote 4 el 90",
+      "Lote 6 El 90",
+      "Lote 8 el 90"
+    ]
+  },
+  "El Búfalo - H. MEJ. MIRAVAL - SE": {
+    "MAIZ": [
+      "Lote 1 El Bufalo",
+      "Lote 4 El Bufalo",
+      "Lote Romi El Bufalo"
+    ]
+  },
+  "El C 1 Ciriaci - TINTINA - SE": {
+    "SOJA": [
+      "Lote 1 Ciriaci  C1",
+      "Lote 2 Ciriaci C1",
+      "Lote 3 Ciriaci C1",
+      "Lote 4 Ciriaci C1",
+      "Lote 5 Ciriaci C1",
+      "Lote 6 Ciriaci C1",
+      "Lote 7 Ciriaci C1",
+      "Lote 8 Ciriaci C1",
+      "Lote 9 Ciriaci C1"
+    ],
+    "MAIZ": [
+      "Lote 10 Ciriaci C1",
+      "Lote 11 Ciriaci C1",
+      "Lote 12 Ciriaci C1",
+      "Lote 13 Ciriaci C1",
+      "Lote 14 Ciriaci C1",
+      "Lote 15 Ciriaci C1",
+      "Lote 16 Ciriaci C1",
+      "Lote 17 Ciriaci C1",
+      "Lote 18 Ciriaci C1",
+      "Lote 19 Ciriaci C1",
+      "Lote 20 Ciriaci C1",
+      "Lote 21 Ciriaci C1",
+      "Lote 22 Ciriaci C1",
+      "Lote 23 Ciriaci C1",
+      "Lote Contorno"
+    ]
+  },
+  "El C 1 GyM - TINTINA - SE": {
+    "MAIZ": [
+      "Lote 26 Grifa C1",
+      "Lote 27 Grifa C1",
+      "Lote 28 Grifa C1",
+      "Lote 29 Grifa C1",
+      "Lote 32 Grifa C1",
+      "Lote 33 Grifa C1",
+      "Lote 34 Grifa C1"
+    ]
+  },
+  "El Centinela 2 - LOGROÑO - SF": {
+    "ALGODÓN": [
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ]
+  },
+  "El Centinela 3 - LOGROÑO - SF": {
+    "ALGODÓN": [
+      "13",
+      "14",
+      "15"
+    ]
+  },
+  "El Mataco - SACHAYOJ - SE": {
+    "SOJA": [
+      "Lote 1 El Mataco",
+      "Lote 2 El Mataco",
+      "Lote 3 El Mataco",
+      "Lote 4 El Mataco",
+      "Lote 5 El Mataco",
+      "Lote Banquina El Mat"
+    ]
+  },
+  "Ferulo Guido 2 - SACHAYOJ - SE": {
+    "MAIZ": [
+      "Lote 1 - Guido 2 (unificado)"
+    ]
+  },
+  "Gioda - SAN FRANCISCO - SE": {
+    "MAIZ": [
+      "Lote Norte Gioda",
+      "Lote Sur Gioda"
+    ]
+  },
+  "Gomez - VILELAS - SE": {
+    "SOJA": [
+      "Lote 1 Este Gomez",
+      "Lote 1 Oeste Gomez",
+      "Lote 2 Este Gomez",
+      "Lote 2 Oeste Gomez",
+      "Lote 3 Este Gomez",
+      "Lote 3 Oeste Gomez",
+      "Lote 4 Este Gomez",
+      "Lote 4 Oeste Gomez",
+      "Lote 5 Oeste Gomez",
+      "Lote 5 Este Gomez",
+      "Lote 6 Oeste Gomez",
+      "Lote 6 Este Gomez"
+    ],
+    "MAIZ": [
+      "Lote 7 Oeste Gomez",
+      "Lote 8 Oeste Gomez",
+      "Lote 8 Este Gomez",
+      "Lote 7 Este Gomez",
+      "Lote 11 Este Gomez",
+      "Lote 10 Este Gomez",
+      "Lote 10 Oeste Gomez",
+      "Lote 11 Oeste Gomez",
+      "Lote 9 Este Gomez",
+      "Lote 9 Oeste Gomez"
+    ]
+  },
+  "Grifa - Zunesma - TINTINA - SE": {
+    "SOJA": [
+      "Lote 11 Grifa",
+      "Lote 1 Grifa",
+      "Lote 2 Grifa",
+      "Lote 3 Grifa",
+      "Lote 4 Grifa",
+      "Lote 5 Grifa",
+      "Lote 6 Grifa",
+      "Lote 7 Grifa",
+      "Lote 8 Grifa",
+      "Lote 9 Grifa",
+      "Lote 10 Grifa"
+    ]
+  },
+  "Hidalgo - TINTINA - SE": {
+    "SOJA": [
+      "Lote 1 Hidalgo",
+      "Lote 2 Hidalgo",
+      "Lote 3 Hidalgo",
+      "Lote 4 Hidalgo"
+    ]
+  },
+  "La Juanita - Ciriaci  (Ex Lote Lalo) - H. M. Miraval - SE": {
+    "MAIZ": [
+      "Lote Lalo"
+    ]
+  },
+  "La Juanita - H.M. MIRAVAL - SE": {
+    "MAIZ": [
+      "Lote 1 A La Juanita",
+      "Lote 18 La Juanita",
+      "Lote 19 La Juanita",
+      "Lote 12 La Juanita",
+      "Lote 13 La Juanita",
+      "Lote 15 La Juanita"
+    ],
+    "SOJA": [
+      "Lote 14 La Juanita",
+      "Lote 16 La Juanita",
+      "Lote 17 La Juanita"
+    ]
+  },
+  "La Porfía - ARBOL BLANCO - SE": {
+    "SOJA": [
+      "Lote 1 La Porfía",
+      "Lote 2 La Porfía",
+      "Lote 3 La Porfía",
+      "Lote 4 La Porfía",
+      "Lote 6 La Porfía",
+      "Lote 7 La Porfía",
+      "Lote 11 La Porfía",
+      "Lote 12 La Porfía",
+      "Lote 13 La Porfía"
+    ],
+    "MAIZ": [
+      "Lote 5 La Porfía",
+      "Lote 8 La Porfía",
+      "Lote 9 La Porfía",
+      "Lote 10 La Porfía",
+      "Lote 11 La Porfía",
+      "Lote Callejon La Por"
     ]
   },
   "La Pradera - ARBOL BLANCO - SE": {
-    "TRIGO": [
-      "Lote 34 La Pradera","Lote 17 La Pradera","Lote 20 La Pradera",
-      "Lote 21 La Pradera","Lote 31 La Pradera","Lote 37 La Pradera",
-      "Lote 38 W La Pradera","Lote 41.E.3 La Prade","Lote 41.E.4 La Prade",
-      "Lote 41.E.5 La Prade","Lote 41.E.6 La Prade","Lote 41.E.7 La Prade",
-      "Lote 41.E.8 La Prade","Lote 38 E La Pradera","Cabezeras L. 39 y 43"
+    "SOJA": [
+      "Las 800 1 La Pradera",
+      "Las 800 2 La Pradera",
+      "Las 800 3 La Pradera",
+      "Las 800 4 La Pradera",
+      "Lote 10 La Pradera",
+      "Lote 17 La Pradera",
+      "Lote 2.A La Pradera",
+      "Lote 2.B La Pradera",
+      "Lote 2.C La Pradera",
+      "Lote 2.D La Pradera",
+      "Lote 2.E La Pradera",
+      "Lote 2.F La Pradera",
+      "Lote 20 La Pradera",
+      "Lote 21 La Pradera",
+      "Lote 27.3 La Pradera",
+      "Lote 27.4 La Pradera",
+      "Lote 27.5 La Pradera",
+      "Lote 28",
+      "Lote 29",
+      "Lote 30",
+      "Lote 31 La Pradera",
+      "Lote 32 Cortina 1",
+      "Lote 32 Cortina 2",
+      "Lote 32 Cortina 3",
+      "Lote 34 La Pradera",
+      "Lote 35 Cortina 1",
+      "Lote 35 Cortina 2",
+      "Lote 36 Cortina 8",
+      "Lote 37.1 La Pradera",
+      "Lote 38 E",
+      "Lote 38 W La Pradera",
+      "Lote 41.1 La Pradera",
+      "Lote 41.2 La Pradera",
+      "Lote 41.E.3 La Prade",
+      "Lote 41.E.4 La Prade",
+      "Lote 41.E.5 La Prade",
+      "Lote 41.E.6 La Prade",
+      "Lote 41.E.7 La Prade",
+      "Lote 41.E.8 La Prade",
+      "Lote 41.W.10 La Prade",
+      "Lote 41.W.3 La Prade",
+      "Lote 41.W.9 La Prade",
+      "Lote 44.1 La Pradera SOJA",
+      "Lote 44.2 La Pradera SOJA",
+      "Lote 44.3 La Pradera",
+      "Lote 45 La Pradera (2, S, E y W)",
+      "Lote 46.E.3 La Pradera",
+      "Lote 46.E.4 La Pradera",
+      "Lote 46.E.5 La Pradera",
+      "Lote 46.E.6 La Pradera",
+      "Lote 46.W.3 La Pradera",
+      "Lote 46.W.4 La Pradera",
+      "Lote 47.1 y 2 W La P",
+      "Lote 47.3 W La Prade",
+      "Lote 47.4 W La Prade",
+      "Lote 47.5 W La Prade",
+      "Lote 5.A La Pradera",
+      "Lote 5.B La Pradera",
+      "Lote 5.C La Pradera",
+      "Lote 5.D La Pradera",
+      "Lote 5.E La Pradera",
+      "Lote 5.F La Pradera",
+      "Lote 6.1 La Pradera",
+      "Lote 6.2 La Pradera",
+      "Lote 6.3 La Pradera",
+      "Lote 6.4 La Pradera",
+      "Lote 7.1 La Pradera",
+      "Lote 7.1. SOJA La Pradera",
+      "Lote 7.2 La Pradera",
+      "Lote 7.3 La Pradera",
+      "Lote 8 La Pradera",
+      "Lote 9 La Pradera",
+      "Lote chapino",
+      "Lote Moriconi 1",
+      "Lote Moriconi 2 y  3",
+      "Lote Banquina. Piquete 47"
+    ],
+    "SORGO": [
+      "Lote 22 La Pradera",
+      "Lote 23 La Pradera",
+      "Lote 24 La Pradera",
+      "Lote 25 La Pradera",
+      "Lote 27.1 La Pradera",
+      "Lote 27.2 La Pradera"
+    ],
+    "ALGODÓN": [
+      "Lote 30 Cortina 1",
+      "Lote 30 Cortina 2",
+      "Lote 36 Cortina 6",
+      "Lote 36 Cortina 7",
+      "Lote 41.W.4 La Prade",
+      "Lote 41.W.5 La Prade",
+      "Lote 41.W.6 La Prade",
+      "Lote 41.W.7 La Prade",
+      "Lote 41.W.8 La Prade",
+      "Lote 43 1 La Pradera",
+      "Lote 43 2 La Pradera",
+      "Lote 43 3 La Pradera",
+      "Lote 43 4 La Pradera",
+      "Lote 43 5 La Pradera",
+      "Lote 44.1 La Pradera",
+      "Lote 44.1 La Pradera SOJA",
+      "Lote 44.2 La Pradera",
+      "Lote 44.2 La Pradera SOJA",
+      "Lote 44.3 La Pradera",
+      "Lote 45 3 La Pradera",
+      "Lote 45 4 La Pradera",
+      "Lote 45 5 La Pradera",
+      "Lote 45 La Pradera (2, S, E y W)",
+      "Lote 46.E.1.1 La Pradera",
+      "Lote 46.E.1.2 La Pradera",
+      "Lote 46.E.2.1 La Pradera",
+      "Lote 46.E.2.2 La Pradera",
+      "Lote 46.W.1 La Pradera",
+      "Lote 46.W.2 La Pradera",
+      "Lote 47.1 y 2 W La P",
+      "Lote 47.4 W La Prade",
+      "Lote 47.5 W La Prade"
+    ],
+    "MAIZ": [
+      "Lote 36 Cortina 3",
+      "Lote 36 Cortina 4",
+      "Lote 36 Cortina 5",
+      "Lote 39 E.1 La Prade",
+      "Lote 39 E.2 La Prade",
+      "Lote 39 E.3 La Prade",
+      "Lote 39 E.4 La Prade",
+      "Lote 39 E.5 La Prade",
+      "Lote 39 E.6 La Prade",
+      "Lote 39 E.7 La Prade",
+      "Lote 39 W.1 La Prade",
+      "Lote 39 W.2 La Prade",
+      "Lote 39 W.3 La Prade",
+      "Lote 39 W.4 La Prade",
+      "Lote 39 W.5 La Prade",
+      "Lote 39 W.6 La Prade",
+      "Lote 39 W.7 La Prade",
+      "Lote 40 3",
+      "Lote 40 4",
+      "Lote 40 5",
+      "Lote 40 La Pradera (olla)",
+      "Lote 43.1 E La Prade",
+      "Lote 43.1 W La Prade",
+      "Lote 43.2 E La Prade",
+      "Lote 43.2 W La Prade",
+      "Lote 43.3 E La Prade",
+      "Lote 43.3 W La Prade",
+      "Lote 43.4 E y W La P",
+      "Lote 43.5 E La P",
+      "Lote 43.5 W La P",
+      "Lote 47.1 y 2 E La P",
+      "Lote 47.3 E La Prade",
+      "Lote 47.4 E La Prade",
+      "Lote 47.5 E La Prade"
     ]
-  }
+  },
+  "La Purificada - QUIMILI - SE": {
+    "MAIZ": [
+      "Lote 1 La Purificada",
+      "Lote 2 La Purificada",
+      "Lote 3 La Purificada"
+    ]
+  },
+  "La Unión - LA UNION - SE": {
+    "SORGO": [
+      "lote unico"
+    ]
+  },
+  "Los Molinos - Tostado": {
+    "MAIZ": [
+      "Lotes Girasol"
+    ]
+  },
+  "Martina - ALHUAMPA - SE": {
+    "MAIZ": [
+      "Lote 1 Martina"
+    ]
+  },
+  "Martinoli - SACHAYOJ - SE": {
+    "MAIZ": [
+      "Lote Martinoli"
+    ]
+  },
+  "Panuncio - ARBOL BLANCO - SE": {
+    "SOJA": [
+      "Lote 1 Panuncio",
+      "Lote 2 Panuncio"
+    ],
+    "MAIZ": [
+      "Lote 3 Panuncio",
+      "Lote 4 Panuncio",
+      "Lote 5 Panuncio"
+    ]
+  },
+  "Poncho Perdido Guido F - SACHAYOJ - SE": {
+    "MAIZ": [
+      "lote A"
+    ]
+  },
+  "Santa Justina Cura Malal - QUIMILI - SE": {
+    "SOJA": [
+      "Lote 1"
+    ],
+    "MAIZ": [
+      "Lote 3",
+      "Lote 4",
+      "Lote 2"
+    ]
+  },
+  "Santa Justina Mahuida - QUIMILI - SE": {
+    "MAIZ": [
+      "Lote 5",
+      "Lote 6",
+      "Lote 7 cortina 1",
+      "Lote Perimetro"
+    ],
+    "SOJA": [
+      "Lote 7 cortina 2",
+      "Lote 8",
+      "Lote 9"
+    ]
+  },
+  "Santa Rosa (Sonzogni) - ARBOL BLANCO - SE": {
+    "MAIZ": [
+      "Lote 1",
+      "Lote 2",
+      "Lote 3"
+    ],
+    "SOJA": [
+      "Lote 4",
+      "Lote 5",
+      "Lote 6"
+    ]
+  },
+  "Tierra Negra - ARBOL BLANCO - SE": {
+    "SOJA": [
+      "Lote 1 Tierra Negra",
+      "Lote 2 Tierra Negra",
+      "Lote 3 Tierra Negra",
+      "Lote 4 Tierra Negra",
+      "Lote 5 Tierra Negra",
+      "Lote 6 Tierra Negra",
+      "Lote 7 Tierra Negra",
+      "Lote 8 Tierra Negra",
+      "Lote 9 Tierra Negra",
+      "Lote 10 Tierra Negra",
+      "Lote 11 Tierra Negra",
+      "Lote 12 Tierra Negra",
+      "Lote Perím. Tierra N",
+      "Loter Banq. Tierra N"
+    ]
+  },
+  "Wichí - SACHAYOJ - SE": {
+    "SOJA": [
+      "Lote 1 C Wichí",
+      "Lote 2 C Wichí",
+      "Lote 3 C Wichí",
+      "Lote 4 C Wichí",
+      "Lote 5 C Wichí",
+      "Lote 6 C Wichí",
+      "Lote 7 C Wichí",
+      "Lote 8 E Wichí",
+      "Lote 9 E Wichí",
+      "Lote 10 E Wichí",
+      "Lote 8 C Wichí"
+    ],
+    "MAIZ": [
+      "Lote 4 E Wichí",
+      "Lote 5 E Wichí",
+      "Lote 6 E Wichí",
+      "Lote 7 E Wichí",
+      "Lote 11 E Wichí",
+      "Lote 12 E Wichí",
+      "Lote 13 E Wichí",
+      "Lote 3 E Wichí",
+      "Lote 2 E Wichí",
+      "Lote 1 E Wichí"
+    ]
+  },
 };
 
 /* ---------------------------------------------
