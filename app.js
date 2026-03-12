@@ -818,7 +818,7 @@ async function obtenerTaraPendientesHoyYAyer() {
 app.use((req, res, next) => {
   const state = mongoose.connection.readyState;
   if (state === 0 || state === 3) {
-    return res.status(500).send('Internal Server Error: No se pudo conectar a MongoDB');
+    return res.status(500).render('error', { error: 'Error de conexión con la base de datos. Intentá de nuevo en unos segundos.' });
   }
   next();
 });
@@ -904,7 +904,7 @@ app.post('/', (req, res) => {
     return res.redirect(destino);
   } catch (err) {
     console.error('Error en POST /:', err);
-    return res.status(500).send('Internal Server Error');
+    return res.status(500).render('error', { error: 'Error interno al iniciar sesión.' });
   }
 });
 
@@ -951,7 +951,8 @@ app.get(
         range: { from, to }
       });
     } catch (err) {
-      return res.status(500).send('Internal Server Error: ' + err.message);
+      console.error('Error en GET /tabla:', err);
+      return res.status(500).render('error', { error: 'Error interno al cargar la tabla.' });
     }
   }
 );
@@ -1096,7 +1097,8 @@ app.get(
       });
 
     } catch (err) {
-      return res.status(500).send('Internal Server Error: ' + err.message);
+      console.error('Error en GET /registro:', err);
+      return res.status(500).render('error', { error: 'Error interno al cargar el formulario.' });
     }
   }
 );
@@ -1194,7 +1196,8 @@ app.post('/guardar-tara', async (req, res) => {
 
     return res.redirect('/tabla');
   } catch (err) {
-    return res.status(500).send('Internal Server Error: ' + err.message);
+    console.error('Error en POST /guardar-tara:', err);
+    return res.status(500).render('error', { error: 'Error interno al guardar el registro de TARA.' });
   }
 });
 
@@ -1522,9 +1525,7 @@ app.post('/guardar-regulada', async (req, res) => {
 
   } catch (err) {
     console.error('Error en /guardar-regulada:', err);
-    return res.status(500).render('error', {
-      error: 'Internal Server Error: ' + err.message
-    });
+    return res.status(500).render('error', { error: 'Error interno al guardar la REGULADA.' });
   }
 });
 
@@ -1560,7 +1561,8 @@ app.get(
         datosSiembra,
       });
     } catch (err) {
-      return res.status(500).send('Internal Server Error: ' + err.message);
+      console.error('Error en GET /modificar:', err);
+      return res.status(500).render('error', { error: 'Error interno al cargar el formulario de modificación.' });
     }
   }
 );
@@ -1659,33 +1661,63 @@ app.put(
       return res.redirect('/tabla');
 
     } catch (err) {
-      return res.status(500).send('Internal Server Error: ' + err.message);
+      console.error('Error en PUT /modificar/:id:', err);
+      return res.status(500).render('error', { error: 'Error interno al modificar el registro.' });
     }
   }
 );
 
 /* ---------------------------------------------
  * ANULAR — Helper
+ * VUL-05: soft-delete con auditoría (no sobrescribe datos históricos)
+ * VUL-13: sin stack traces expuestos
+ * VUL-14: validación de ObjectId
  * -------------------------------------------*/
 async function handleAnular(req, res) {
   try {
-    await mongoose.connection.db.collection('registros').updateOne(
-      { _id: new mongoose.Types.ObjectId(req.params.id) },
+    // VUL-14: validar ObjectId antes de cualquier operación
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).render('error', { error: 'ID de registro inválido.' });
+    }
+
+    const col     = mongoose.connection.db.collection('registros');
+    const auditCol = mongoose.connection.db.collection('registros_auditoria');
+    const _id     = new mongoose.Types.ObjectId(req.params.id);
+
+    // VUL-05: obtener registro original ANTES de modificar
+    const registroOriginal = await col.findOne({ _id });
+    if (!registroOriginal) {
+      return res.status(404).render('error', { error: 'Registro no encontrado.' });
+    }
+    if (registroOriginal.anulado) {
+      return res.status(400).render('error', { error: 'El registro ya está anulado.' });
+    }
+
+    // VUL-05: guardar copia completa en auditoría ANTES de cambios
+    await auditCol.insertOne({
+      tipoOperacion: 'ANULACION',
+      registroId:       _id,
+      registroOriginal: { ...registroOriginal },
+      usuarioAnula:     req.session.codigoIngreso || req.observacionCode || 'desconocido',
+      fechaOperacion:   new Date(),
+    });
+
+    // VUL-05: soft-delete — solo marcar anulado, NUNCA sobrescribir datos
+    await col.updateOne(
+      { _id },
       {
         $set: {
-          brutoEstimado: 0,
-          netoEstimado: 0,
-          tara: 0,
-          bruto: 0,
-          neto: 0,
-          anulado: true,
+          anulado:        true,
+          fechaAnulacion: new Date(),
         },
       }
     );
 
     return res.redirect('/tabla');
   } catch (err) {
-    return res.status(500).send('Internal Server Error: ' + err.message);
+    // VUL-13: no exponer stack trace al cliente
+    console.error('Error en handleAnular:', err);
+    return res.status(500).render('error', { error: 'Error interno al anular el registro.' });
   }
 }
 
