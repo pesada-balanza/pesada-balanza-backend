@@ -841,6 +841,22 @@ function missingFields(body, fields) {
   });
 }
 
+/**
+ * VUL-04: Validación de datos numéricos de entrada.
+ * Evita que NaN, negativos o valores fuera de rango lleguen a la BD.
+ * @param {*} v      - Valor crudo del req.body
+ * @param {number} min - Mínimo permitido (inclusive)
+ * @param {number} max - Máximo permitido (inclusive)
+ * @returns {{ ok: boolean, valor: number, error?: string }}
+ */
+function validarNumero(v, min = 0, max = 60000) {
+  const n = parseFloat(v);
+  if (!Number.isFinite(n))   return { ok: false, error: `Debe ser un número válido (recibido: "${v}")` };
+  if (n < min)               return { ok: false, error: `Debe ser ≥ ${min} kg (recibido: ${n})` };
+  if (n > max)               return { ok: false, error: `Debe ser ≤ ${max} kg (recibido: ${n})` };
+  return { ok: true, valor: n };
+}
+
 /* ---------------------------------------------
  * RUTAS: LOGIN
  * -------------------------------------------*/
@@ -1139,9 +1155,21 @@ app.post('/guardar-tara', async (req, res) => {
       });
     }
 
+    // VUL-04: validar campos numéricos
+    const vBruto = validarNumero(req.body.brutoEstimado, 1000, 60000);
+    if (!vBruto.ok) {
+      return res.status(400).render('error', { error: `Bruto Estimado inválido: ${vBruto.error}` });
+    }
+    const vTara = req.body.tara
+      ? validarNumero(req.body.tara, 0, 30000)
+      : { ok: true, valor: 0 };
+    if (!vTara.ok) {
+      return res.status(400).render('error', { error: `Tara inválida: ${vTara.error}` });
+    }
+
     const newIdTicket = await calculateNextIdTicket();
-    const brutoEst = parseFloat(req.body.brutoEstimado || 0);
-    const tara = parseFloat(req.body.tara || 0);
+    const brutoEst = vBruto.valor;
+    const tara = vTara.valor;
 
     const registro = {
       idTicket: newIdTicket,
@@ -1185,12 +1213,14 @@ app.post('/confirmar-tara-final', async (req, res) => {
       });
     }
 
-    const taraNueva = parseFloat(req.body.taraNueva || 0);
-    if (!(taraNueva >= 0)) {
+    // VUL-04: validar tara nueva (confirmar-tara-final)
+    const vTaraNuevaConf = validarNumero(req.body.taraNueva, 0, 30000);
+    if (!vTaraNuevaConf.ok) {
       return res.status(400).render('error', {
-        error: 'Tara Nueva (kg) debe ser un número válido'
+        error: `Tara Nueva inválida: ${vTaraNuevaConf.error}`
       });
     }
+    const taraNueva = vTaraNuevaConf.valor;
 
     const col = mongoose.connection.db.collection('registros');
 
@@ -1243,12 +1273,14 @@ app.post('/guardar-tara-final', async (req, res) => {
       });
     }
 
-    const taraNueva = parseFloat(req.body.taraNueva || 0);
-    if (!(taraNueva >= 0)) {
+    // VUL-04: validar tara nueva (guardar-tara-final)
+    const vTaraNuevaGuard = validarNumero(req.body.taraNueva, 0, 30000);
+    if (!vTaraNuevaGuard.ok) {
       return res.status(400).render('error', {
-        error: 'Tara Nueva (kg) debe ser un número válido'
+        error: `Tara Nueva inválida: ${vTaraNuevaGuard.error}`
       });
     }
+    const taraNueva = vTaraNuevaGuard.valor;
 
     const col = mongoose.connection.db.collection('registros');
 
@@ -1394,15 +1426,30 @@ app.post('/guardar-regulada', async (req, res) => {
       });
     }
 
-    const bruto = req.body.confirmarBruto === 'SI'
-      ? parseFloat(req.body.brutoEstimado || 0)
-      : parseFloat(req.body.bruto || 0);
+    // VUL-04: resolver y validar valores numéricos de REGULADA
+    const brutoRaw = req.body.confirmarBruto === 'SI'
+      ? req.body.brutoEstimado
+      : req.body.bruto;
+    const vBrutoReg = validarNumero(brutoRaw, 0, 60000);
+    if (!vBrutoReg.ok) {
+      return res.status(400).render('error', { error: `Bruto inválido: ${vBrutoReg.error}` });
+    }
+    const bruto = vBrutoReg.valor;
 
-    const taraFinal = req.body.confirmarTara === 'SI'
-      ? parseFloat(req.body.tara || 0)
-      : parseFloat(req.body.taraNueva || 0);
+    const taraRaw = req.body.confirmarTara === 'SI'
+      ? req.body.tara
+      : req.body.taraNueva;
+    const vTaraReg = validarNumero(taraRaw, 0, 30000);
+    if (!vTaraReg.ok) {
+      return res.status(400).render('error', { error: `Tara inválida: ${vTaraReg.error}` });
+    }
+    const taraFinal = vTaraReg.valor;
 
-    const brutoLote = parseFloat(req.body.brutoLote || 0);
+    const vBrutoLote = validarNumero(req.body.brutoLote, 0, 60000);
+    if (!vBrutoLote.ok) {
+      return res.status(400).render('error', { error: `Bruto Lote inválido: ${vBrutoLote.error}` });
+    }
+    const brutoLote = vBrutoLote.valor;
     const comentarios = String(req.body.comentarios || '');
 
     const col = mongoose.connection.db.collection('registros');
