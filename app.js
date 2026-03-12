@@ -921,8 +921,8 @@ app.get('/logout', (req, res) => {
 app.get(
   '/tabla',
   (req, res, next) => {
-    if (!req.session || !req.session.autenticado) {
-      return res.redirect('/?error=Sesión expirada. Ingresá nuevamente.&redirect=/tabla');
+    if (!req.session || !req.session.autenticado || req.session.tipo !== 'observacion') {
+      return res.redirect('/?error=Acceso denegado&redirect=/tabla');
     }
     req.observacionCode = req.session.codigoObservacion;
     return next();
@@ -963,8 +963,8 @@ app.get(
 app.get(
   '/export',
   (req, res, next) => {
-    if (!req.session || !req.session.autenticado) {
-      return res.redirect('/?error=Sesión expirada. Ingresá nuevamente.');
+    if (!req.session || !req.session.autenticado || req.session.tipo !== 'observacion') {
+      return res.redirect('/?error=Acceso denegado&redirect=/tabla');
     }
     req.observacionCode = req.session.codigoObservacion;
     return next();
