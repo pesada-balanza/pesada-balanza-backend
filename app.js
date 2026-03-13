@@ -1592,6 +1592,9 @@ app.get(
       if (registro.anulado)
         return res.render('error', { error: 'Registro anulado' });
 
+      if (registro.pesadaPara !== 'REGULADA')
+        return res.render('error', { error: 'Solo se pueden modificar registros que ya completaron el ticket de REGULADA.' });
+
       if ((registro.modificaciones || 0) >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
 
@@ -1629,6 +1632,9 @@ app.put(
 
       if (registro.anulado)
         return res.render('error', { error: 'Registro anulado' });
+
+      if (registro.pesadaPara !== 'REGULADA')
+        return res.render('error', { error: 'Solo se pueden modificar registros que ya completaron el ticket de REGULADA.' });
 
       if ((registro.modificaciones || 0) >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
