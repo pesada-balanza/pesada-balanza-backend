@@ -1561,7 +1561,9 @@ app.post('/guardar-regulada', async (req, res) => {
       }
     );
 
-    return res.redirect('/tabla');
+    // El operador de ingreso no puede ver /tabla directamente.
+    // Lo llevamos al login de Ver Registros para que ingrese su código de observación.
+    return res.redirect('/login/tabla');
 
   } catch (err) {
     console.error('Error en /guardar-regulada:', err);
