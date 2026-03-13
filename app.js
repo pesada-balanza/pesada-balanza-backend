@@ -1377,12 +1377,12 @@ app.post('/guardar-tara-final', async (req, res) => {
 
     // Notificación (no bloqueante)
     notificar({
-      tipo: 'TARA FINAL',
-      patentes:  req.body.patentes,
-      idTicket:  String(taraDoc.idTicket || taraDoc._id),
-      fecha:     ymd(new Date()),
-      tara:      taraNueva,
-      usuario:   taraDoc.usuario || '',
+      tipo:          'TARA FINAL',
+      patentes:      req.body.patentes,
+      idTicket:      String(taraDoc.idTicket || taraDoc._id),
+      fecha:         ymd(new Date()),
+      tara:          taraNueva,
+      codigoIngreso: taraDoc.codigoIngreso || req.body.code || '',
     });
 
     return res.redirect('/registro');
@@ -1611,10 +1611,10 @@ app.post('/guardar-regulada', async (req, res) => {
       tara:      taraFinal,
       bruto,
       neto:      bruto - taraFinal,
-      campo:     req.body.campo || '',
-      grano:     req.body.grano || '',
-      lote:      req.body.lote  || '',
-      usuario:   taraDoc.usuario || '',
+      campo:         req.body.campo || '',
+      grano:         req.body.grano || '',
+      lote:          req.body.lote  || '',
+      codigoIngreso: taraDoc.codigoIngreso || req.body.code || '',
     });
 
     // El operador de ingreso no puede ver /tabla directamente.

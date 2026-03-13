@@ -1,70 +1,40 @@
 /**
  * notificaciones.js
- * Envía avisos por email (nodemailer/Gmail) y WhatsApp (CallMeBot)
- * cuando se graba un ticket de TARA FINAL o REGULADA.
+ * Envía avisos por email (nodemailer/Gmail) cuando se graba
+ * un ticket de TARA FINAL o REGULADA.
  *
  * Variables de entorno requeridas:
- *   EMAIL_USER      → cuenta Gmail remitente, ej: tucuenta@gmail.com
- *   EMAIL_PASS      → App Password de Gmail (16 chars, sin espacios)
- *   EMAIL_TO        → destinatarios separados por coma, ej: a@x.com,b@y.com
- *
- *   WHATSAPP_RECIPIENTS → lista "phone:apikey" separados por coma
- *                         ej: 5491112345678:abc123,5491187654321:xyz456
- *                         Cada destinatario debe haber activado CallMeBot
- *                         enviando "I allow callmebot to send me messages"
- *                         al +1 (202) 858-1acceso de CallMeBot una sola vez.
- *                         Instrucciones: https://www.callmebot.com/blog/free-api-whatsapp-messages/
+ *   EMAIL_USER  → cuenta Gmail remitente, ej: tucuenta@gmail.com
+ *   EMAIL_PASS  → App Password de Gmail (16 chars, sin espacios)
+ *   EMAIL_TO    → destinatarios separados por coma, ej: a@x.com,b@y.com
  */
 
 'use strict';
 
 const nodemailer = require('nodemailer');
-const https = require('https');
 
 /* ─────────────────────────────────────────────────────────────
- * Helpers internos
+ * Mapeo de códigos de ingreso → nombre del puesto/campo
  * ───────────────────────────────────────────────────────────── */
+const CODIGOS_NOMBRE = {
+  '56781': 'GENERAL',
+  '5679':  'EL MATACO',
+  '5680':  'LA PRADERA',
+  '5681':  'EL C1',
+  '5682':  'EL WICHI',
+  '5683':  'LA JUANITA',
+  '5684':  'QUIMILI',
+  '5685':  'NASICH',
+};
 
-/**
- * Parsea la variable WHATSAPP_RECIPIENTS en un array de objetos {phone, apikey}
- */
-function parsearDestinatariosWA() {
-  const raw = (process.env.WHATSAPP_RECIPIENTS || '').trim();
-  if (!raw) return [];
-  return raw.split(',').map(s => s.trim()).filter(Boolean).map(par => {
-    const [phone, apikey] = par.split(':');
-    return { phone: (phone || '').trim(), apikey: (apikey || '').trim() };
-  }).filter(d => d.phone && d.apikey);
+function resolverNombreCodigo(codigo) {
+  if (!codigo) return '';
+  return CODIGOS_NOMBRE[String(codigo).trim()] || String(codigo).trim();
 }
 
-/**
- * Envía un mensaje WhatsApp vía CallMeBot a un destinatario.
- * No lanza excepción — sólo loguea si falla, para no interrumpir el flujo principal.
- */
-function enviarWA(phone, apikey, mensaje) {
-  return new Promise((resolve) => {
-    const texto = encodeURIComponent(mensaje);
-    const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${texto}&apikey=${apikey}`;
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => {
-        if (res.statusCode !== 200) {
-          console.error(`[Notif WA] Error para ${phone}: HTTP ${res.statusCode} – ${data}`);
-        }
-        resolve();
-      });
-    }).on('error', (err) => {
-      console.error(`[Notif WA] Error de red para ${phone}:`, err.message);
-      resolve();
-    });
-  });
-}
-
-/**
- * Envía email vía Gmail.
- * Si EMAIL_USER / EMAIL_PASS / EMAIL_TO no están configurados, sólo loguea y omite.
- */
+/* ─────────────────────────────────────────────────────────────
+ * Envío de email
+ * ───────────────────────────────────────────────────────────── */
 async function enviarEmail(asunto, cuerpoHtml) {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
@@ -99,64 +69,61 @@ async function enviarEmail(asunto, cuerpoHtml) {
 
 /**
  * @param {object} opts
- * @param {'TARA FINAL'|'REGULADA'} opts.tipo   Tipo de ticket completado
- * @param {string}  opts.patentes               Patente(s) del vehículo
- * @param {string}  opts.idTicket               ID del ticket
- * @param {string}  opts.fecha                  Fecha del registro (ej: 2025-03-13)
- * @param {number}  [opts.tara]                 Peso tara en kg (opcional)
- * @param {number}  [opts.bruto]                Peso bruto en kg (opcional)
- * @param {number}  [opts.neto]                 Peso neto en kg (opcional)
- * @param {string}  [opts.campo]                Campo (solo REGULADA)
- * @param {string}  [opts.grano]                Grano (solo REGULADA)
- * @param {string}  [opts.lote]                 Lote (solo REGULADA)
- * @param {string}  [opts.usuario]              Usuario que grabó
+ * @param {'TARA FINAL'|'REGULADA'} opts.tipo         Tipo de ticket completado
+ * @param {string}  opts.patentes                     Patente(s) del vehículo
+ * @param {string}  opts.idTicket                     ID del ticket
+ * @param {string}  opts.fecha                        Fecha del registro (ej: 2025-03-13)
+ * @param {string}  [opts.codigoIngreso]              Código que grabó el ticket
+ * @param {number}  [opts.tara]                       Peso tara en kg
+ * @param {number}  [opts.bruto]                      Peso bruto en kg
+ * @param {number}  [opts.neto]                       Peso neto en kg
+ * @param {string}  [opts.campo]                      Campo (solo REGULADA)
+ * @param {string}  [opts.grano]                      Grano (solo REGULADA)
+ * @param {string}  [opts.lote]                       Lote (solo REGULADA)
  */
 async function notificar(opts) {
   try {
-    const { tipo, patentes, idTicket, fecha, tara, bruto, neto, campo, grano, lote, usuario } = opts;
+    const { tipo, patentes, idTicket, fecha, codigoIngreso, tara, bruto, neto, campo, grano, lote } = opts;
 
-    // ── Texto plano (WhatsApp)
-    let lineas = [
-      `✅ Nuevo ticket ${tipo} grabado`,
-      `📋 ID: ${idTicket}`,
-      `🚛 Patente: ${patentes}`,
-      `📅 Fecha: ${fecha}`,
-    ];
-    if (usuario)   lineas.push(`👤 Usuario: ${usuario}`);
-    if (tara  != null) lineas.push(`⚖️ Tara: ${tara} kg`);
-    if (bruto != null) lineas.push(`⬆️ Bruto: ${bruto} kg`);
-    if (neto  != null) lineas.push(`📦 Neto: ${neto} kg`);
-    if (campo)     lineas.push(`🌾 Campo: ${campo}`);
-    if (grano)     lineas.push(`🌱 Grano: ${grano}`);
-    if (lote)      lineas.push(`📍 Lote: ${lote}`);
+    const origen = resolverNombreCodigo(codigoIngreso);
 
-    const mensajeWA = lineas.join('\n');
+    // ── Filas de la tabla HTML
+    const filas = [
+      ['Ticket',   tipo],
+      ['ID',       idTicket],
+      ['Patente',  patentes],
+      ['Fecha',    fecha],
+      origen ? ['Origen', origen] : null,
+      tara  != null ? ['Tara',  `${tara} kg`]  : null,
+      bruto != null ? ['Bruto', `${bruto} kg`] : null,
+      neto  != null ? ['Neto',  `${neto} kg`]  : null,
+      campo ? ['Campo', campo] : null,
+      grano ? ['Grano', grano] : null,
+      lote  ? ['Lote',  lote]  : null,
+    ].filter(Boolean);
 
-    // ── HTML para email
-    const filas = lineas.map(l => `<tr><td>${l}</td></tr>`).join('');
+    const filasHtml = filas.map(([k, v]) => `
+      <tr>
+        <td style="padding:6px 12px;font-weight:600;color:#555;white-space:nowrap">${k}</td>
+        <td style="padding:6px 12px">${v}</td>
+      </tr>`).join('');
+
     const cuerpoHtml = `
-      <h2 style="color:#2c7be5">Pesada Balanza – ${tipo} grabado</h2>
-      <table cellpadding="6" style="font-size:15px;border-collapse:collapse">
-        ${filas}
-      </table>
+      <div style="font-family:Arial,sans-serif;max-width:480px">
+        <h2 style="color:#2c7be5;margin-bottom:4px">Pesada Balanza</h2>
+        <p style="color:#888;margin-top:0">Nuevo registro grabado</p>
+        <table cellpadding="0" cellspacing="0"
+               style="border-collapse:collapse;width:100%;font-size:15px;border:1px solid #e0e0e0;border-radius:6px">
+          ${filasHtml}
+        </table>
+      </div>
     `;
 
-    // ── Enviar en paralelo (no bloqueante)
-    const promesas = [];
+    const asunto = `[Pesada Balanza] ${tipo}${origen ? ' – ' + origen : ''} – Patente ${patentes}`;
 
-    // Email
-    promesas.push(enviarEmail(`[Pesada Balanza] ${tipo} – Patente ${patentes}`, cuerpoHtml));
-
-    // WhatsApp
-    const destinatariosWA = parsearDestinatariosWA();
-    for (const d of destinatariosWA) {
-      promesas.push(enviarWA(d.phone, d.apikey, mensajeWA));
-    }
-
-    // Disparamos sin esperar — no queremos que un error de notificación
-    // bloquee la respuesta al usuario
-    Promise.all(promesas).catch(err => {
-      console.error('[Notif] Error inesperado en notificaciones:', err.message);
+    // Disparamos sin esperar para no bloquear la respuesta al usuario
+    enviarEmail(asunto, cuerpoHtml).catch(err => {
+      console.error('[Notif] Error inesperado:', err.message);
     });
 
   } catch (err) {
