@@ -28,7 +28,10 @@ if (!SESSION_SECRET) {
 }
 
 mongoose
-  .connect(MONGODB_URI)
+  .connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000,   // VUL-11: aborta si no encuentra servidor en 5s
+    socketTimeoutMS: 45000,           // VUL-11: aborta operaciones que tarden más de 45s
+  })
   .then(() => console.log('Conectado a MongoDB'))
   .catch((err) => {
     console.error('Error al conectar a MongoDB:', err.message);
@@ -871,6 +874,18 @@ function missingFields(body, fields) {
 }
 
 /**
+ * VUL-10: Verifica que un ticket no tenga más de `diasMaximos` días de antigüedad.
+ * Un ticket de TARA es válido por 5 días para completar TARA FINAL o REGULADA.
+ */
+function ticketVigente(fechaStr, diasMaximos = 5) {
+  const fechaTicket = new Date(fechaStr + 'T00:00:00');
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const diffDias = Math.floor((hoy - fechaTicket) / (1000 * 60 * 60 * 24));
+  return diffDias <= diasMaximos;
+}
+
+/**
  * VUL-04: Validación de datos numéricos de entrada.
  * Evita que NaN, negativos o valores fuera de rango lleguen a la BD.
  * @param {*} v      - Valor crudo del req.body
@@ -1338,6 +1353,13 @@ app.post('/guardar-tara-final', async (req, res) => {
       });
     }
 
+    // VUL-10: el ticket de TARA no puede tener más de 5 días de antigüedad
+    if (!ticketVigente(taraDoc.fecha, 5)) {
+      return res.status(400).render('error', {
+        error: `El ticket de TARA del ${taraDoc.fecha} venció (máximo 5 días). Debés anularlo y crear uno nuevo.`
+      });
+    }
+
     const brutoEstimado = parseFloat(taraDoc.brutoEstimado || 0);
 
     // Actualizamos SOLO los valores finales de tara
@@ -1529,6 +1551,13 @@ app.post('/guardar-regulada', async (req, res) => {
       });
     }
 
+    // VUL-10: el ticket de TARA no puede tener más de 5 días de antigüedad
+    if (!ticketVigente(taraDoc.fecha, 5)) {
+      return res.status(400).render('error', {
+        error: `El ticket de TARA del ${taraDoc.fecha} venció (máximo 5 días). Debés anularlo y crear uno nuevo.`
+      });
+    }
+
     // Actualización a REGULADA
     await col.updateOne(
       { _id: taraDoc._id },
@@ -1641,77 +1670,27 @@ app.put(
       if ((registro.modificaciones || 0) >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
 
-      /* -------------------------------------------------------
-       * CASO 1: REGULADA cerrada → solo Comentarios
-       * ------------------------------------------------------*/
-      if (registro.confirmada && registro.pesadaPara === 'REGULADA') {
-        const comentarios = (req.body.comentarios || '').trim();
-
-        // Auditoría: guardar estado anterior antes de modificar
-        const auditCol = mongoose.connection.db.collection('registros_auditoria');
-        await auditCol.insertOne({
-          tipoOperacion: 'MODIFICACION',
-          registroId: _id,
-          camposAnteriores: { comentarios: registro.comentarios },
-          camposNuevos:     { comentarios },
-          usuario: req.session.codigoIngreso || req.session.codigoObservacion || 'desconocido',
-          timestamp: new Date(),
-        });
-
-        await col.updateOne(
-          { _id },
-          {
-            $set: {
-              comentarios,
-              modificaciones: (registro.modificaciones || 0) + 1
-            }
-          }
-        );
-
-        return res.redirect('/tabla');
-      }
-
-      /* -------------------------------------------------------
-       * CASO 2: Registro NO cerrado → edición completa
-       * ------------------------------------------------------*/
-
-      const brutoEstimado = parseFloat(req.body.brutoEstimado || 0);
-      const tara = parseFloat(req.body.tara || 0);
+      // Solo se modifican los campos permitidos; los bloqueados se preservan del registro original.
+      const brutoEstimado = parseFloat(req.body.brutoEstimado || registro.brutoEstimado || 0);
+      const tara          = parseFloat(req.body.tara          || 0);
+      const bruto         = parseFloat(req.body.bruto         || 0);
 
       const updateData = {
-        idTicket: parseInt(req.body.idTicket),
-        fecha: req.body.fecha,
-        usuario: req.body.usuario,
-        cargaPara: req.body.cargaPara,
-        socio: req.body.socio || '',
-        pesadaPara: req.body.pesadaPara,
-        transporte: req.body.transporte,
-        patentes: req.body.patentes,
-        chofer: req.body.chofer,
+        // Campos editables
+        patentes:     (req.body.patentes    || '').trim(),
+        transporte:   (req.body.transporte  || '').trim(),
+        chofer:       (req.body.chofer      || '').trim(),
+        cargaPara:    req.body.cargaPara    || registro.cargaPara,
+        socio:        req.body.cargaPara === 'SOCIO' ? (req.body.socio || '').trim() : '',
         brutoEstimado,
         tara,
         netoEstimado: brutoEstimado - tara,
-
-        campo: req.body.campo,
-        grano: req.body.grano || registro.grano,
-        lote: req.body.lote,
-        cargoDe: req.body.cargoDe,
-
-        silobolsa:
-          req.body.cargoDe === 'SILOBOLSA'
-            ? (req.body.silobolsa || '')
-            : '',
-
-        contratista:
-          req.body.cargoDe === 'CONTRATISTA'
-            ? (req.body.contratista || '')
-            : '',
-
-        bruto: parseFloat(req.body.bruto || 0),
-        neto: parseFloat(req.body.bruto || 0) - tara,
-
-        comentarios: (req.body.comentarios || '').trim(),
-
+        bruto,
+        neto:         bruto - tara,
+        cargoDe:      req.body.cargoDe || registro.cargoDe,
+        silobolsa:    req.body.cargoDe === 'SILOBOLSA'   ? (req.body.silobolsa   || '').trim() : '',
+        contratista:  req.body.cargoDe === 'CONTRATISTA' ? (req.body.contratista || '').trim() : '',
+        comentarios:  (req.body.comentarios || '').trim(),
         modificaciones: (registro.modificaciones || 0) + 1,
       };
 
