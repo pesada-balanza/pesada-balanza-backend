@@ -8,6 +8,7 @@ const path = require('path');
 const session    = require('express-session');
 const MongoStore = require('connect-mongo');
 const cors = require('cors');
+const { notificar } = require('./notificaciones');
 
 const app = express();
 
@@ -1374,11 +1375,22 @@ app.post('/guardar-tara-final', async (req, res) => {
       }
     );
 
+    // Notificación (no bloqueante)
+    notificar({
+      tipo: 'TARA FINAL',
+      patentes:  req.body.patentes,
+      idTicket:  String(taraDoc.idTicket || taraDoc._id),
+      fecha:     ymd(new Date()),
+      tara:      taraNueva,
+      usuario:   taraDoc.usuario || '',
+    });
+
     return res.redirect('/tabla');
 
   } catch (err) {
+    console.error('Error en /guardar-tara-final:', err);
     return res.status(500).render('error', {
-      error: 'Error al guardar TARA FINAL: ' + err.message
+      error: 'Error interno al guardar la TARA FINAL.'
     });
   }
 });
@@ -1589,6 +1601,21 @@ app.post('/guardar-regulada', async (req, res) => {
         }
       }
     );
+
+    // Notificación (no bloqueante)
+    notificar({
+      tipo: 'REGULADA',
+      patentes:  req.body.patentes,
+      idTicket:  String(taraDoc.idTicket || taraDoc._id),
+      fecha:     ymd(new Date()),
+      tara:      taraFinal,
+      bruto,
+      neto:      bruto - taraFinal,
+      campo:     req.body.campo || '',
+      grano:     req.body.grano || '',
+      lote:      req.body.lote  || '',
+      usuario:   taraDoc.usuario || '',
+    });
 
     // El operador de ingreso no puede ver /tabla directamente.
     // Lo llevamos al login de Ver Registros para que ingrese su código de observación.

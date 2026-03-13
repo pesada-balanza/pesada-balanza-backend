@@ -33,9 +33,9 @@
 </style>
 
 <!-- Barra de acciones / filtros -->
-<div class="d-flex align-items-end gap-2 mb-3">
+<div class="d-flex align-items-end gap-2 mb-3 flex-wrap">
   <!-- Filtro por fechas (GET) -->
-  <form class="d-flex align-items-end gap-2" method="get" action="/tabla">
+  <form class="d-flex align-items-end gap-2 flex-wrap" method="get" action="/tabla">
 
     <div>
       <label for="from" class="form-label mb-0">Desde</label>
@@ -55,6 +55,13 @@
     <a class="btn btn-outline-secondary" href="/tabla">Hoy</a>
   </form>
 
+  <!-- Filtro de patentes (client-side, tiempo real) -->
+  <div>
+    <label for="filtroPatentes" class="form-label mb-0">Patentes</label>
+    <input type="text" id="filtroPatentes" class="form-control" placeholder="Buscar patente…"
+           style="min-width:160px;" autocomplete="off">
+  </div>
+
   <!-- Exportar a Excel respetando el filtro actual -->
   <a href="/export<% if (range && range.from) { %>?from=<%= range.from %><% if (range.to) { %>&to=<%= range.to %><% } %><% } else if (range && range.to) { %>?to=<%= range.to %><% } %>"
      class="btn btn-success ms-auto">Exportar a Excel</a>
@@ -70,7 +77,7 @@
 <% } %>
 
 <div class="table-scroll">
-  <table class="table">
+  <table class="table" id="tablaRegistros">
   <thead>
     <tr>
       <th>ID Ticket</th>
@@ -161,5 +168,33 @@
   </tbody>
 </table>
 </div>
+
+<script>
+  (function () {
+    const input = document.getElementById('filtroPatentes');
+    if (!input) return;
+
+    // Columna 0-based donde está "Patentes" en el thead
+    // ID Ticket(0) Fecha(1) Usuario(2) CargaPara(3) Socio(4) PesadaPara(5)
+    // Transporte(6) Patentes(7) ...
+    const COL_PATENTES = 7;
+
+    function aplicarFiltro() {
+      const texto = input.value.trim().toLowerCase();
+      const filas = document.querySelectorAll('#tablaRegistros tbody tr');
+      filas.forEach(function (fila) {
+        if (!texto) {
+          fila.style.display = '';
+          return;
+        }
+        const celda = fila.cells[COL_PATENTES];
+        const valor = celda ? celda.textContent.trim().toLowerCase() : '';
+        fila.style.display = valor.includes(texto) ? '' : 'none';
+      });
+    }
+
+    input.addEventListener('input', aplicarFiltro);
+  })();
+</script>
 
 <%- include('partials/footer') %>
