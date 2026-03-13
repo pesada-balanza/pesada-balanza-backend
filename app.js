@@ -8,6 +8,7 @@ const path = require('path');
 const session    = require('express-session');
 const MongoStore = require('connect-mongo');
 const cors = require('cors');
+const cron = require('node-cron');
 const { notificar } = require('./notificaciones');
 
 const app = express();
@@ -1821,6 +1822,125 @@ app.put('/anular/:id', verificarCodeObservacion, handleAnular);
  * ANULAR por POST (fallback)
  * -------------------------------------------*/
 app.post('/anular/:id', verificarCodeObservacion, handleAnular);
+
+/* ---------------------------------------------
+ * REPORTE DIARIO POR EMAIL (19:00 hora Argentina)
+ * -------------------------------------------*/
+
+/**
+ * Genera un buffer Excel con los registros de las últimas 24 horas.
+ * Reutiliza las mismas columnas que el botón "Exportar a Excel".
+ */
+async function generarExcelReporteDiario() {
+  // Últimas 24 horas: hoy y ayer en formato YYYY-MM-DD
+  const hoy = ymd(new Date());
+  const ayer = ymd(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+  const registros = await mongoose.connection.db
+    .collection('registros')
+    .find({ fecha: { $in: [hoy, ayer] } })
+    .sort({ idTicket: 1 })
+    .toArray();
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Registros');
+
+  sheet.columns = [
+    { header: 'ID Ticket',       key: 'idTicket',       width: 10 },
+    { header: 'Fecha',           key: 'fecha',          width: 15 },
+    { header: 'Usuario',         key: 'usuario',        width: 15 },
+    { header: 'Carga Para',      key: 'cargaPara',      width: 15 },
+    { header: 'Socio',           key: 'socio',          width: 15 },
+    { header: 'Pesada Para',     key: 'pesadaPara',     width: 15 },
+    { header: 'Transporte',      key: 'transporte',     width: 15 },
+    { header: 'Patentes',        key: 'patentes',       width: 15 },
+    { header: 'Chofer',          key: 'chofer',         width: 15 },
+    { header: 'Bruto Estimado',  key: 'brutoEstimado',  width: 16 },
+    { header: 'Tara',            key: 'tara',           width: 10 },
+    { header: 'Neto Estimado',   key: 'netoEstimado',   width: 16 },
+    { header: 'Campo',           key: 'campo',          width: 18 },
+    { header: 'Grano',           key: 'grano',          width: 12 },
+    { header: 'Lote',            key: 'lote',           width: 18 },
+    { header: 'Cargo De',        key: 'cargoDe',        width: 15 },
+    { header: 'Silobolsa',       key: 'silobolsa',      width: 15 },
+    { header: 'Contratista',     key: 'contratista',    width: 15 },
+    { header: 'Bruto LOTE',      key: 'brutoLote',      width: 14 },
+    { header: 'Comentarios',     key: 'comentarios',    width: 28 },
+    { header: 'Bruto',           key: 'bruto',          width: 15 },
+    { header: 'Neto',            key: 'neto',           width: 15 },
+    { header: 'Anulado',         key: 'anulado',        width: 10 },
+    { header: 'Confirmada TARA', key: 'confirmada',     width: 14 },
+  ];
+
+  // Cabecera en negrita
+  sheet.getRow(1).font = { bold: true };
+
+  registros.forEach(r => sheet.addRow(r));
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return { buffer, total: registros.length, fecha: hoy };
+}
+
+/**
+ * Envía el reporte diario por email con el Excel adjunto.
+ */
+async function enviarReporteDiario() {
+  try {
+    const user = process.env.EMAIL_USER;
+    const pass = process.env.EMAIL_PASS;
+    const to   = process.env.EMAIL_TO;
+
+    if (!user || !pass || !to) {
+      console.warn('[Reporte Diario] Variables de email no configuradas. Se omite envío.');
+      return;
+    }
+
+    const { buffer, total, fecha } = await generarExcelReporteDiario();
+
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+    });
+
+    const asunto = `[Pesada Balanza] Reporte diario – ${fecha} (${total} ticket${total !== 1 ? 's' : ''})`;
+
+    const cuerpoHtml = `
+      <div style="font-family:Arial,sans-serif">
+        <h2 style="color:#2c7be5">Pesada Balanza</h2>
+        <p>Reporte diario de registros correspondientes al <strong>${fecha}</strong>.</p>
+        <p>Total de tickets en las últimas 24 hs: <strong>${total}</strong></p>
+        <p style="color:#888;font-size:13px">El archivo Excel adjunto incluye todos los tipos de ticket (TARA, TARA FINAL y REGULADA).</p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: `"Pesada Balanza" <${user}>`,
+      to,
+      subject: asunto,
+      html: cuerpoHtml,
+      attachments: [
+        {
+          filename: `registros_${fecha}.xlsx`,
+          content: buffer,
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+      ],
+    });
+
+    console.log(`[Reporte Diario] Email enviado a ${to} – ${total} tickets del ${fecha}`);
+  } catch (err) {
+    console.error('[Reporte Diario] Error al enviar reporte:', err.message);
+  }
+}
+
+// Todos los días a las 19:00 hora de Argentina
+cron.schedule('0 19 * * *', () => {
+  console.log('[Reporte Diario] Iniciando envío del reporte diario...');
+  enviarReporteDiario();
+}, {
+  timezone: 'America/Argentina/Buenos_Aires'
+});
 
 /* ---------------------------------------------
  * SERVER
