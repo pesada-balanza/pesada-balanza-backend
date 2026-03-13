@@ -1243,7 +1243,7 @@ app.post('/guardar-tara', async (req, res) => {
 
     await mongoose.connection.db.collection('registros').insertOne(registro);
 
-    return res.redirect('/tabla');
+    return res.redirect('/registro');
   } catch (err) {
     console.error('Error en POST /guardar-tara:', err);
     return res.status(500).render('error', { error: 'Error interno al guardar el registro de TARA.' });
@@ -1385,7 +1385,7 @@ app.post('/guardar-tara-final', async (req, res) => {
       usuario:   taraDoc.usuario || '',
     });
 
-    return res.redirect('/tabla');
+    return res.redirect('/registro');
 
   } catch (err) {
     console.error('Error en /guardar-tara-final:', err);
