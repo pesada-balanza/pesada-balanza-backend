@@ -1875,7 +1875,10 @@ async function generarExcelReporteDiario() {
   // Cabecera en negrita
   sheet.getRow(1).font = { bold: true };
 
-  registros.forEach(r => sheet.addRow(r));
+  registros.forEach(r => sheet.addRow({
+    ...r,
+    anulado: r.anulado ? 'ANULADO' : '',
+  }));
 
   const buffer = await workbook.xlsx.writeBuffer();
   return { buffer, total: registros.length, fecha: hoy };
