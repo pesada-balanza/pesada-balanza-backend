@@ -131,4 +131,4 @@ async function notificar(opts) {
   }
 }
 
-module.exports = { notificar };
+module.exports = { notificar, resolverNombreCodigo };

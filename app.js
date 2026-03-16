@@ -9,7 +9,7 @@ const session    = require('express-session');
 const MongoStore = require('connect-mongo');
 const cors = require('cors');
 const cron = require('node-cron');
-const { notificar } = require('./notificaciones');
+const { notificar, resolverNombreCodigo } = require('./notificaciones');
 
 const app = express();
 
@@ -941,6 +941,7 @@ app.post('/', rateLimitLogin, (req, res) => {
     req.session.tipo = esIngreso ? 'ingreso' : 'observacion';
     req.session.codigoIngreso = esIngreso ? code : null;
     req.session.codigoObservacion = esIngreso ? ingresoAObservacion[code] : code;
+    req.session.nombreUsuario = resolverNombreCodigo(esIngreso ? code : Object.keys(ingresoAObservacion).find(k => ingresoAObservacion[k] === code) || code);
 
     const RUTAS_PERMITIDAS = ['/registro', '/tabla'];
     const destino = RUTAS_PERMITIDAS.includes(redirect)
@@ -1134,7 +1135,7 @@ app.get(
       
       return res.render('registro', {
         newIdTicket,
-        ultimoUsuario,
+        ultimoUsuario: req.session.nombreUsuario || req.ingresoCode || '',
         campos,
         datosSiembra,
         pendientesTara,
@@ -1155,7 +1156,6 @@ app.get(
 app.post('/confirmar-tara', (req, res) => {
 
   const requeridos = [
-    'usuario',
     'cargaPara',
     'transporte',
     'patentes',
@@ -1188,7 +1188,6 @@ app.post('/confirmar-tara', (req, res) => {
 app.post('/guardar-tara', async (req, res) => {
   try {
     const requeridos = [
-      'usuario',
       'cargaPara',
       'transporte',
       'patentes',
@@ -1226,7 +1225,7 @@ app.post('/guardar-tara', async (req, res) => {
     const registro = {
       idTicket: newIdTicket,
       fecha: ymd(new Date()),
-      usuario: req.body.usuario,
+      usuario: req.session.nombreUsuario || req.session.codigoIngreso || 'desconocido',
       cargaPara: req.body.cargaPara,
       socio: req.body.socio || '',
       pesadaPara: 'TARA',

@@ -33,7 +33,8 @@
   <div class="form-group">
     <label for="usuario">Usuario</label>
     <input type="text" id="usuario" name="usuario"
-           class="form-control" value="<%= ultimoUsuario %>" required>
+           class="form-control" value="<%= ultimoUsuario %>" readonly
+           style="background-color:#e9ecef;cursor:not-allowed;" title="El usuario se asigna automáticamente según el código de acceso">
   </div>
 
   <div class="form-group">
