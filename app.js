@@ -1238,7 +1238,7 @@ app.post('/guardar-tara', async (req, res) => {
       anulado: false,
       modificaciones: 0,
       confirmada: false,
-      codigoIngreso: req.body.code,
+      codigoIngreso: req.body.code || req.session.codigoIngreso || '',
     };
 
     await mongoose.connection.db.collection('registros').insertOne(registro);
@@ -1370,7 +1370,8 @@ app.post('/guardar-tara-final', async (req, res) => {
         $set: {
           tara: taraNueva,
           netoEstimado: brutoEstimado - taraNueva,
-          fechaTaraFinal: ymd(new Date())
+          fechaTaraFinal: ymd(new Date()),
+          fecha: ymd(new Date())
         }
       }
     );
