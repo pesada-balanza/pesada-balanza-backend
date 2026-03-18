@@ -142,12 +142,19 @@
       <td><%= registro.comentarios || '' %></td> <!-- NUEVO -->
       <td><%= (typeof registro.bruto === 'number') ? registro.bruto : (registro.bruto ?? '') %></td>
       <td>
-        <% if (typeof registro.neto === 'number') { %>
-          <%= registro.neto %>
-        <% } else if (typeof registro.bruto === 'number') { %>
-          <%= registro.bruto - (registro.tara || 0) %>
-        <% } else { %>
-          <!-- vacío -->
+        <%
+          let netoVal = null;
+          if (typeof registro.neto === 'number') {
+            netoVal = registro.neto;
+          } else if (typeof registro.bruto === 'number') {
+            netoVal = registro.bruto - (registro.tara || 0);
+          }
+          if (netoVal !== null && registro.anulado) {
+            netoVal = -Math.abs(netoVal);
+        %>
+          <strong style="color:red;"><%= netoVal %></strong>
+        <% } else if (netoVal !== null) { %>
+          <%= netoVal %>
         <% } %>
       </td>
       <td>
