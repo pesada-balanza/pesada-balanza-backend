@@ -1064,7 +1064,16 @@ app.get(
         { header: 'Confirmada TARA', key: 'confirmada', width: 14 },
       ];
 
-      registros.forEach(r => sheet.addRow(r));
+      registros.forEach(r => {
+        const netoExport = r.anulado && typeof r.neto === 'number'
+          ? -Math.abs(r.neto)
+          : r.neto;
+        const row = sheet.addRow({ ...r, neto: netoExport });
+        if (r.anulado && netoExport != null) {
+          const cell = row.getCell('neto');
+          cell.font = { bold: true, color: { argb: 'FFCC0000' } };
+        }
+      });
 
       res.header(
         'Content-Type',
@@ -1900,10 +1909,20 @@ async function generarExcelReporteDiario() {
   // Cabecera en negrita
   sheet.getRow(1).font = { bold: true };
 
-  registros.forEach(r => sheet.addRow({
-    ...r,
-    anulado: r.anulado ? 'ANULADO' : '',
-  }));
+  registros.forEach(r => {
+    const netoExport = r.anulado && typeof r.neto === 'number'
+      ? -Math.abs(r.neto)
+      : r.neto;
+    const row = sheet.addRow({
+      ...r,
+      neto: netoExport,
+      anulado: r.anulado ? 'ANULADO' : '',
+    });
+    if (r.anulado && netoExport != null) {
+      const cell = row.getCell('neto');
+      cell.font = { bold: true, color: { argb: 'FFCC0000' } };
+    }
+  });
 
   const buffer = await workbook.xlsx.writeBuffer();
   return { buffer, total: registros.length, fecha: hoy };
