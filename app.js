@@ -1120,15 +1120,18 @@ app.get(
         })
         .sort({ idTicket: -1 })
         .toArray();
-      
-      // Registros con TARA FINAL (disponibles para REGULADA)
+
+      // Registros con TARA FINAL disponibles para REGULADA.
+      // Solo se muestran los del propio operador: TARA FINAL y REGULADA deben
+      // ser registrados por el mismo operador, sin excepción.
       const pendientesConFinal = await col
         .find({
           pesadaPara: 'TARA',
           anulado: { $ne: true },
           confirmada: { $ne: true },
           fechaTaraFinal: { $exists: true },
-          fechaRegulada: { $exists: false }
+          fechaRegulada: { $exists: false },
+          codigoIngreso: req.ingresoCode
         })
         .sort({ idTicket: -1 })
         .toArray();
@@ -1363,17 +1366,21 @@ app.post('/guardar-tara-final', async (req, res) => {
 
     const brutoEstimado = parseFloat(taraDoc.brutoEstimado || 0);
 
-    // Actualizamos SOLO los valores finales de tara
+    // Actualizamos los valores finales de tara.
+    // Si la TARA fue grabada con el código general 56781, la transferimos al operador
+    // que registra la TARA FINAL para que quede en su tabla y no en la del 12341.
+    const setTaraFinal = {
+      tara: taraNueva,
+      netoEstimado: brutoEstimado - taraNueva,
+      fechaTaraFinal: ymd(new Date()),
+      fecha: ymd(new Date())
+    };
+    if (taraDoc.codigoIngreso === '56781') {
+      setTaraFinal.codigoIngreso = req.session.codigoIngreso || '56781';
+    }
     await col.updateOne(
       { _id: taraDoc._id },
-      {
-        $set: {
-          tara: taraNueva,
-          netoEstimado: brutoEstimado - taraNueva,
-          fechaTaraFinal: ymd(new Date()),
-          fecha: ymd(new Date())
-        }
-      }
+      { $set: setTaraFinal }
     );
 
     // Notificación (no bloqueante)
@@ -1564,6 +1571,20 @@ app.post('/guardar-regulada', async (req, res) => {
       });
     }
 
+    // REGULADA requiere TARA FINAL previa obligatoriamente
+    if (!taraDoc.fechaTaraFinal) {
+      return res.status(400).render('error', {
+        error: 'No se puede registrar REGULADA sin un ticket de TARA FINAL previo.'
+      });
+    }
+
+    // El operador de REGULADA debe ser el mismo que registró la TARA FINAL
+    if (taraDoc.codigoIngreso !== req.session.codigoIngreso) {
+      return res.status(403).render('error', {
+        error: 'El operador de REGULADA debe ser el mismo que registró la TARA FINAL.'
+      });
+    }
+
     // VUL-10: el ticket de TARA no puede tener más de 5 días de antigüedad
     if (!ticketVigente(taraDoc.fecha, 5)) {
       return res.status(400).render('error', {
@@ -1571,36 +1592,40 @@ app.post('/guardar-regulada', async (req, res) => {
       });
     }
 
-    // Actualización a REGULADA
+    // Actualización a REGULADA.
+    // Si la TARA fue grabada con el código general 56781 y no fue transferida en TARA FINAL,
+    // la transferimos aquí para que quede en la tabla del operador y no en la del 12341.
+    const setRegulada = {
+      fecha: ymd(new Date()),
+      pesadaPara: 'REGULADA',
+
+      campo: req.body.campo,
+      grano: req.body.grano,
+      lote: req.body.lote,
+      cargoDe: req.body.cargoDe,
+
+      silobolsa:
+        req.body.cargoDe === 'SILOBOLSA' ? (req.body.silobolsa || '') : '',
+
+      contratista:
+        req.body.cargoDe === 'CONTRATISTA' ? (req.body.contratista || '') : '',
+
+      bruto,
+      tara: taraFinal,
+      neto: bruto - taraFinal,
+
+      brutoLote,
+      comentarios,
+
+      fechaRegulada: ymd(new Date()),
+      confirmada: true
+    };
+    if (taraDoc.codigoIngreso === '56781') {
+      setRegulada.codigoIngreso = req.session.codigoIngreso || '56781';
+    }
     await col.updateOne(
       { _id: taraDoc._id },
-      {
-        $set: {
-          fecha: ymd(new Date()),
-          pesadaPara: 'REGULADA',
-
-          campo: req.body.campo,
-          grano: req.body.grano,
-          lote: req.body.lote,
-          cargoDe: req.body.cargoDe,
-
-          silobolsa:
-            req.body.cargoDe === 'SILOBOLSA' ? (req.body.silobolsa || '') : '',
-
-          contratista:
-            req.body.cargoDe === 'CONTRATISTA' ? (req.body.contratista || '') : '',
-
-          bruto,
-          tara: taraFinal,
-          neto: bruto - taraFinal,
-
-          brutoLote,
-          comentarios,
-
-          fechaRegulada: ymd(new Date()),
-          confirmada: true
-        }
-      }
+      { $set: setRegulada }
     );
 
     // Notificación (no bloqueante)
