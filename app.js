@@ -824,7 +824,7 @@ async function obtenerTaraPendientesHoyYAyer() {
 
   const raw = await col
     .find({
-      pesadaPara: 'TARA',
+      pesadaPara: 'CAMIONES',
       fecha: { $in: fechas },
       anulado: { $ne: true },
       confirmada: { $ne: true }
@@ -1061,7 +1061,7 @@ app.get(
         { header: 'Bruto', key: 'bruto', width: 15 },
         { header: 'Neto', key: 'neto', width: 15 },
         { header: 'Anulado', key: 'anulado', width: 10 },
-        { header: 'Confirmada TARA', key: 'confirmada', width: 14 },
+        { header: 'Confirmada CAMIONES', key: 'confirmada', width: 14 },
       ];
 
       registros.forEach(r => {
@@ -1122,7 +1122,7 @@ app.get(
       // Tara pendientes (sin TARA FINAL)
       const pendientesTara = await col
         .find({
-          pesadaPara: 'TARA',
+          pesadaPara: 'CAMIONES',
           anulado: { $ne: true },
           confirmada: { $ne: true },
           fechaTaraFinal: { $exists: false }
@@ -1135,7 +1135,7 @@ app.get(
       // ser registrados por el mismo operador, sin excepción.
       const pendientesConFinal = await col
         .find({
-          pesadaPara: 'TARA',
+          pesadaPara: 'CAMIONES',
           anulado: { $ne: true },
           confirmada: { $ne: true },
           fechaTaraFinal: { $exists: true },
@@ -1152,7 +1152,7 @@ app.get(
         datosSiembra,
         pendientesTara,
         pendientesConFinal,
-        pesadaPara: 'TARA',
+        pesadaPara: 'CAMIONES',
       });
 
     } catch (err) {
@@ -1178,7 +1178,7 @@ app.post('/confirmar-tara', (req, res) => {
   const faltan = missingFields(req.body, requeridos);
   if (faltan.length) {
     return res.status(400).render('error', {
-      error: `Faltan campos obligatorios en TARA: ${faltan.join(', ')}`
+      error: `Faltan campos obligatorios en CAMIONES: ${faltan.join(', ')}`
     });
   }
 
@@ -1187,7 +1187,7 @@ app.post('/confirmar-tara', (req, res) => {
   const netoEstimado = brutoEstimado - tara;
 
   return res.render('confirmar-tara', {
-    formData: { ...req.body, pesadaPara: 'TARA' },
+    formData: { ...req.body, pesadaPara: 'CAMIONES' },
     brutoEstimado,
     tara,
     netoEstimado,
@@ -1210,7 +1210,7 @@ app.post('/guardar-tara', async (req, res) => {
     const faltan = missingFields(req.body, requeridos);
     if (faltan.length) {
       return res.status(400).render('error', {
-        error: `Faltan campos obligatorios en TARA: ${faltan.join(', ')}`
+        error: `Faltan campos obligatorios en CAMIONES: ${faltan.join(', ')}`
       });
     }
 
@@ -1240,7 +1240,7 @@ app.post('/guardar-tara', async (req, res) => {
       usuario: req.session.nombreUsuario || req.session.codigoIngreso || 'desconocido',
       cargaPara: req.body.cargaPara,
       socio: req.body.socio || '',
-      pesadaPara: 'TARA',
+      pesadaPara: 'CAMIONES',
       transporte: req.body.transporte,
       patentes: req.body.patentes,
       chofer: req.body.chofer,
@@ -1258,7 +1258,7 @@ app.post('/guardar-tara', async (req, res) => {
     return res.redirect('/registro');
   } catch (err) {
     console.error('Error en POST /guardar-tara:', err);
-    return res.status(500).render('error', { error: 'Error interno al guardar el registro de TARA.' });
+    return res.status(500).render('error', { error: 'Error interno al guardar el registro de CAMIONES.' });
   }
 });
 
@@ -1291,7 +1291,7 @@ app.post('/confirmar-tara-final', async (req, res) => {
     // Buscar la TARA pendiente más reciente de esa patente
     const taraDoc = await col.findOne(
       {
-        pesadaPara: 'TARA',
+        pesadaPara: 'CAMIONES',
         patentes: req.body.patentes,
         anulado: { $ne: true },
         confirmada: { $ne: true },
@@ -1301,7 +1301,7 @@ app.post('/confirmar-tara-final', async (req, res) => {
 
     if (!taraDoc) {
       return res.status(404).render('error', {
-        error: 'No se encontró TARA pendiente para esa patente'
+        error: 'No se encontró ticket CAMIONES pendiente para esa patente'
       });
     }
 
@@ -1351,7 +1351,7 @@ app.post('/guardar-tara-final', async (req, res) => {
     // Buscar nuevamente la TARA más reciente
     const taraDoc = await col.findOne(
       {
-        pesadaPara: 'TARA',
+        pesadaPara: 'CAMIONES',
         patentes: req.body.patentes,
         anulado: { $ne: true },
         confirmada: { $ne: true },
@@ -1362,14 +1362,14 @@ app.post('/guardar-tara-final', async (req, res) => {
 
     if (!taraDoc) {
       return res.status(404).render('error', {
-        error: 'No se encontró TARA pendiente para esa patente'
+        error: 'No se encontró ticket CAMIONES pendiente para esa patente'
       });
     }
 
     // VUL-10: el ticket de TARA no puede tener más de 5 días de antigüedad
     if (!ticketVigente(taraDoc.fecha, 5)) {
       return res.status(400).render('error', {
-        error: `El ticket de TARA del ${taraDoc.fecha} venció (máximo 5 días). Debés anularlo y crear uno nuevo.`
+        error: `El ticket de CAMIONES del ${taraDoc.fecha} venció (máximo 5 días). Debés anularlo y crear uno nuevo.`
       });
     }
 
@@ -1565,7 +1565,7 @@ app.post('/guardar-regulada', async (req, res) => {
     if (!taraDoc) {
       taraDoc = await col.findOne(
         {
-          pesadaPara: 'TARA',
+          pesadaPara: 'CAMIONES',
           patentes: req.body.patentes,
           anulado: { $ne: true },
           confirmada: { $ne: true },
@@ -1576,7 +1576,7 @@ app.post('/guardar-regulada', async (req, res) => {
 
     if (!taraDoc) {
       return res.status(400).render('error', {
-        error: 'No se encontró TARA pendiente para esa patente.'
+        error: 'No se encontró ticket CAMIONES pendiente para esa patente.'
       });
     }
 
@@ -1597,7 +1597,7 @@ app.post('/guardar-regulada', async (req, res) => {
     // VUL-10: el ticket de TARA no puede tener más de 5 días de antigüedad
     if (!ticketVigente(taraDoc.fecha, 5)) {
       return res.status(400).render('error', {
-        error: `El ticket de TARA del ${taraDoc.fecha} venció (máximo 5 días). Debés anularlo y crear uno nuevo.`
+        error: `El ticket de CAMIONES del ${taraDoc.fecha} venció (máximo 5 días). Debés anularlo y crear uno nuevo.`
       });
     }
 
@@ -1691,6 +1691,9 @@ app.get(
       if ((registro.modificaciones || 0) >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
 
+      if (!ticketVigente(registro.fechaTaraFinal, 1))
+        return res.render('error', { error: 'El plazo para modificar este registro venció. Solo se permite modificar hasta 1 día después del registro de TARA FINAL.' });
+
       return res.render('modificar', {
         registro,
         campos,
@@ -1732,23 +1735,19 @@ app.put(
       if ((registro.modificaciones || 0) >= 2)
         return res.render('error', { error: 'Límite de modificaciones alcanzado' });
 
+      if (!ticketVigente(registro.fechaTaraFinal, 1))
+        return res.render('error', { error: 'El plazo para modificar este registro venció. Solo se permite modificar hasta 1 día después del registro de TARA FINAL.' });
+
       // Solo se modifican los campos permitidos; los bloqueados se preservan del registro original.
-      const brutoEstimado = parseFloat(req.body.brutoEstimado || registro.brutoEstimado || 0);
-      const tara          = parseFloat(req.body.tara          || 0);
-      const bruto         = parseFloat(req.body.bruto         || 0);
+      const tara = parseFloat(req.body.tara || 0);
 
       const updateData = {
         // Campos editables
         patentes:     (req.body.patentes    || '').trim(),
-        transporte:   (req.body.transporte  || '').trim(),
         chofer:       (req.body.chofer      || '').trim(),
-        cargaPara:    req.body.cargaPara    || registro.cargaPara,
-        socio:        req.body.cargaPara === 'SOCIO' ? (req.body.socio || '').trim() : '',
-        brutoEstimado,
         tara,
-        netoEstimado: brutoEstimado - tara,
-        bruto,
-        neto:         bruto - tara,
+        netoEstimado: (registro.brutoEstimado || 0) - tara,
+        neto:         (registro.bruto        || 0) - tara,
         cargoDe:      req.body.cargoDe || registro.cargoDe,
         silobolsa:    req.body.cargoDe === 'SILOBOLSA'   ? (req.body.silobolsa   || '').trim() : '',
         contratista:  req.body.cargoDe === 'CONTRATISTA' ? (req.body.contratista || '').trim() : '',
@@ -1903,7 +1902,7 @@ async function generarExcelReporteDiario() {
     { header: 'Bruto',           key: 'bruto',          width: 15 },
     { header: 'Neto',            key: 'neto',           width: 15 },
     { header: 'Anulado',         key: 'anulado',        width: 10 },
-    { header: 'Confirmada TARA', key: 'confirmada',     width: 14 },
+    { header: 'Confirmada CAMIONES', key: 'confirmada',     width: 14 },
   ];
 
   // Cabecera en negrita
@@ -1957,7 +1956,7 @@ async function enviarReporteDiario() {
         <h2 style="color:#2c7be5">Pesada Balanza</h2>
         <p>Reporte diario de registros correspondientes al <strong>${fecha}</strong>.</p>
         <p>Total de tickets en las últimas 24 hs: <strong>${total}</strong></p>
-        <p style="color:#888;font-size:13px">El archivo Excel adjunto incluye todos los tipos de ticket (TARA, TARA FINAL y REGULADA).</p>
+        <p style="color:#888;font-size:13px">El archivo Excel adjunto incluye todos los tipos de ticket (CAMIONES, TARA FINAL y REGULADA).</p>
       </div>
     `;
 

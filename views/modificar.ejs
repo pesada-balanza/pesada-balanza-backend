@@ -2,7 +2,7 @@
 <h1>Modificar Registro</h1>
 
 <div class="alert alert-info">
-  Los campos <strong>ID Ticket, Fecha, Usuario, Pesada Para, Campo, Grano y Lote</strong> no son editables.
+  Solo se pueden editar: <strong>Patentes, Chofer, Tara, Cargo de, Silobolsa/Contratista y Comentarios</strong>. Disponible hasta 1 día después del registro de TARA FINAL.
 </div>
 
 <!-- Campos NO editables: solo lectura -->
@@ -15,9 +15,10 @@
       <div class="col-md-3"><strong>Pesada Para:</strong> <%= registro.pesadaPara %></div>
     </div>
     <div class="row">
-      <div class="col-md-4"><strong>Campo:</strong> <%= registro.campo || '-' %></div>
-      <div class="col-md-4"><strong>Grano:</strong> <%= registro.grano || '-' %></div>
-      <div class="col-md-4"><strong>Lote:</strong> <%= registro.lote || '-' %></div>
+      <div class="col-md-3"><strong>Campo:</strong> <%= registro.campo || '-' %></div>
+      <div class="col-md-3"><strong>Grano:</strong> <%= registro.grano || '-' %></div>
+      <div class="col-md-3"><strong>Lote:</strong> <%= registro.lote || '-' %></div>
+      <div class="col-md-3"><strong>TARA FINAL:</strong> <%= registro.fechaTaraFinal || '-' %></div>
     </div>
   </div>
 </div>
@@ -27,15 +28,11 @@
   <input type="hidden" name="_method" value="PUT">
 
   <div class="row">
-    <div class="col-md-4 form-group">
+    <div class="col-md-6 form-group">
       <label>Patentes</label>
       <input type="text" name="patentes" class="form-control" value="<%= registro.patentes || '' %>">
     </div>
-    <div class="col-md-4 form-group">
-      <label>Transporte</label>
-      <input type="text" name="transporte" class="form-control" value="<%= registro.transporte || '' %>">
-    </div>
-    <div class="col-md-4 form-group">
+    <div class="col-md-6 form-group">
       <label>Chofer</label>
       <input type="text" name="chofer" class="form-control" value="<%= registro.chofer || '' %>">
     </div>
@@ -43,38 +40,9 @@
 
   <div class="row">
     <div class="col-md-4 form-group">
-      <label>Carga para</label>
-      <select name="cargaPara" class="form-control" onchange="toggleSocio()">
-        <option value="AMH"   <%= registro.cargaPara === 'AMH'   ? 'selected' : '' %>>AMH</option>
-        <option value="SOCIO" <%= registro.cargaPara === 'SOCIO' ? 'selected' : '' %>>SOCIO</option>
-      </select>
-    </div>
-    <div class="col-md-4 form-group" id="socioField" style="display:<%= registro.cargaPara === 'SOCIO' ? 'block' : 'none' %>;">
-      <label>Nombre del Socio</label>
-      <input type="text" name="socio" class="form-control" value="<%= registro.socio || '' %>">
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="col-md-4 form-group">
-      <label>Bruto Estimado (kg)</label>
-      <select name="brutoEstimado" class="form-control">
-        <option value="45000" <%= registro.brutoEstimado === 45000 ? 'selected' : '' %>>45000 kg</option>
-        <option value="52500" <%= registro.brutoEstimado === 52500 ? 'selected' : '' %>>52500 kg</option>
-        <option value="55000" <%= registro.brutoEstimado === 55000 ? 'selected' : '' %>>55000 kg</option>
-      </select>
-    </div>
-    <div class="col-md-4 form-group">
       <label>Tara (kg)</label>
       <input type="number" name="tara" class="form-control" value="<%= registro.tara || 0 %>" min="0">
     </div>
-    <div class="col-md-4 form-group">
-      <label>Bruto (kg)</label>
-      <input type="number" name="bruto" class="form-control" value="<%= registro.bruto || 0 %>" min="0">
-    </div>
-  </div>
-
-  <div class="row">
     <div class="col-md-4 form-group">
       <label>Cargo de</label>
       <select name="cargoDe" class="form-control" onchange="toggleCargo()">
@@ -103,10 +71,6 @@
 </form>
 
 <script>
-  function toggleSocio() {
-    const c = document.querySelector('[name="cargaPara"]').value;
-    document.getElementById('socioField').style.display = c === 'SOCIO' ? 'block' : 'none';
-  }
   function toggleCargo() {
     const c = document.querySelector('[name="cargoDe"]').value;
     document.getElementById('silobolsaField').style.display   = c === 'SILOBOLSA'   ? 'block' : 'none';

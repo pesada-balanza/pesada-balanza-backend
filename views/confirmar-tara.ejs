@@ -1,5 +1,5 @@
 <%- include('partials/header') %>
-<h1>Confirmar Registro (TARA)</h1>
+<h1>Confirmar Registro (CAMIONES)</h1>
 
 <% 
   // Normalizamos por si vienen undefined
@@ -13,7 +13,7 @@
 
 <div class="card mb-3">
   <div class="card-body">
-    <h5 class="card-title">Resumen de TARA</h5>
+    <h5 class="card-title">Resumen de CAMIONES</h5>
     <p class="mb-1"><strong>Bruto Estimado:</strong> <%= _bruto %> kg</p>
     <p class="mb-1">
       <strong>Tara:</strong> 
@@ -53,7 +53,7 @@
   <!-- Campos críticos fijados explícitamente -->
   <input type="hidden" name="brutoEstimado" value="<%= _bruto %>">
   <input type="hidden" name="tara" value="<%= taraCargada ? _tara : '' %>">
-  <input type="hidden" name="pesadaPara" value="TARA">
+  <input type="hidden" name="pesadaPara" value="CAMIONES">
 
   <!-- Si ya venía un idTicket provisorio/visible en la vista anterior, lo preservamos -->
   <% if (formData?.idTicket) { %>

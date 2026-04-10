@@ -6,17 +6,17 @@
   <label for="modo">Pesada para</label>
   <select id="modo" class="form-control" required onchange="toggleForm()">
     <option value="">Seleccione</option>
-    <option value="TARA"       <%= pesadaPara==='TARA' ? 'selected':'' %>>TARA</option>
+    <option value="CAMIONES"   <%= pesadaPara==='CAMIONES' ? 'selected':'' %>>CAMIONES</option>
     <option value="TARA_FINAL" <%= pesadaPara==='TARA_FINAL' ? 'selected':'' %>>TARA FINAL</option>
     <option value="REGULADA"   <%= pesadaPara==='REGULADA' ? 'selected':'' %>>REGULADA</option>
   </select>
 </div>
 
 <!-- ============================================================
-     FORMULARIO TARA
+     FORMULARIO CAMIONES
      ============================================================ -->
 <form action="/confirmar-tara" method="post" id="formTara"
-      style="display:<%= pesadaPara==='TARA' ? 'block':'none' %>">
+      style="display:<%= pesadaPara==='CAMIONES' ? 'block':'none' %>">
 
   <div class="form-group">
     <label for="idTicket">ID Ticket</label>
@@ -88,7 +88,7 @@
            placeholder="Podés dejarlo vacío si aún no la sabés">
   </div>
 
-  <input type="hidden" name="pesadaPara" value="TARA">
+  <input type="hidden" name="pesadaPara" value="CAMIONES">
 
   <button type="submit" class="btn btn-primary">Confirmar</button>
 </form>
@@ -207,7 +207,7 @@
   </div>
 
   <div class="form-group">
-    <label for="brutoEstimadoReg">Bruto Estimado (kg)</label>
+    <label for="brutoEstimadoReg">Bruto (kg)</label>
     <input type="number" id="brutoEstimadoReg" name="brutoEstimado"
            class="form-control" readonly>
   </div>
@@ -262,7 +262,7 @@
   function toggleForm() {
     const v = document.getElementById('modo').value;
     document.getElementById('formTara').style.display =
-      v === 'TARA' ? 'block' : 'none';
+      v === 'CAMIONES' ? 'block' : 'none';
     document.getElementById('formTaraFinal').style.display =
       v === 'TARA_FINAL' ? 'block' : 'none';
     document.getElementById('formRegulada').style.display =
