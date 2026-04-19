@@ -113,6 +113,37 @@ const ingresoAObservacion = {
 };
 
 /* ---------------------------------------------
+ * CONTRATISTAS (cargados desde Tablets 25-26.xlsx)
+ * Estructura: { "Nombre Contratista": ["TRACTOR1", "TRACTOR2", ...] }
+ * -------------------------------------------*/
+let contratistas = {};
+(async () => {
+  try {
+    const xlsxPath = path.join(__dirname, 'Tablets 25-26.xlsx');
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(xlsxPath);
+    const sheet = wb.worksheets[0];
+    const tmp = {};
+    sheet.eachRow((row, idx) => {
+      if (idx === 1) return; // saltar encabezado
+      const nombre  = (row.getCell(1).value || '').toString().trim();
+      const tractor = (row.getCell(2).value || '').toString().trim();
+      if (!nombre || !tractor) return;
+      if (!tmp[nombre]) tmp[nombre] = [];
+      if (!tmp[nombre].includes(tractor)) tmp[nombre].push(tractor);
+    });
+    // Ordenar nombres alfabéticamente y tractores en orden natural
+    contratistas = Object.keys(tmp).sort().reduce((acc, k) => {
+      acc[k] = tmp[k];
+      return acc;
+    }, {});
+    console.log('Contratistas cargados:', Object.keys(contratistas).length);
+  } catch (err) {
+    console.error('No se pudo cargar Tablets 25-26.xlsx:', err.message);
+  }
+})();
+
+/* ---------------------------------------------
  * DATOS (campos y datosSiembra)
  * -------------------------------------------*/
 const campos = [
@@ -1056,6 +1087,7 @@ app.get(
         { header: 'Cargo De', key: 'cargoDe', width: 15 },
         { header: 'Silobolsa', key: 'silobolsa', width: 15 },
         { header: 'Contratista', key: 'contratista', width: 15 },
+        { header: 'Tractor', key: 'tractor', width: 15 },
         { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
         { header: 'Comentarios', key: 'comentarios', width: 28 },
         { header: 'Bruto', key: 'bruto', width: 15 },
@@ -1150,6 +1182,7 @@ app.get(
         ultimoUsuario: req.session.nombreUsuario || req.ingresoCode || '',
         campos,
         datosSiembra,
+        contratistas,
         pendientesTara,
         pendientesConFinal,
         pesadaPara: 'CAMIONES',
@@ -1619,6 +1652,9 @@ app.post('/guardar-regulada', async (req, res) => {
       contratista:
         req.body.cargoDe === 'CONTRATISTA' ? (req.body.contratista || '') : '',
 
+      tractor:
+        req.body.cargoDe === 'CONTRATISTA' ? (req.body.tractor || '') : '',
+
       bruto,
       tara: taraFinal,
       neto: bruto - taraFinal,
@@ -1698,6 +1734,7 @@ app.get(
         registro,
         campos,
         datosSiembra,
+        contratistas,
       });
     } catch (err) {
       console.error('Error en GET /modificar:', err);
@@ -1751,6 +1788,7 @@ app.put(
         cargoDe:      req.body.cargoDe || registro.cargoDe,
         silobolsa:    req.body.cargoDe === 'SILOBOLSA'   ? (req.body.silobolsa   || '').trim() : '',
         contratista:  req.body.cargoDe === 'CONTRATISTA' ? (req.body.contratista || '').trim() : '',
+        tractor:      req.body.cargoDe === 'CONTRATISTA' ? (req.body.tractor     || '').trim() : '',
         comentarios:  (req.body.comentarios || '').trim(),
         modificaciones: (registro.modificaciones || 0) + 1,
       };
@@ -1897,6 +1935,7 @@ async function generarExcelReporteDiario() {
     { header: 'Cargo De',        key: 'cargoDe',        width: 15 },
     { header: 'Silobolsa',       key: 'silobolsa',      width: 15 },
     { header: 'Contratista',     key: 'contratista',    width: 15 },
+    { header: 'Tractor',         key: 'tractor',        width: 15 },
     { header: 'Bruto LOTE',      key: 'brutoLote',      width: 14 },
     { header: 'Comentarios',     key: 'comentarios',    width: 28 },
     { header: 'Bruto',           key: 'bruto',          width: 15 },

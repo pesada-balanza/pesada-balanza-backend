@@ -57,7 +57,26 @@
     </div>
     <div class="col-md-4 form-group" id="contratistaField" style="display:<%= registro.cargoDe === 'CONTRATISTA' ? 'block' : 'none' %>;">
       <label>Nombre Contratista</label>
-      <input type="text" name="contratista" class="form-control" value="<%= registro.contratista || '' %>">
+      <select name="contratista" id="contratista" class="form-control">
+        <option value="">Seleccione un contratista</option>
+        <% Object.keys(contratistas || {}).forEach(nombre => { %>
+          <option value="<%= nombre %>" <%= registro.contratista === nombre ? 'selected' : '' %>><%= nombre %></option>
+        <% }) %>
+      </select>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-4 form-group" id="tractorField" style="display:<%= registro.cargoDe === 'CONTRATISTA' ? 'block' : 'none' %>;">
+      <label>Tractor</label>
+      <select name="tractor" id="tractor" class="form-control">
+        <option value="">Seleccione un tractor</option>
+        <% if (registro.cargoDe === 'CONTRATISTA' && registro.contratista && contratistas && contratistas[registro.contratista]) { %>
+          <% contratistas[registro.contratista].forEach(t => { %>
+            <option value="<%= t %>" <%= registro.tractor === t ? 'selected' : '' %>><%= t %></option>
+          <% }) %>
+        <% } %>
+      </select>
     </div>
   </div>
 
@@ -71,11 +90,26 @@
 </form>
 
 <script>
+  window.contratistas = <%- JSON.stringify(contratistas || {}) %>;
+
   function toggleCargo() {
     const c = document.querySelector('[name="cargoDe"]').value;
     document.getElementById('silobolsaField').style.display   = c === 'SILOBOLSA'   ? 'block' : 'none';
     document.getElementById('contratistaField').style.display = c === 'CONTRATISTA' ? 'block' : 'none';
+    document.getElementById('tractorField').style.display     = c === 'CONTRATISTA' ? 'block' : 'none';
   }
+
+  // Al cambiar contratista, repoblar tractores
+  document.getElementById('contratista')?.addEventListener('change', function () {
+    const tractorSel = document.getElementById('tractor');
+    tractorSel.innerHTML = '<option value="">Seleccione un tractor</option>';
+    const lista = window.contratistas[this.value] || [];
+    lista.forEach(t => {
+      const op = document.createElement('option');
+      op.text = op.value = t;
+      tractorSel.appendChild(op);
+    });
+  });
 </script>
 
 <%- include('partials/footer') %>
