@@ -1092,6 +1092,7 @@ app.get(
         { header: 'Comentarios', key: 'comentarios', width: 28 },
         { header: 'Bruto', key: 'bruto', width: 15 },
         { header: 'Neto', key: 'neto', width: 15 },
+        { header: 'Bruto LOTE - Bruto', key: 'difBrutoLoteBruto', width: 18 },
         { header: 'Anulado', key: 'anulado', width: 10 },
         { header: 'Confirmada CAMIONES', key: 'confirmada', width: 14 },
       ];
@@ -1100,7 +1101,15 @@ app.get(
         const netoExport = r.anulado && typeof r.neto === 'number'
           ? -Math.abs(r.neto)
           : r.neto;
-        const row = sheet.addRow({ ...r, neto: netoExport });
+        const nBrutoLote = Number(r.brutoLote);
+        const nBruto = Number(r.bruto);
+        const difBrutoLoteBruto =
+          (typeof r.brutoLote !== 'undefined' && r.brutoLote !== null && r.brutoLote !== '' &&
+           typeof r.bruto     !== 'undefined' && r.bruto     !== null && r.bruto     !== '' &&
+           !Number.isNaN(nBrutoLote) && !Number.isNaN(nBruto))
+            ? (nBrutoLote - nBruto)
+            : '';
+        const row = sheet.addRow({ ...r, neto: netoExport, difBrutoLoteBruto });
         if (r.anulado && netoExport != null) {
           const cell = row.getCell('neto');
           cell.font = { bold: true, color: { argb: 'FFCC0000' } };
@@ -1467,6 +1476,18 @@ app.post('/confirmar-regulada', (req, res) => {
     });
   }
 
+  // Si es CONTRATISTA, se exigen contratista y tractor
+  if (req.body.cargoDe === 'CONTRATISTA') {
+    const faltanContr = [];
+    if (!req.body.contratista || String(req.body.contratista).trim() === '') faltanContr.push('contratista');
+    if (!req.body.tractor     || String(req.body.tractor).trim() === '')     faltanContr.push('tractor');
+    if (faltanContr.length) {
+      return res.status(400).render('error', {
+        error: `Faltan campos obligatorios en REGULADA (CONTRATISTA): ${faltanContr.join(', ')}`
+      });
+    }
+  }
+
   const toNum = (v) => {
     if (v === '' || v === null || v === undefined) return null;
     const n = Number(v);
@@ -1532,6 +1553,18 @@ app.post('/guardar-regulada', async (req, res) => {
       return res.status(400).render('error', {
         error: `Faltan campos obligatorios en REGULADA: ${faltanBase.join(', ')}`
       });
+    }
+
+    // Si es CONTRATISTA, se exigen contratista y tractor
+    if (req.body.cargoDe === 'CONTRATISTA') {
+      const faltanContr = [];
+      if (!req.body.contratista || String(req.body.contratista).trim() === '') faltanContr.push('contratista');
+      if (!req.body.tractor     || String(req.body.tractor).trim() === '')     faltanContr.push('tractor');
+      if (faltanContr.length) {
+        return res.status(400).render('error', {
+          error: `Faltan campos obligatorios en REGULADA (CONTRATISTA): ${faltanContr.join(', ')}`
+        });
+      }
     }
 
     if (req.body.confirmarTara === 'NO' && !req.body.taraNueva) {
@@ -1940,6 +1973,7 @@ async function generarExcelReporteDiario() {
     { header: 'Comentarios',     key: 'comentarios',    width: 28 },
     { header: 'Bruto',           key: 'bruto',          width: 15 },
     { header: 'Neto',            key: 'neto',           width: 15 },
+    { header: 'Bruto LOTE - Bruto', key: 'difBrutoLoteBruto', width: 18 },
     { header: 'Anulado',         key: 'anulado',        width: 10 },
     { header: 'Confirmada CAMIONES', key: 'confirmada',     width: 14 },
   ];
@@ -1951,9 +1985,18 @@ async function generarExcelReporteDiario() {
     const netoExport = r.anulado && typeof r.neto === 'number'
       ? -Math.abs(r.neto)
       : r.neto;
+    const nBrutoLote = Number(r.brutoLote);
+    const nBruto = Number(r.bruto);
+    const difBrutoLoteBruto =
+      (typeof r.brutoLote !== 'undefined' && r.brutoLote !== null && r.brutoLote !== '' &&
+       typeof r.bruto     !== 'undefined' && r.bruto     !== null && r.bruto     !== '' &&
+       !Number.isNaN(nBrutoLote) && !Number.isNaN(nBruto))
+        ? (nBrutoLote - nBruto)
+        : '';
     const row = sheet.addRow({
       ...r,
       neto: netoExport,
+      difBrutoLoteBruto,
       anulado: r.anulado ? 'ANULADO' : '',
     });
     if (r.anulado && netoExport != null) {

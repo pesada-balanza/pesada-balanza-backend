@@ -20,6 +20,7 @@
   const _cargoDe         = formData?.cargoDe || '';
   const _silobolsa       = formData?.silobolsa || '';
   const _contratista     = formData?.contratista || '';
+  const _tractor         = formData?.tractor || '';
 
   const _brutoLote       = pick(typeof brutoLote !== 'undefined' ? brutoLote : undefined, formData?.brutoLote);
 
@@ -73,6 +74,12 @@
       </div>
     </div>
 
+    <% if (_cargoDe === 'CONTRATISTA') { %>
+      <div class="row mb-2">
+        <div class="col-md-4"><strong>Tractor:</strong> <%= _tractor || '—' %></div>
+      </div>
+    <% } %>
+
     <hr>
 
     <div class="row mb-2">
@@ -100,6 +107,7 @@
   <input type="hidden" name="cargoDe" value="<%= _cargoDe %>">
   <input type="hidden" name="silobolsa" value="<%= _silobolsa %>">
   <input type="hidden" name="contratista" value="<%= _contratista %>">
+  <input type="hidden" name="tractor" value="<%= _tractor %>">
 
   <!-- Confirmaciones originales (para auditoría) -->
   <input type="hidden" name="confirmarTara" value="<%= _confirmarTara %>">
