@@ -1097,7 +1097,8 @@ app.get(
         { header: 'Confirmada CAMIONES', key: 'confirmada', width: 14 },
       ];
 
-      registros.forEach(r => {
+      // Función auxiliar para calcular difBrutoLoteBruto y armar fila
+      const addRowToSheet = (targetSheet, r) => {
         const netoExport = r.anulado && typeof r.neto === 'number'
           ? -Math.abs(r.neto)
           : r.neto;
@@ -1109,12 +1110,28 @@ app.get(
            !Number.isNaN(nBrutoLote) && !Number.isNaN(nBruto))
             ? (nBrutoLote - nBruto)
             : '';
-        const row = sheet.addRow({ ...r, neto: netoExport, difBrutoLoteBruto });
+        const row = targetSheet.addRow({ ...r, neto: netoExport, difBrutoLoteBruto });
         if (r.anulado && netoExport != null) {
           const cell = row.getCell('neto');
           cell.font = { bold: true, color: { argb: 'FFCC0000' } };
         }
-      });
+      };
+
+      registros.forEach(r => addRowToSheet(sheet, r));
+
+      // ── Hoja 2: cargas para SOCIO, ordenadas por fecha y luego por campo ──
+      const registrosSocio = registros
+        .filter(r => r.cargaPara === 'SOCIO')
+        .sort((a, b) => {
+          const fechaCmp = (a.fecha || '').localeCompare(b.fecha || '');
+          if (fechaCmp !== 0) return fechaCmp;
+          return (a.campo || '').localeCompare(b.campo || '');
+        });
+
+      const sheetSocio = workbook.addWorksheet('Cargas SOCIO');
+      sheetSocio.columns = sheet.columns.map(c => ({ ...c }));
+      sheetSocio.getRow(1).font = { bold: true };
+      registrosSocio.forEach(r => addRowToSheet(sheetSocio, r));
 
       res.header(
         'Content-Type',
@@ -1981,7 +1998,8 @@ async function generarExcelReporteDiario() {
   // Cabecera en negrita
   sheet.getRow(1).font = { bold: true };
 
-  registros.forEach(r => {
+  // Función auxiliar para calcular difBrutoLoteBruto y armar fila
+  const addRowToSheetDiario = (targetSheet, r) => {
     const netoExport = r.anulado && typeof r.neto === 'number'
       ? -Math.abs(r.neto)
       : r.neto;
@@ -1993,7 +2011,7 @@ async function generarExcelReporteDiario() {
        !Number.isNaN(nBrutoLote) && !Number.isNaN(nBruto))
         ? (nBrutoLote - nBruto)
         : '';
-    const row = sheet.addRow({
+    const row = targetSheet.addRow({
       ...r,
       neto: netoExport,
       difBrutoLoteBruto,
@@ -2003,7 +2021,23 @@ async function generarExcelReporteDiario() {
       const cell = row.getCell('neto');
       cell.font = { bold: true, color: { argb: 'FFCC0000' } };
     }
-  });
+  };
+
+  registros.forEach(r => addRowToSheetDiario(sheet, r));
+
+  // ── Hoja 2: cargas para SOCIO, ordenadas por fecha y luego por campo ──
+  const registrosSocioDiario = registros
+    .filter(r => r.cargaPara === 'SOCIO')
+    .sort((a, b) => {
+      const fechaCmp = (a.fecha || '').localeCompare(b.fecha || '');
+      if (fechaCmp !== 0) return fechaCmp;
+      return (a.campo || '').localeCompare(b.campo || '');
+    });
+
+  const sheetSocioDiario = workbook.addWorksheet('Cargas SOCIO');
+  sheetSocioDiario.columns = sheet.columns.map(c => ({ ...c }));
+  sheetSocioDiario.getRow(1).font = { bold: true };
+  registrosSocioDiario.forEach(r => addRowToSheetDiario(sheetSocioDiario, r));
 
   const buffer = await workbook.xlsx.writeBuffer();
   return { buffer, total: registros.length, fecha: hoy };
