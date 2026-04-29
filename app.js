@@ -1129,7 +1129,7 @@ app.get(
         });
 
       const sheetSocio = workbook.addWorksheet('Cargas SOCIO');
-      sheetSocio.columns = sheet.columns.map(c => ({ ...c }));
+      sheetSocio.columns = sheet.columns.map(c => ({ header: c.header, key: c.key, width: c.width }));
       sheetSocio.getRow(1).font = { bold: true };
       registrosSocio.forEach(r => addRowToSheet(sheetSocio, r));
 
@@ -2035,7 +2035,7 @@ async function generarExcelReporteDiario() {
     });
 
   const sheetSocioDiario = workbook.addWorksheet('Cargas SOCIO');
-  sheetSocioDiario.columns = sheet.columns.map(c => ({ ...c }));
+  sheetSocioDiario.columns = sheet.columns.map(c => ({ header: c.header, key: c.key, width: c.width }));
   sheetSocioDiario.getRow(1).font = { bold: true };
   registrosSocioDiario.forEach(r => addRowToSheetDiario(sheetSocioDiario, r));
 
