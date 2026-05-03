@@ -1133,6 +1133,31 @@ app.get(
       sheetSocio.getRow(1).font = { bold: true };
       registrosSocio.forEach(r => addRowToSheet(sheetSocio, r));
 
+      // ── Hojas por CAMPO (solo para usuario 12341) ──
+      if (req.observacionCode === '12341') {
+        // Obtener campos únicos (excluir vacíos), ordenados alfabéticamente
+        const camposUnicos = [...new Set(
+          registros.map(r => (r.campo || '').trim()).filter(c => c !== '')
+        )].sort((a, b) => a.localeCompare(b));
+
+        for (const campoNombre of camposUnicos) {
+          const registrosCampo = registros
+            .filter(r => (r.campo || '').trim() === campoNombre)
+            .sort((a, b) => {
+              const fechaCmp = (a.fecha || '').localeCompare(b.fecha || '');
+              if (fechaCmp !== 0) return fechaCmp;
+              return (a.idTicket || 0) - (b.idTicket || 0);
+            });
+
+          // Nombre de hoja: máx 31 caracteres (límite de Excel)
+          const nombreHoja = campoNombre.length > 31 ? campoNombre.substring(0, 31) : campoNombre;
+          const sheetCampo = workbook.addWorksheet(nombreHoja);
+          sheetCampo.columns = sheet.columns.map(c => ({ header: c.header, key: c.key, width: c.width }));
+          sheetCampo.getRow(1).font = { bold: true };
+          registrosCampo.forEach(r => addRowToSheet(sheetCampo, r));
+        }
+      }
+
       res.header(
         'Content-Type',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
