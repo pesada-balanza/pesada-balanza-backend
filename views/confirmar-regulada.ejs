@@ -29,7 +29,6 @@
   const _brutoLote       = pick(typeof brutoLote !== 'undefined' ? brutoLote : undefined, formData?.brutoLote);
 
   const _confirmarTara   = formData?.confirmarTara || 'SI';   // 'SI' | 'NO'
-  const _confirmarBruto  = formData?.confirmarBruto || 'SI';  // 'SI' | 'NO'
 
   const _brutoEstimado   = formData?.brutoEstimado || '';
   const _tara            = formData?.tara || '';
@@ -39,7 +38,7 @@
 
   // Efectivos para cálculo
   const taraEfectiva  = (_confirmarTara === 'NO') ? _taraNueva : _tara;
-  const brutoEfectivo = (_confirmarBruto === 'NO') ? _bruto : _brutoEstimado;
+  const brutoEfectivo = _bruto;  // Bruto regulado ingresado manualmente por el operador
 
   const nTara   = num(taraEfectiva);
   const nBruto  = num(brutoEfectivo);
@@ -47,7 +46,7 @@
 
   // Etiquetas visuales
   const labelTara = (_confirmarTara === 'NO') ? 'Tara NUEVA (kg)' : 'Tara (kg)';
-  const labelBruto = (_confirmarBruto === 'NO') ? 'Bruto CONFIRMADO (kg)' : 'Bruto (kg)';
+  const labelBruto = 'Bruto Regulado (kg)';
 %>
 
 <% if (!_idTicketOrigen) { %>
@@ -121,7 +120,6 @@
 
   <!-- Confirmaciones originales (para auditoría) -->
   <input type="hidden" name="confirmarTara" value="<%= _confirmarTara %>">
-  <input type="hidden" name="confirmarBruto" value="<%= _confirmarBruto %>">
 
   <!-- Valores base recibidos -->
   <input type="hidden" name="brutoEstimado" value="<%= shown(_brutoEstimado) %>">
@@ -131,7 +129,6 @@
 
   <!-- Efectivos (lo que realmente usará el backend para cálculos) -->
   <input type="hidden" name="taraEfectiva" value="<%= shown(taraEfectiva) %>">
-  <input type="hidden" name="brutoEfectivo" value="<%= shown(brutoEfectivo) %>">
   <input type="hidden" name="neto" value="<%= shown(nNeto) %>">
 
   <!-- Campo informativo -->

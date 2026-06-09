@@ -1119,9 +1119,9 @@ app.get(
         { header: 'Tractor', key: 'tractor', width: 15 },
         { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
         { header: 'Comentarios', key: 'comentarios', width: 28 },
-        { header: 'Bruto', key: 'bruto', width: 15 },
+        { header: 'Bruto Regulado', key: 'bruto', width: 16 },
         { header: 'Neto', key: 'neto', width: 15 },
-        { header: 'Bruto LOTE - Bruto', key: 'difBrutoLoteBruto', width: 18 },
+        { header: 'Bruto LOTE - Bruto Regulado', key: 'difBrutoLoteBruto', width: 22 },
         { header: 'Anulado', key: 'anulado', width: 10 },
         { header: 'Confirmada CAMIONES', key: 'confirmada', width: 14 },
       ];
@@ -1545,8 +1545,8 @@ app.post('/confirmar-regulada', (req, res) => {
 
   const requeridosBase = [
     'patentes', 'campo', 'grano',
-    'cargoDe', 'brutoLote',
-    'confirmarTara', 'confirmarBruto'
+    'cargoDe', 'brutoLote', 'bruto',
+    'confirmarTara'
   ];
 
   const faltanBase = requeridosBase.filter(f => {
@@ -1580,13 +1580,10 @@ app.post('/confirmar-regulada', (req, res) => {
     return Number.isNaN(n) ? null : n;
   };
 
-  const brutoEstimado = toNum(req.body.brutoEstimado) ?? 0;
   const taraOriginal  = toNum(req.body.tara) ?? 0;
 
-  // Bruto para REGULADA
-  const bruto = (req.body.confirmarBruto === 'SI')
-    ? brutoEstimado
-    : (toNum(req.body.bruto) ?? 0);
+  // Bruto Regulado ingresado manualmente por el operador
+  const bruto = toNum(req.body.bruto) ?? 0;
 
   // Tara final
   const taraFinal = (req.body.confirmarTara === 'SI')
@@ -1639,8 +1636,8 @@ app.post('/guardar-regulada', async (req, res) => {
 
     const requeridosBase = [
       'patentes', 'campo', 'grano',
-      'cargoDe', 'brutoLote',
-      'confirmarTara', 'confirmarBruto', 'code'
+      'cargoDe', 'brutoLote', 'bruto',
+      'confirmarTara', 'code'
     ];
 
     const faltanBase = requeridosBase.filter(f => {
@@ -1674,19 +1671,10 @@ app.post('/guardar-regulada', async (req, res) => {
       });
     }
 
-    if (req.body.confirmarBruto === 'NO' && !req.body.bruto) {
-      return res.status(400).render('error', {
-        error: 'Debe informar Bruto (kg) si no confirma el Bruto estimado.'
-      });
-    }
-
-    // VUL-04: resolver y validar valores numéricos de REGULADA
-    const brutoRaw = req.body.confirmarBruto === 'SI'
-      ? req.body.brutoEstimado
-      : req.body.bruto;
-    const vBrutoReg = validarNumero(brutoRaw, 0, 60000);
+    // VUL-04: validar Bruto Regulado ingresado por el operador
+    const vBrutoReg = validarNumero(req.body.bruto, 0, 60000);
     if (!vBrutoReg.ok) {
-      return res.status(400).render('error', { error: `Bruto inválido: ${vBrutoReg.error}` });
+      return res.status(400).render('error', { error: `Bruto Regulado inválido: ${vBrutoReg.error}` });
     }
     const bruto = vBrutoReg.valor;
 
@@ -2071,9 +2059,9 @@ async function generarExcelReporteDiario() {
     { header: 'Tractor',         key: 'tractor',        width: 15 },
     { header: 'Bruto LOTE',      key: 'brutoLote',      width: 14 },
     { header: 'Comentarios',     key: 'comentarios',    width: 28 },
-    { header: 'Bruto',           key: 'bruto',          width: 15 },
+    { header: 'Bruto Regulado',  key: 'bruto',          width: 16 },
     { header: 'Neto',            key: 'neto',           width: 15 },
-    { header: 'Bruto LOTE - Bruto', key: 'difBrutoLoteBruto', width: 18 },
+    { header: 'Bruto LOTE - Bruto Regulado', key: 'difBrutoLoteBruto', width: 22 },
     { header: 'Anulado',         key: 'anulado',        width: 10 },
     { header: 'Confirmada CAMIONES', key: 'confirmada',     width: 14 },
   ];
