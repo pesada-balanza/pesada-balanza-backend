@@ -174,10 +174,12 @@
   </div>
 
   <div class="form-group">
-    <label for="lote">Lote</label>
-    <select id="lote" name="lote" class="form-control" required disabled>
-      <option value="">Seleccione un lote</option>
-    </select>
+    <label>Lote <small class="text-muted">(uno o más)</small></label>
+    <div id="loteList" class="border rounded p-2 bg-light"
+         style="max-height:180px;overflow-y:auto;min-height:46px;">
+      <span class="text-muted small">Elegí primero Campo y Grano.</span>
+    </div>
+    <input type="hidden" id="loteRequired" name="_loteRequired" value="1">
   </div>
 
   <div class="form-group">
@@ -195,20 +197,25 @@
   </div>
 
   <div id="contratistaField" class="form-group" style="display:none;">
-    <label for="contratista">Nombre Contratista</label>
-    <select id="contratista" name="contratista" class="form-control">
-      <option value="">Seleccione un contratista</option>
-      <% Object.keys(contratistas || {}).forEach(nombre => { %>
-        <option value="<%= nombre %>"><%= nombre %></option>
+    <label>Nombre Contratista <small class="text-muted">(uno o más)</small></label>
+    <div id="contratistaList" class="border rounded p-2 bg-light"
+         style="max-height:180px;overflow-y:auto;">
+      <% Object.keys(contratistas || {}).forEach((nombre, i) => { %>
+        <div class="form-check">
+          <input class="form-check-input contratista-chk" type="checkbox"
+                 name="contratista" value="<%= nombre %>" id="contr_<%= i %>">
+          <label class="form-check-label" for="contr_<%= i %>"><%= nombre %></label>
+        </div>
       <% }) %>
-    </select>
+    </div>
   </div>
 
   <div id="tractorField" class="form-group" style="display:none;">
-    <label for="tractor">Tractor</label>
-    <select id="tractor" name="tractor" class="form-control" disabled>
-      <option value="">Seleccione un tractor</option>
-    </select>
+    <label>Tractor <small class="text-muted">(uno o más)</small></label>
+    <div id="tractorList" class="border rounded p-2 bg-light"
+         style="max-height:180px;overflow-y:auto;min-height:46px;">
+      <span class="text-muted small">Elegí primero al menos un contratista.</span>
+    </div>
   </div>
 
   <div class="form-group">
@@ -295,32 +302,38 @@
     document.getElementById('contratistaField').style.display = v === 'CONTRATISTA' ? 'block' : 'none';
     document.getElementById('tractorField').style.display     = v === 'CONTRATISTA' ? 'block' : 'none';
 
-    // Resetear / requerir según corresponda
-    const contratistaSel = document.getElementById('contratista');
-    const tractorSel     = document.getElementById('tractor');
-    if (v === 'CONTRATISTA') {
-      contratistaSel.required = true;
-      tractorSel.required     = true;
-    } else {
-      contratistaSel.required = false;
-      tractorSel.required     = false;
-      contratistaSel.value    = '';
-      tractorSel.innerHTML    = '<option value="">Seleccione un tractor</option>';
-      tractorSel.disabled     = true;
+    if (v !== 'CONTRATISTA') {
+      // Limpiar selección si se cambia a SILOBOLSA / vacío
+      document.querySelectorAll('.contratista-chk').forEach(cb => cb.checked = false);
+      renderTractores();
     }
   }
 
-  // Al elegir contratista, cargar sus tractores
-  document.getElementById('contratista')?.addEventListener('change', function () {
-    const tractorSel = document.getElementById('tractor');
-    tractorSel.innerHTML = '<option value="">Seleccione un tractor</option>';
-    const lista = window.contratistas[this.value] || [];
-    lista.forEach(t => {
-      const op = document.createElement('option');
-      op.text = op.value = t;
-      tractorSel.appendChild(op);
-    });
-    tractorSel.disabled = !lista.length;
+  // Tractores: unión de los tractores de todos los contratistas marcados.
+  function renderTractores() {
+    const cont = document.getElementById('tractorList');
+    if (!cont) return;
+    const marcados = Array.from(document.querySelectorAll('.contratista-chk:checked'))
+                          .map(cb => cb.value);
+    const setTr = new Set();
+    marcados.forEach(c => (window.contratistas[c] || []).forEach(t => setTr.add(t)));
+    const tractores = Array.from(setTr).sort();
+
+    if (!tractores.length) {
+      cont.innerHTML = '<span class="text-muted small">Elegí primero al menos un contratista.</span>';
+      return;
+    }
+    cont.innerHTML = tractores.map((t, i) => `
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox"
+               name="tractor" value="${t}" id="tr_${i}">
+        <label class="form-check-label" for="tr_${i}">${t}</label>
+      </div>`).join('');
+  }
+
+  // Listener delegado para checkboxes de contratista
+  document.getElementById('contratistaList')?.addEventListener('change', (ev) => {
+    if (ev.target.classList.contains('contratista-chk')) renderTractores();
   });
 
  function toggleTara() {
@@ -335,16 +348,19 @@
 
   const campoSel = document.getElementById('campo');
   const granoSel = document.getElementById('grano');
-  const loteSel  = document.getElementById('lote');
+  const loteList = document.getElementById('loteList');
+
+  function renderLotesPlaceholder(msg) {
+    loteList.innerHTML = `<span class="text-muted small">${msg}</span>`;
+  }
 
   campoSel.addEventListener('change', () => {
     const campo = campoSel.value;
     granoSel.innerHTML = '<option value="">Seleccione un cultivo</option>';
-    loteSel.innerHTML  = '<option value="">Seleccione un lote</option>';
     granoSel.disabled = true;
-    loteSel.disabled = true;
+    renderLotesPlaceholder('Elegí primero Campo y Grano.');
 
-   const d = window.datosSiembra[campo] || {};
+    const d = window.datosSiembra[campo] || {};
     Object.keys(d).forEach(gr => {
       const op = document.createElement('option');
       op.text = op.value = gr;
@@ -353,19 +369,21 @@
     granoSel.disabled = !Object.keys(d).length;
   });
 
-    granoSel.addEventListener('change', () => {
+  granoSel.addEventListener('change', () => {
     const campo = campoSel.value;
     const grano = granoSel.value;
-    loteSel.innerHTML = '<option value="">Seleccione un lote</option>';
-    loteSel.disabled = true;
-
     const lotes = (window.datosSiembra[campo] || {})[grano] || [];
-    lotes.forEach(lo => {
-      const op = document.createElement('option');
-      op.text = op.value = lo;
-      loteSel.appendChild(op);
-    });
-    loteSel.disabled = !lotes.length;
+
+    if (!lotes.length) {
+      renderLotesPlaceholder('No hay lotes disponibles para este grano.');
+      return;
+    }
+    loteList.innerHTML = lotes.map((lo, i) => `
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox"
+               name="lote" value="${lo}" id="lo_${i}">
+        <label class="form-check-label" for="lo_${i}">${lo}</label>
+      </div>`).join('');
   });
 
   // --- Completar datos en REGULADA
@@ -382,6 +400,22 @@
   selTaraFinal?.addEventListener('change', function () {
     const op = this.options[this.selectedIndex];
     document.getElementById('idTicketTaraFinal').value = op.dataset.idticket || '';
+  });
+
+// Validación de envío para REGULADA: mínimo 1 checkbox por grupo requerido.
+  document.getElementById('formRegulada')?.addEventListener('submit', (ev) => {
+    const lotesMarcados = document.querySelectorAll('#loteList input[name="lote"]:checked').length;
+    if (!lotesMarcados) {
+      ev.preventDefault();
+      alert('Seleccioná al menos un Lote.');
+      return;
+    }
+    if (document.getElementById('cargoDe').value === 'CONTRATISTA') {
+      const cMarcados = document.querySelectorAll('.contratista-chk:checked').length;
+      const tMarcados = document.querySelectorAll('#tractorList input[name="tractor"]:checked').length;
+      if (!cMarcados) { ev.preventDefault(); alert('Seleccioná al menos un Contratista.'); return; }
+      if (!tMarcados) { ev.preventDefault(); alert('Seleccioná al menos un Tractor.'); return; }
+    }
   });
 
 // Estado inicial

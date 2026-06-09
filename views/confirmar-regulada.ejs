@@ -11,16 +11,20 @@
   };
   const pick = (a, b) => (typeof a !== 'undefined' ? a : b);
 
+  // Helper para mostrar arrays como string separado por comas (y tolerar strings legacy)
+  const flat = (v) => Array.isArray(v) ? v.join(', ') : (v == null ? '' : String(v));
+  const arr  = (v) => Array.isArray(v) ? v : (v ? [v] : []);
+
   // Orígenes (formData viene del paso anterior / registro.ejs)
   const _idTicketOrigen  = formData?.idTicketOrigen || idTicketOrigen || ''; // id del ticket TARA a cerrar/actualizar
   const _patentes        = formData?.patentes || '';
   const _campo           = formData?.campo || '';
   const _grano           = formData?.grano || '';
-  const _lote            = formData?.lote || '';
+  const _loteArr         = arr(formData?.lote);
   const _cargoDe         = formData?.cargoDe || '';
   const _silobolsa       = formData?.silobolsa || '';
-  const _contratista     = formData?.contratista || '';
-  const _tractor         = formData?.tractor || '';
+  const _contratistaArr  = arr(formData?.contratista);
+  const _tractorArr      = arr(formData?.tractor);
 
   const _brutoLote       = pick(typeof brutoLote !== 'undefined' ? brutoLote : undefined, formData?.brutoLote);
 
@@ -61,13 +65,13 @@
       <div class="col-md-4"><strong>Grano/Cultivo:</strong> <%= _grano || '—' %></div>
     </div>
     <div class="row mb-2">
-      <div class="col-md-4"><strong>Lote:</strong> <%= _lote || '—' %></div>
+      <div class="col-md-4"><strong>Lote(s):</strong> <%= flat(_loteArr) || '—' %></div>
       <div class="col-md-4"><strong>Cargo de:</strong> <%= _cargoDe || '—' %></div>
       <div class="col-md-4">
         <% if (_cargoDe === 'SILOBOLSA') { %>
           <strong>Silobolsa:</strong> <%= _silobolsa || '—' %>
         <% } else if (_cargoDe === 'CONTRATISTA') { %>
-          <strong>Contratista:</strong> <%= _contratista || '—' %>
+          <strong>Contratista(s):</strong> <%= flat(_contratistaArr) || '—' %>
         <% } else { %>
           <strong>&nbsp;</strong>
         <% } %>
@@ -76,7 +80,7 @@
 
     <% if (_cargoDe === 'CONTRATISTA') { %>
       <div class="row mb-2">
-        <div class="col-md-4"><strong>Tractor:</strong> <%= _tractor || '—' %></div>
+        <div class="col-md-4"><strong>Tractor(es):</strong> <%= flat(_tractorArr) || '—' %></div>
       </div>
     <% } %>
 
@@ -103,11 +107,17 @@
   <input type="hidden" name="patentes" value="<%= _patentes %>">
   <input type="hidden" name="campo" value="<%= _campo %>">
   <input type="hidden" name="grano" value="<%= _grano %>">
-  <input type="hidden" name="lote" value="<%= _lote %>">
+  <% _loteArr.forEach(lo => { %>
+    <input type="hidden" name="lote" value="<%= lo %>">
+  <% }) %>
   <input type="hidden" name="cargoDe" value="<%= _cargoDe %>">
   <input type="hidden" name="silobolsa" value="<%= _silobolsa %>">
-  <input type="hidden" name="contratista" value="<%= _contratista %>">
-  <input type="hidden" name="tractor" value="<%= _tractor %>">
+  <% _contratistaArr.forEach(c => { %>
+    <input type="hidden" name="contratista" value="<%= c %>">
+  <% }) %>
+  <% _tractorArr.forEach(t => { %>
+    <input type="hidden" name="tractor" value="<%= t %>">
+  <% }) %>
 
   <!-- Confirmaciones originales (para auditoría) -->
   <input type="hidden" name="confirmarTara" value="<%= _confirmarTara %>">

@@ -907,6 +907,35 @@ function missingFields(body, fields) {
 }
 
 /**
+ * Normaliza un valor que puede llegar como array (varios checkboxes con
+ * el mismo name) o como string (un solo checkbox marcado) a un array
+ * limpio de strings sin duplicados.
+ */
+function toArr(v) {
+  let arr;
+  if (Array.isArray(v)) arr = v;
+  else if (typeof v === 'string' && v.trim() !== '') arr = [v];
+  else return [];
+  const out = [];
+  const seen = new Set();
+  for (const x of arr) {
+    const s = String(x).trim();
+    if (s && !seen.has(s)) { seen.add(s); out.push(s); }
+  }
+  return out;
+}
+
+/**
+ * Aplana a string un valor que puede venir como array (lote/contratista/tractor
+ * en registros nuevos) o como string (registros viejos), para mostrar en tablas
+ * y exportar a Excel.
+ */
+function flat(v) {
+  if (Array.isArray(v)) return v.join(', ');
+  return v == null ? '' : String(v);
+}
+
+/**
  * VUL-10: Verifica que un ticket no tenga más de `diasMaximos` días de antigüedad.
  * Un ticket de TARA es válido por 5 días para completar TARA FINAL o REGULADA.
  */
@@ -1110,7 +1139,15 @@ app.get(
            !Number.isNaN(nBrutoLote) && !Number.isNaN(nBruto))
             ? (nBrutoLote - nBruto)
             : '';
-        const row = targetSheet.addRow({ ...r, neto: netoExport, difBrutoLoteBruto });
+        const row = targetSheet.addRow({
+          ...r,
+          // Aplanamos arrays multi-valor para que el Excel los muestre legibles
+          lote:        flat(r.lote),
+          contratista: flat(r.contratista),
+          tractor:     flat(r.tractor),
+          neto: netoExport,
+          difBrutoLoteBruto,
+        });
         if (r.anulado && netoExport != null) {
           const cell = row.getCell('neto');
           cell.font = { bold: true, color: { argb: 'FFCC0000' } };
@@ -1501,8 +1538,13 @@ app.post('/guardar-tara-final', async (req, res) => {
  * -------------------------------------------*/
 app.post('/confirmar-regulada', (req, res) => {
 
+  // Normalizar campos multi-valor (checkboxes con mismo name)
+  const lotesArr        = toArr(req.body.lote);
+  const contratistasArr = toArr(req.body.contratista);
+  const tractoresArr    = toArr(req.body.tractor);
+
   const requeridosBase = [
-    'patentes', 'campo', 'grano', 'lote',
+    'patentes', 'campo', 'grano',
     'cargoDe', 'brutoLote',
     'confirmarTara', 'confirmarBruto'
   ];
@@ -1512,17 +1554,19 @@ app.post('/confirmar-regulada', (req, res) => {
     return v === undefined || v === null || String(v).trim() === '';
   });
 
+  if (!lotesArr.length) faltanBase.push('lote');
+
   if (faltanBase.length) {
     return res.status(400).render('error', {
       error: `Faltan campos obligatorios en REGULADA: ${faltanBase.join(', ')}`
     });
   }
 
-  // Si es CONTRATISTA, se exigen contratista y tractor
+  // Si es CONTRATISTA, se exigen al menos un contratista y un tractor
   if (req.body.cargoDe === 'CONTRATISTA') {
     const faltanContr = [];
-    if (!req.body.contratista || String(req.body.contratista).trim() === '') faltanContr.push('contratista');
-    if (!req.body.tractor     || String(req.body.tractor).trim() === '')     faltanContr.push('tractor');
+    if (!contratistasArr.length) faltanContr.push('contratista');
+    if (!tractoresArr.length)    faltanContr.push('tractor');
     if (faltanContr.length) {
       return res.status(400).render('error', {
         error: `Faltan campos obligatorios en REGULADA (CONTRATISTA): ${faltanContr.join(', ')}`
@@ -1563,7 +1607,15 @@ app.post('/confirmar-regulada', (req, res) => {
   const idTicketOrigen = req.body.idTicketOrigen || '';
 
   return res.render('confirmar-regulada', {
-    formData: { ...req.body, code: req.body.code || req.session.codigoIngreso || '' },
+    formData: {
+      ...req.body,
+      // Sobrescribimos con arrays normalizados para que la vista los reciba
+      // siempre como array sin importar cuántos checkboxes vinieron.
+      lote: lotesArr,
+      contratista: contratistasArr,
+      tractor: tractoresArr,
+      code: req.body.code || req.session.codigoIngreso || ''
+    },
     idTicketOrigen,
     bruto,
     tara: taraFinal,
@@ -1580,8 +1632,13 @@ app.post('/guardar-regulada', async (req, res) => {
   try {
     if (!req.body.code) req.body.code = req.session.codigoIngreso || '';
 
+    // Normalizar campos multi-valor (checkboxes con mismo name)
+    const lotesArr        = toArr(req.body.lote);
+    const contratistasArr = toArr(req.body.contratista);
+    const tractoresArr    = toArr(req.body.tractor);
+
     const requeridosBase = [
-      'patentes', 'campo', 'grano', 'lote',
+      'patentes', 'campo', 'grano',
       'cargoDe', 'brutoLote',
       'confirmarTara', 'confirmarBruto', 'code'
     ];
@@ -1591,17 +1648,19 @@ app.post('/guardar-regulada', async (req, res) => {
       return v === undefined || v === null || String(v).trim() === '';
     });
 
+    if (!lotesArr.length) faltanBase.push('lote');
+
     if (faltanBase.length) {
       return res.status(400).render('error', {
         error: `Faltan campos obligatorios en REGULADA: ${faltanBase.join(', ')}`
       });
     }
 
-    // Si es CONTRATISTA, se exigen contratista y tractor
+    // Si es CONTRATISTA, se exigen al menos un contratista y un tractor
     if (req.body.cargoDe === 'CONTRATISTA') {
       const faltanContr = [];
-      if (!req.body.contratista || String(req.body.contratista).trim() === '') faltanContr.push('contratista');
-      if (!req.body.tractor     || String(req.body.tractor).trim() === '')     faltanContr.push('tractor');
+      if (!contratistasArr.length) faltanContr.push('contratista');
+      if (!tractoresArr.length)    faltanContr.push('tractor');
       if (faltanContr.length) {
         return res.status(400).render('error', {
           error: `Faltan campos obligatorios en REGULADA (CONTRATISTA): ${faltanContr.join(', ')}`
@@ -1718,17 +1777,17 @@ app.post('/guardar-regulada', async (req, res) => {
 
       campo: req.body.campo,
       grano: req.body.grano,
-      lote: req.body.lote,
+      lote: lotesArr,
       cargoDe: req.body.cargoDe,
 
       silobolsa:
         req.body.cargoDe === 'SILOBOLSA' ? (req.body.silobolsa || '') : '',
 
       contratista:
-        req.body.cargoDe === 'CONTRATISTA' ? (req.body.contratista || '') : '',
+        req.body.cargoDe === 'CONTRATISTA' ? contratistasArr : [],
 
       tractor:
-        req.body.cargoDe === 'CONTRATISTA' ? (req.body.tractor || '') : '',
+        req.body.cargoDe === 'CONTRATISTA' ? tractoresArr : [],
 
       bruto,
       tara: taraFinal,
@@ -1759,7 +1818,7 @@ app.post('/guardar-regulada', async (req, res) => {
       neto:      bruto - taraFinal,
       campo:         req.body.campo || '',
       grano:         req.body.grano || '',
-      lote:          req.body.lote  || '',
+      lote:          lotesArr.join(', '),
       codigoIngreso: taraDoc.codigoIngreso || req.body.code || '',
     });
 
@@ -2037,6 +2096,9 @@ async function generarExcelReporteDiario() {
         : '';
     const row = targetSheet.addRow({
       ...r,
+      lote:        flat(r.lote),
+      contratista: flat(r.contratista),
+      tractor:     flat(r.tractor),
       neto: netoExport,
       difBrutoLoteBruto,
       anulado: r.anulado ? 'ANULADO' : '',

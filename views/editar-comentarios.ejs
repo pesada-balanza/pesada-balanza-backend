@@ -17,7 +17,7 @@
     <div class="row">
       <div class="col-md-3"><strong>Campo:</strong> <%= registro.campo || '-' %></div>
       <div class="col-md-3"><strong>Grano:</strong> <%= registro.grano || '-' %></div>
-      <div class="col-md-3"><strong>Lote:</strong> <%= registro.lote || '-' %></div>
+      <div class="col-md-3"><strong>Lote:</strong> <%= Array.isArray(registro.lote) ? (registro.lote.join(', ') || '-') : (registro.lote || '-') %></div>
       <div class="col-md-3"><strong>Patentes:</strong> <%= registro.patentes || '-' %></div>
     </div>
   </div>

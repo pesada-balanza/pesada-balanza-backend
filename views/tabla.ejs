@@ -134,10 +134,10 @@
       <td><%= (typeof registro.netoEstimado === 'number') ? registro.netoEstimado : (registro.netoEstimado ?? '') %></td>
       <td><%= registro.campo || '' %></td>
       <td><%= registro.grano || '' %></td>
-      <td><%= registro.lote || '' %></td>
+      <td><%= Array.isArray(registro.lote) ? registro.lote.join(', ') : (registro.lote || '') %></td>
       <td><%= registro.cargoDe || '' %></td>
       <td><%= registro.silobolsa || '' %></td>
-      <td><%= registro.contratista || '' %></td>
+      <td><%= Array.isArray(registro.contratista) ? registro.contratista.join(', ') : (registro.contratista || '') %></td>
       <td><%= (typeof registro.brutoLote === 'number') ? registro.brutoLote : (registro.brutoLote ?? '') %></td> <!-- NUEVO -->
       <td><%= registro.comentarios || '' %></td> <!-- NUEVO -->
       <td><%= (typeof registro.bruto === 'number') ? registro.bruto : (registro.bruto ?? '') %></td>
