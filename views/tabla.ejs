@@ -160,7 +160,7 @@
       <td>
         <% if (!registro.anulado) { %>
           <% if (registro.pesadaPara === 'REGULADA') { %>
-            <a href="/modificar/<%= registro._id %>" class="btn btn-warning btn-sm">Modificar</a>
+            <a href="/editar-comentarios/<%= registro._id %>" class="btn btn-warning btn-sm">Comentarios</a>
           <% } %>
           <form action="/anular/<%= registro._id %>" method="post" style="display:inline;">
             <input type="hidden" name="_method" value="PUT">

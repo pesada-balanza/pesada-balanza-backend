@@ -1774,10 +1774,16 @@ app.post('/guardar-regulada', async (req, res) => {
 });
 
 /* ---------------------------------------------
- * MODIFICAR (GET)
+ * EDITAR COMENTARIOS (GET)
+ * Edita SOLO el campo Comentarios.
+ * Reglas:
+ *  - Registro no anulado.
+ *  - pesadaPara === 'REGULADA' (necesita fechaRegulada como anclaje).
+ *  - Hasta 1 día después de la fecha de REGULADA.
+ *  - Máximo 2 modificaciones por registro.
  * -------------------------------------------*/
 app.get(
-  '/modificar/:id',
+  '/editar-comentarios/:id',
   (req, res, next) => {
     if (!req.session || !req.session.autenticado) {
       return res.redirect('/?error=Sesión expirada');
@@ -1786,6 +1792,9 @@ app.get(
   },
   async (req, res) => {
     try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id))
+        return res.render('error', { error: 'Registro no encontrado' });
+
       const registro = await mongoose.connection.db
         .collection('registros')
         .findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
@@ -1797,32 +1806,30 @@ app.get(
         return res.render('error', { error: 'Registro anulado' });
 
       if (registro.pesadaPara !== 'REGULADA')
-        return res.render('error', { error: 'Solo se pueden modificar registros que ya completaron el ticket de REGULADA.' });
+        return res.render('error', { error: 'Solo se pueden editar comentarios de registros que ya completaron el ticket de REGULADA.' });
 
       if ((registro.modificaciones || 0) >= 2)
-        return res.render('error', { error: 'Límite de modificaciones alcanzado' });
+        return res.render('error', { error: 'Límite de modificaciones alcanzado (máximo 2).' });
 
-      if (!ticketVigente(registro.fechaTaraFinal, 1))
-        return res.render('error', { error: 'El plazo para modificar este registro venció. Solo se permite modificar hasta 1 día después del registro de TARA FINAL.' });
+      if (!ticketVigente(registro.fechaRegulada, 1))
+        return res.render('error', { error: 'El plazo para modificar comentarios venció. Solo se permite hasta 1 día después del registro de REGULADA.' });
 
-      return res.render('modificar', {
-        registro,
-        campos,
-        datosSiembra,
-        contratistas,
-      });
+      return res.render('editar-comentarios', { registro });
     } catch (err) {
-      console.error('Error en GET /modificar:', err);
-      return res.status(500).render('error', { error: 'Error interno al cargar el formulario de modificación.' });
+      console.error('Error en GET /editar-comentarios:', err);
+      return res.status(500).render('error', { error: 'Error interno al cargar el formulario de comentarios.' });
     }
   }
 );
 
 /* ---------------------------------------------
- * MODIFICAR (PUT)
+ * EDITAR COMENTARIOS (PUT)
+ * Actualiza únicamente el campo Comentarios.
+ * Aplica las mismas reglas que el GET y suma 1 al contador de modificaciones.
+ * Registra auditoría como tipoOperacion COMENTARIO.
  * -------------------------------------------*/
 app.put(
-  '/modificar/:id',
+  '/editar-comentarios/:id',
   (req, res, next) => {
     if (!req.session || !req.session.autenticado) {
       return res.redirect('/?error=Sesión expirada');
@@ -1831,6 +1838,9 @@ app.put(
   },
   async (req, res) => {
     try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id))
+        return res.render('error', { error: 'Registro no encontrado' });
+
       const col = mongoose.connection.db.collection('registros');
       const _id = new mongoose.Types.ObjectId(req.params.id);
 
@@ -1842,54 +1852,43 @@ app.put(
         return res.render('error', { error: 'Registro anulado' });
 
       if (registro.pesadaPara !== 'REGULADA')
-        return res.render('error', { error: 'Solo se pueden modificar registros que ya completaron el ticket de REGULADA.' });
+        return res.render('error', { error: 'Solo se pueden editar comentarios de registros que ya completaron el ticket de REGULADA.' });
 
       if ((registro.modificaciones || 0) >= 2)
-        return res.render('error', { error: 'Límite de modificaciones alcanzado' });
+        return res.render('error', { error: 'Límite de modificaciones alcanzado (máximo 2).' });
 
-      if (!ticketVigente(registro.fechaTaraFinal, 1))
-        return res.render('error', { error: 'El plazo para modificar este registro venció. Solo se permite modificar hasta 1 día después del registro de TARA FINAL.' });
+      if (!ticketVigente(registro.fechaRegulada, 1))
+        return res.render('error', { error: 'El plazo para modificar comentarios venció. Solo se permite hasta 1 día después del registro de REGULADA.' });
 
-      // Solo se modifican los campos permitidos; los bloqueados se preservan del registro original.
-      const tara = parseFloat(req.body.tara || 0);
+      const nuevosComentarios = (req.body.comentarios || '').trim();
 
-      const updateData = {
-        // Campos editables
-        patentes:     (req.body.patentes    || '').trim(),
-        chofer:       (req.body.chofer      || '').trim(),
-        tara,
-        netoEstimado: (registro.brutoEstimado || 0) - tara,
-        neto:         (registro.bruto        || 0) - tara,
-        cargoDe:      req.body.cargoDe || registro.cargoDe,
-        silobolsa:    req.body.cargoDe === 'SILOBOLSA'   ? (req.body.silobolsa   || '').trim() : '',
-        contratista:  req.body.cargoDe === 'CONTRATISTA' ? (req.body.contratista || '').trim() : '',
-        tractor:      req.body.cargoDe === 'CONTRATISTA' ? (req.body.tractor     || '').trim() : '',
-        comentarios:  (req.body.comentarios || '').trim(),
-        modificaciones: (registro.modificaciones || 0) + 1,
-      };
+      // Si no hubo cambio real, no consumimos cupo ni generamos auditoría.
+      if ((registro.comentarios || '') === nuevosComentarios) {
+        return res.redirect('/tabla');
+      }
 
-      // Auditoría: guardar estado anterior completo antes de modificar
-      const auditCol2 = mongoose.connection.db.collection('registros_auditoria');
-      const camposAnteriores = {};
-      Object.keys(updateData).forEach(k => {
-        if (registro[k] !== updateData[k]) camposAnteriores[k] = registro[k];
-      });
-      await auditCol2.insertOne({
-        tipoOperacion: 'MODIFICACION',
+      const auditCol = mongoose.connection.db.collection('registros_auditoria');
+      await auditCol.insertOne({
+        tipoOperacion: 'COMENTARIO',
         registroId: _id,
-        camposAnteriores,
-        camposNuevos: updateData,
+        camposAnteriores: { comentarios: registro.comentarios || '' },
+        camposNuevos:     { comentarios: nuevosComentarios },
         usuario: req.session.codigoIngreso || req.session.codigoObservacion || 'desconocido',
         timestamp: new Date(),
       });
 
-      await col.updateOne({ _id }, { $set: updateData });
+      await col.updateOne(
+        { _id },
+        {
+          $set: { comentarios: nuevosComentarios },
+          $inc: { modificaciones: 1 },
+        }
+      );
 
       return res.redirect('/tabla');
-
     } catch (err) {
-      console.error('Error en PUT /modificar/:id:', err);
-      return res.status(500).render('error', { error: 'Error interno al modificar el registro.' });
+      console.error('Error en PUT /editar-comentarios/:id:', err);
+      return res.status(500).render('error', { error: 'Error interno al actualizar los comentarios.' });
     }
   }
 );
