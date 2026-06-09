@@ -48,6 +48,12 @@ app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Exponer el path actual a todas las vistas (para marcar el link activo en el navbar).
+app.use((req, res, next) => {
+  res.locals.currentPath = req.path;
+  next();
+});
+
 // VUL-07: CORS — solo acepta requests desde el dominio de producción
 app.use(cors({
   origin: process.env.FRONTEND_ORIGIN || 'https://pesada-balanza-backend-1.onrender.com',

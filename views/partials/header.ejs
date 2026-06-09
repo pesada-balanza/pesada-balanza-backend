@@ -1,3 +1,33 @@
+<%
+  // Mapeo de path actual → link activo en el navbar.
+  // currentPath viene del middleware en app.js (res.locals).
+  const _path = (typeof currentPath !== 'undefined' && currentPath) ? currentPath : '';
+  const isRegistrar    = _path.startsWith('/registro')
+                         || _path.startsWith('/confirmar-tara')
+                         || _path.startsWith('/confirmar-tara-final')
+                         || _path.startsWith('/confirmar-regulada')
+                         || _path.startsWith('/guardar-regulada');
+  const isVerRegistros = _path.startsWith('/tabla')
+                         || _path.startsWith('/modificar')
+                         || _path.startsWith('/editar-comentarios')
+                         || _path.startsWith('/anular');
+%>
+<style>
+  /* Resalte del link activo en el navbar (desktop y mobile colapsado) */
+  .navbar-nav .nav-link.active {
+    background-color: #cfe2ff;   /* celeste claro */
+    color: #084298 !important;   /* azul oscuro */
+    font-weight: 600;
+    border-radius: .375rem;
+  }
+  /* En desktop, un poco de padding horizontal para que el fondo no se pegue al texto */
+  @media (min-width: 992px) {
+    .navbar-nav .nav-link.active {
+      padding-left: .75rem;
+      padding-right: .75rem;
+    }
+  }
+</style>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
         <a class="navbar-brand" href="/">Pesada Balanza</a>
@@ -7,10 +37,14 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" href="/?redirect=/registro">Registrar</a>
+                    <a class="nav-link <%= isRegistrar ? 'active' : '' %>"
+                       <%= isRegistrar ? 'aria-current="page"' : '' %>
+                       href="/?redirect=/registro">Registrar</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/?redirect=/tabla">Ver Registros</a>
+                    <a class="nav-link <%= isVerRegistros ? 'active' : '' %>"
+                       <%= isVerRegistros ? 'aria-current="page"' : '' %>
+                       href="/?redirect=/tabla">Ver Registros</a>
                 </li>
             </ul>
         </div>
