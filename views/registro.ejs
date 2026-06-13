@@ -81,11 +81,14 @@
     </select>
   </div>
 
-  <div class="mb-3">
-    <label for="tara" class="form-label">Tara (kg) (opcional)</label>
-    <input type="number" id="tara" name="tara"
-           class="form-control" min="0" step="1"
-           placeholder="Podés dejarlo vacío si aún no la sabés">
+  <div class="form-group">
+    <label for="campoCamiones">Campo</label>
+    <select id="campoCamiones" name="campo" class="form-control" required>
+      <option value="">Seleccione un campo</option>
+      <% (campos || []).forEach(c => { %>
+        <option value="<%= c %>"><%= c %></option>
+      <% }) %>
+    </select>
   </div>
 
   <input type="hidden" name="pesadaPara" value="CAMIONES">
@@ -145,7 +148,8 @@
         <option value="<%= reg.patentes %>"
                 data-idticket="<%= reg._id %>"
                 data-bruto="<%= reg.brutoEstimado %>"
-                data-tara="<%= reg.tara %>">
+                data-tara="<%= reg.tara %>"
+                data-campo="<%= reg.campo || '' %>">
           <%= reg.patentes %> (TARA FINAL)
         </option>
       <% }) %>
@@ -380,6 +384,21 @@
     document.getElementById('brutoEstimadoReg').value = op.dataset.bruto || '';
     document.getElementById('taraReg').value  = op.dataset.tara || '';
     document.getElementById('idTicketOrigen').value = op.dataset.idticket || '';
+
+    // Heredar el Campo elegido en el ticket de CAMIONES (editable por el operador).
+    const campoHeredado = op.dataset.campo || '';
+    const tieneOpcion = campoHeredado &&
+      Array.from(campoSel.options).some(o => o.value === campoHeredado);
+    if (tieneOpcion) {
+      campoSel.value = campoHeredado;
+      // Disparar el cascadeo existente: llena el desplegable de Grano según el campo.
+      campoSel.dispatchEvent(new Event('change'));
+      // Auto-elegir el Grano si el campo tiene un único cultivo (placeholder + 1 opción).
+      if (granoSel.options.length === 2) {
+        granoSel.selectedIndex = 1;
+        granoSel.dispatchEvent(new Event('change'));
+      }
+    }
   });
 
  // --- Completar id en TARA FINAL

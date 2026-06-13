@@ -1299,7 +1299,8 @@ app.post('/confirmar-tara', (req, res) => {
     'transporte',
     'patentes',
     'chofer',
-    'brutoEstimado'
+    'brutoEstimado',
+    'campo'
   ];
 
   const faltan = missingFields(req.body, requeridos);
@@ -1331,7 +1332,8 @@ app.post('/guardar-tara', async (req, res) => {
       'transporte',
       'patentes',
       'chofer',
-      'brutoEstimado'
+      'brutoEstimado',
+      'campo'
     ];
 
     const faltan = missingFields(req.body, requeridos);
@@ -1339,6 +1341,11 @@ app.post('/guardar-tara', async (req, res) => {
       return res.status(400).render('error', {
         error: `Faltan campos obligatorios en CAMIONES: ${faltan.join(', ')}`
       });
+    }
+
+    // VUL-04: validar que el campo recibido pertenezca a la lista oficial
+    if (!campos.includes(req.body.campo)) {
+      return res.status(400).render('error', { error: 'Campo inválido o no reconocido.' });
     }
 
     // VUL-04: validar campos numéricos
@@ -1371,6 +1378,7 @@ app.post('/guardar-tara', async (req, res) => {
       transporte: req.body.transporte,
       patentes: req.body.patentes,
       chofer: req.body.chofer,
+      campo: req.body.campo,
       brutoEstimado: brutoEst,
       tara: tara,
       netoEstimado: brutoEst - tara,
