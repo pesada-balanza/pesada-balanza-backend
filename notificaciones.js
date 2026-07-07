@@ -24,7 +24,7 @@ const CODIGOS_NOMBRE = {
   '5682':  'EL WICHI',
   '5683':  'LA JUANITA',
   '5684':  'QUIMILI',
-  '5685':  'NASICH',
+  '5685':  'PACO-PASCUAL',
 };
 
 function resolverNombreCodigo(codigo) {
