@@ -2,13 +2,20 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 
 mongoose.set('strictQuery', true);
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://pesadabalanzauser:mongo405322@pesada-balanza-cluster.dnc7i.mongodb.net/pesada-balanza?retryWrites=true&w=majority&appName=pesada-balanza-cluster';
+
+// La cadena de conexión vive SOLO en la variable de entorno MONGODB_URI
+// (archivo .env en local, panel Environment en Render). Nunca en el código.
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
+    console.error('ERROR: Variable MONGODB_URI no configurada. Definila en .env (local) o en Environment (Render).');
+    process.exit(1);
+}
 
 (async () => {
     try {
         await mongoose.connect(MONGODB_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
         });
         console.log('Conectado a MongoDB');
         const dbName = mongoose.connection.db.databaseName;
@@ -22,7 +29,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://pesadabalanzauser:
 
         await mongoose.connection.close();
     } catch (err) {
-        console.error('Error:', err);
+        console.error('Error:', err.message);
         process.exit(1);
     }
 })();

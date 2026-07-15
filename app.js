@@ -1176,8 +1176,29 @@ app.get(
       sheetSocio.getRow(1).font = { bold: true };
       registrosSocio.forEach(r => addRowToSheet(sheetSocio, r));
 
-      // ── Hojas por CAMPO (solo para usuario 12341) ──
-      if (req.observacionCode === '12341') {
+      // ── Hojas por CAMPO ──
+      // Se generan para TODOS los usuarios de observación. Como `registros` ya
+      // viene filtrado por el código del usuario (ver bloque de arriba), cada
+      // puesto obtiene únicamente las hojas de sus propios campos, mientras que
+      // el usuario GENERAL (12341) sigue viendo las de todos los campos.
+      {
+        // Genera un nombre de hoja válido para Excel: sin caracteres prohibidos
+        // ( : \\ / ? * [ ] ), máximo 31 caracteres y sin repetidos (Excel falla
+        // si dos hojas tienen el mismo nombre).
+        const nombresUsados = new Set();
+        const nombreHojaSeguro = (base) => {
+          let limpio = (base || 'Campo').replace(/[\\/?*\[\]:]/g, ' ').trim().substring(0, 31) || 'Campo';
+          let candidato = limpio;
+          let n = 2;
+          while (nombresUsados.has(candidato.toLowerCase())) {
+            const sufijo = ` (${n})`;
+            candidato = limpio.substring(0, 31 - sufijo.length) + sufijo;
+            n++;
+          }
+          nombresUsados.add(candidato.toLowerCase());
+          return candidato;
+        };
+
         // Obtener campos únicos (excluir vacíos), ordenados alfabéticamente
         const camposUnicos = [...new Set(
           registros.map(r => (r.campo || '').trim()).filter(c => c !== '')
@@ -1192,9 +1213,7 @@ app.get(
               return (a.idTicket || 0) - (b.idTicket || 0);
             });
 
-          // Nombre de hoja: máx 31 caracteres (límite de Excel)
-          const nombreHoja = campoNombre.length > 31 ? campoNombre.substring(0, 31) : campoNombre;
-          const sheetCampo = workbook.addWorksheet(nombreHoja);
+          const sheetCampo = workbook.addWorksheet(nombreHojaSeguro(campoNombre));
           sheetCampo.columns = sheet.columns.map(c => ({ header: c.header, key: c.key, width: c.width }));
           sheetCampo.getRow(1).font = { bold: true };
           registrosCampo.forEach(r => addRowToSheet(sheetCampo, r));
