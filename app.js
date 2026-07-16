@@ -1212,6 +1212,31 @@ app.get(
 
       registros.forEach(r => addRowToSheet(sheet, r));
 
+      // ── Hoja IMPRIMIR: subset de columnas para impresión ──
+      const sheetImprimir = workbook.addWorksheet('IMPRIMIR');
+      sheetImprimir.columns = [
+        { header: 'ID Ticket', key: 'idTicket', width: 10 },
+        { header: 'Fecha', key: 'fecha', width: 15 },
+        { header: 'Carga Para', key: 'cargaPara', width: 15 },
+        { header: 'Socio', key: 'socio', width: 15 },
+        { header: 'Transporte', key: 'transporte', width: 15 },
+        { header: 'Patentes', key: 'patentes', width: 15 },
+        { header: 'Chofer', key: 'chofer', width: 15 },
+        { header: 'Campo', key: 'campo', width: 18 },
+        { header: 'Grano', key: 'grano', width: 12 },
+        { header: 'Lote', key: 'lote', width: 18 },
+        { header: 'Silobolsa', key: 'silobolsa', width: 15 },
+        { header: 'Contratista', key: 'contratista', width: 15 },
+        { header: 'Tara', key: 'tara', width: 10 },
+        { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
+        { header: 'Bruto Regulado', key: 'bruto', width: 16 },
+        { header: 'Neto', key: 'neto', width: 15 },
+        { header: 'CP', key: 'cp', width: 14 },
+        { header: 'Comentarios', key: 'comentarios', width: 28 },
+      ];
+      sheetImprimir.getRow(1).font = { bold: true };
+      registros.forEach(r => addRowToSheet(sheetImprimir, r));
+
       // ── Hoja 2: cargas para SOCIO, ordenadas por fecha y luego por campo ──
       const registrosSocio = registros
         .filter(r => r.cargaPara === 'SOCIO')
