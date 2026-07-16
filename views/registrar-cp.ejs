@@ -1,0 +1,35 @@
+<%- include('partials/header') %>
+<h1>Cargar CTG</h1>
+
+<div class="alert alert-info">
+  Cargá el número de CTG (Código de Trazabilidad de Granos), en la columna <strong>CP</strong>.
+  Disponible hasta 1 día después del registro de REGULADA. Una vez cargado, solo se puede
+  modificar con el botón <strong>Comentarios</strong> (hasta 2 veces).
+</div>
+
+<!-- Datos del registro (solo lectura) -->
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row mb-2">
+      <div class="col-md-3"><strong>ID Ticket:</strong> <%= registro.idTicket %></div>
+      <div class="col-md-3"><strong>Fecha:</strong> <%= registro.fecha %></div>
+      <div class="col-md-3"><strong>Patentes:</strong> <%= registro.patentes || '-' %></div>
+      <div class="col-md-3"><strong>Campo:</strong> <%= registro.campo || '-' %></div>
+    </div>
+  </div>
+</div>
+
+<form action="/registrar-cp/<%= registro._id %>?_method=PUT" method="post" class="mt-3" autocomplete="off">
+  <input type="hidden" name="_method" value="PUT">
+
+  <div class="form-group mt-2">
+    <label>CTG</label>
+    <input type="text" name="cp" class="form-control" maxlength="11" pattern="\d{1,11}"
+           inputmode="numeric" placeholder="Hasta 11 dígitos" required>
+  </div>
+
+  <button type="submit" class="btn btn-primary mt-3">Guardar CTG</button>
+  <a href="/tabla" class="btn btn-outline-secondary mt-3">Cancelar</a>
+</form>
+
+<%- include('partials/footer') %>

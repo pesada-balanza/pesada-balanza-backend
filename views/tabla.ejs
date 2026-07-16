@@ -102,6 +102,7 @@
       <th>Comentarios</th>      <!-- NUEVO -->
       <th>Bruto Regulado</th>
       <th>Neto</th>
+      <th>CP</th>
       <th>Acciones</th>
     </tr>
   </thead>
@@ -157,10 +158,14 @@
           <%= netoVal %>
         <% } %>
       </td>
+      <td><%= registro.cp || '' %></td>
       <td>
         <% if (!registro.anulado) { %>
           <% if (registro.pesadaPara === 'REGULADA') { %>
             <a href="/editar-comentarios/<%= registro._id %>" class="btn btn-warning btn-sm">Comentarios</a>
+          <% } %>
+          <% if (registro.pesadaPara === 'REGULADA' && !registro.cp) { %>
+            <a href="/registrar-cp/<%= registro._id %>" class="btn btn-info btn-sm">CTG</a>
           <% } %>
           <% if (observacionCode === '12341') { %>
             <form action="/anular/<%= registro._id %>" method="post" style="display:inline;">

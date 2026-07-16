@@ -1995,8 +1995,20 @@ app.put(
 
       const nuevosComentarios = (req.body.comentarios || '').trim();
 
+      // El CTG (CP) solo se puede tocar acá si ya fue cargado antes con el botón CTG.
+      let nuevoCp = registro.cp || '';
+      if (registro.cp && req.body.cp !== undefined) {
+        nuevoCp = String(req.body.cp || '').trim();
+        if (!/^\d{1,11}$/.test(nuevoCp)) {
+          return res.status(400).render('error', { error: 'El CTG debe ser numérico, de hasta 11 dígitos.' });
+        }
+      }
+
+      const cambioComentarios = (registro.comentarios || '') !== nuevosComentarios;
+      const cambioCp = (registro.cp || '') !== nuevoCp;
+
       // Si no hubo cambio real, no consumimos cupo ni generamos auditoría.
-      if ((registro.comentarios || '') === nuevosComentarios) {
+      if (!cambioComentarios && !cambioCp) {
         return res.redirect('/tabla');
       }
 
@@ -2004,8 +2016,8 @@ app.put(
       await auditCol.insertOne({
         tipoOperacion: 'COMENTARIO',
         registroId: _id,
-        camposAnteriores: { comentarios: registro.comentarios || '' },
-        camposNuevos:     { comentarios: nuevosComentarios },
+        camposAnteriores: { comentarios: registro.comentarios || '', cp: registro.cp || '' },
+        camposNuevos:     { comentarios: nuevosComentarios, cp: nuevoCp },
         usuario: req.session.codigoIngreso || req.session.codigoObservacion || 'desconocido',
         timestamp: new Date(),
       });
@@ -2013,7 +2025,7 @@ app.put(
       await col.updateOne(
         { _id },
         {
-          $set: { comentarios: nuevosComentarios },
+          $set: { comentarios: nuevosComentarios, cp: nuevoCp },
           $inc: { modificaciones: 1 },
         }
       );
@@ -2022,6 +2034,111 @@ app.put(
     } catch (err) {
       console.error('Error en PUT /editar-comentarios/:id:', err);
       return res.status(500).render('error', { error: 'Error interno al actualizar los comentarios.' });
+    }
+  }
+);
+
+/* ---------------------------------------------
+ * REGISTRAR CTG (CP) — primera carga
+ * Reglas:
+ *  - Registro no anulado, con REGULADA ya registrada.
+ *  - El CP todavía no fue cargado (para modificarlo después, se usa
+ *    Editar Comentarios, que comparte el límite de 2 modificaciones).
+ *  - Hasta 1 día después de la fecha de REGULADA.
+ * -------------------------------------------*/
+app.get(
+  '/registrar-cp/:id',
+  (req, res, next) => {
+    if (!req.session || !req.session.autenticado) {
+      return res.redirect('/?error=Sesión expirada');
+    }
+    return next();
+  },
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id))
+        return res.render('error', { error: 'Registro no encontrado' });
+
+      const registro = await mongoose.connection.db
+        .collection('registros')
+        .findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
+
+      if (!registro)
+        return res.render('error', { error: 'Registro no encontrado' });
+
+      if (registro.anulado)
+        return res.render('error', { error: 'Registro anulado' });
+
+      if (registro.pesadaPara !== 'REGULADA')
+        return res.render('error', { error: 'Solo se puede cargar el CTG de registros que ya completaron el ticket de REGULADA.' });
+
+      if (registro.cp)
+        return res.render('error', { error: 'Este registro ya tiene un CTG cargado. Para modificarlo, usá el botón Comentarios.' });
+
+      if (!ticketVigente(registro.fechaRegulada, 1))
+        return res.render('error', { error: 'El plazo para cargar el CTG venció. Solo se permite hasta 1 día después del registro de REGULADA.' });
+
+      return res.render('registrar-cp', { registro });
+    } catch (err) {
+      console.error('Error en GET /registrar-cp:', err);
+      return res.status(500).render('error', { error: 'Error interno al cargar el formulario de CTG.' });
+    }
+  }
+);
+
+app.put(
+  '/registrar-cp/:id',
+  (req, res, next) => {
+    if (!req.session || !req.session.autenticado) {
+      return res.redirect('/?error=Sesión expirada');
+    }
+    return next();
+  },
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id))
+        return res.render('error', { error: 'Registro no encontrado' });
+
+      const col = mongoose.connection.db.collection('registros');
+      const _id = new mongoose.Types.ObjectId(req.params.id);
+
+      const registro = await col.findOne({ _id });
+      if (!registro)
+        return res.render('error', { error: 'Registro no encontrado' });
+
+      if (registro.anulado)
+        return res.render('error', { error: 'Registro anulado' });
+
+      if (registro.pesadaPara !== 'REGULADA')
+        return res.render('error', { error: 'Solo se puede cargar el CTG de registros que ya completaron el ticket de REGULADA.' });
+
+      if (registro.cp)
+        return res.render('error', { error: 'Este registro ya tiene un CTG cargado. Para modificarlo, usá el botón Comentarios.' });
+
+      if (!ticketVigente(registro.fechaRegulada, 1))
+        return res.render('error', { error: 'El plazo para cargar el CTG venció. Solo se permite hasta 1 día después del registro de REGULADA.' });
+
+      const cp = String(req.body.cp || '').trim();
+      if (!/^\d{1,11}$/.test(cp)) {
+        return res.status(400).render('error', { error: 'El CTG debe ser numérico, de hasta 11 dígitos.' });
+      }
+
+      const auditCol = mongoose.connection.db.collection('registros_auditoria');
+      await auditCol.insertOne({
+        tipoOperacion: 'CTG',
+        registroId: _id,
+        camposAnteriores: { cp: '' },
+        camposNuevos:     { cp },
+        usuario: req.session.codigoIngreso || req.session.codigoObservacion || 'desconocido',
+        timestamp: new Date(),
+      });
+
+      await col.updateOne({ _id }, { $set: { cp } });
+
+      return res.redirect('/tabla');
+    } catch (err) {
+      console.error('Error en PUT /registrar-cp/:id:', err);
+      return res.status(500).render('error', { error: 'Error interno al guardar el CTG.' });
     }
   }
 );

@@ -2,7 +2,8 @@
 <h1>Editar Comentarios</h1>
 
 <div class="alert alert-info">
-  Solo se puede editar el campo <strong>Comentarios</strong>. Disponible hasta 1 día después del registro de REGULADA, con un máximo de 2 modificaciones.
+  Se puede editar el campo <strong>Comentarios</strong><% if (registro.cp) { %> y el <strong>CTG</strong><% } %>.
+  Disponible hasta 1 día después del registro de REGULADA, con un máximo de 2 modificaciones.
 </div>
 
 <!-- Datos del registro (solo lectura) -->
@@ -32,7 +33,15 @@
     <textarea name="comentarios" class="form-control" rows="5"><%= registro.comentarios || '' %></textarea>
   </div>
 
-  <button type="submit" class="btn btn-primary mt-3">Guardar Comentarios</button>
+  <% if (registro.cp) { %>
+    <div class="form-group mt-3">
+      <label>CTG (CP)</label>
+      <input type="text" name="cp" class="form-control" maxlength="11" pattern="\d{1,11}"
+             inputmode="numeric" value="<%= registro.cp %>">
+    </div>
+  <% } %>
+
+  <button type="submit" class="btn btn-primary mt-3">Guardar</button>
   <a href="/tabla" class="btn btn-outline-secondary mt-3">Cancelar</a>
 </form>
 
