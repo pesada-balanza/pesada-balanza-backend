@@ -171,12 +171,15 @@ const campos = [
   "El C 1 GyM - TINTINA - SE",
   "El Centinela 2 - LOGROÑO - SF",
   "El Centinela 3 - LOGROÑO - SF",
+  "El Centinela - LOGROÑO SF",
   "El Mataco - SACHAYOJ - SE",
+  "El Rodeo - TOSTADO SF",
   "Ferulo Guido 2 - SACHAYOJ - SE",
   "Gioda - SAN FRANCISCO - SE",
   "Gomez - VILELAS - SE",
   "Grifa - Zunesma - TINTINA - SE",
   "Hidalgo - TINTINA - SE",
+  "La Chuchi - Avelleira y Cesar",
   "La Juanita - Ciriaci  (Ex Lote Lalo) - H. M. Miraval - SE",
   "La Juanita - H.M. MIRAVAL - SE",
   "La Porfía - ARBOL BLANCO - SE",
@@ -194,6 +197,53 @@ const campos = [
   "Tierra Negra - ARBOL BLANCO - SE",
   "Wichí - SACHAYOJ - SE",
 ].sort();
+
+// Campo → código de ingreso del usuario de balanza correspondiente (según
+// planilla de siembra 25-26). Los campos que no aparecen aquí no tienen
+// usuario fijo asignado y siguen usando el código de quien esté logueado.
+const campoUsuario = {
+  "Charata - CHARATA - CH": "5679",
+  "El 44 - ARBOL BLANCO - SE": "5679",
+  "El Mataco - SACHAYOJ - SE": "5679",
+  "La Porfía - ARBOL BLANCO - SE": "5679",
+  "Panuncio - ARBOL BLANCO - SE": "5679",
+  "Tierra Negra - ARBOL BLANCO - SE": "5679",
+
+  "La Pradera - ARBOL BLANCO - SE": "5680",
+
+  "El 90 Red Surcos - TINTINA - SE": "5681",
+  "El C 1 Ciriaci - TINTINA - SE": "5681",
+  "El C 1 GyM - TINTINA - SE": "5681",
+  "Grifa - Zunesma - TINTINA - SE": "5681",
+  "Hidalgo - TINTINA - SE": "5681",
+
+  "Aguero - SACHAYOJ - SE": "5682",
+  "Ferulo Guido 2 - SACHAYOJ - SE": "5682",
+  "Martinoli - SACHAYOJ - SE": "5682",
+  "Poncho Perdido Guido F - SACHAYOJ - SE": "5682",
+  "Wichí - SACHAYOJ - SE": "5682",
+
+  "Doble Cero (Fermaneli) - AEROLITO - SE": "5683",
+  "El Búfalo - H. MEJ. MIRAVAL - SE": "5683",
+  "La Juanita - Ciriaci  (Ex Lote Lalo) - H. M. Miraval - SE": "5683",
+  "La Juanita - H.M. MIRAVAL - SE": "5683",
+  "Martina - ALHUAMPA - SE": "5683",
+
+  "AMAMÁ - Villa Brana - SE": "5684",
+  "AVELLEIRA": "5684",
+  "Campo Cesar Bressan": "5684",
+  "Cejolao - CEJOLAO - SE": "5684",
+  "Cueto - CEJOLAO - SE": "5684",
+  "Gomez - VILELAS - SE": "5684",
+  "La Chuchi - Avelleira y Cesar": "5684",
+  "La Purificada - QUIMILI - SE": "5684",
+  "Santa Justina Cura Malal - QUIMILI - SE": "5684",
+  "Santa Justina Mahuida - QUIMILI - SE": "5684",
+
+  "Don Paco - ARBOL BLANCO - SE": "5685",
+  "Don Pascual - ARBOL BLANCO - SE": "5685",
+  "Gioda - SAN FRANCISCO - SE": "5685",
+};
 
 const datosSiembra = {
   "AMAMÁ - Villa Brana - SE": {
@@ -1404,7 +1454,10 @@ app.post('/guardar-tara', async (req, res) => {
       anulado: false,
       modificaciones: 0,
       confirmada: false,
-      codigoIngreso: req.body.code || req.session.codigoIngreso || '',
+      // El campo elegido manda: si tiene usuario de balanza fijo asignado
+      // (planilla siembra 25-26), el ticket queda de ese usuario aunque quien
+      // lo tipeó esté logueado con otro código.
+      codigoIngreso: campoUsuario[req.body.campo] || req.body.code || req.session.codigoIngreso || '',
     };
 
     await mongoose.connection.db.collection('registros').insertOne(registro);
