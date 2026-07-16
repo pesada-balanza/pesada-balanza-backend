@@ -162,10 +162,12 @@
           <% if (registro.pesadaPara === 'REGULADA') { %>
             <a href="/editar-comentarios/<%= registro._id %>" class="btn btn-warning btn-sm">Comentarios</a>
           <% } %>
-          <form action="/anular/<%= registro._id %>" method="post" style="display:inline;">
-            <input type="hidden" name="_method" value="PUT">
-            <button type="submit" class="btn btn-danger btn-sm">Anular</button>
-          </form>
+          <% if (observacionCode === '12341') { %>
+            <form action="/anular/<%= registro._id %>" method="post" style="display:inline;">
+              <input type="hidden" name="_method" value="PUT">
+              <button type="submit" class="btn btn-danger btn-sm">Anular</button>
+            </form>
+          <% } %>
         <% } else { %>
           <span class="text-danger">Anulado</span>
         <% } %>

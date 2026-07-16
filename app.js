@@ -2034,6 +2034,11 @@ app.put(
  * -------------------------------------------*/
 async function handleAnular(req, res) {
   try {
+    // Solo el usuario general (12341) puede anular tickets.
+    if (req.session.codigoObservacion !== '12341') {
+      return res.status(403).render('error', { error: 'No tenés permiso para anular tickets.' });
+    }
+
     // VUL-14: validar ObjectId antes de cualquier operación
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).render('error', { error: 'ID de registro inválido.' });
