@@ -25,10 +25,25 @@ const mongoose = require('mongoose');
 const cron = require('node-cron');
 const qrcode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
+const fs = require('fs');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
 const lineas = require('./lineas');
 const { generarWorkbookReporte, ymd, MIME_XLSX } = require('./reporteExcel');
+
+/* ---------------------------------------------
+ * RED DE SEGURIDAD: que ningún error suelto tumbe el worker.
+ * Un tropiezo de WhatsApp/Chrome puede lanzar un error "por fuera" del
+ * try/catch normal. Sin esto, Node cerraría todo el programa. Con esto,
+ * lo anotamos y el worker sigue vivo para el próximo envío.
+ * -------------------------------------------*/
+process.on('unhandledRejection', (reason) => {
+  const msg = reason && reason.message ? reason.message : reason;
+  console.error('[Aviso] Error no manejado (el worker sigue vivo):', msg);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Aviso] Excepción no capturada (el worker sigue vivo):', err && err.message ? err.message : err);
+});
 
 /* ---------------------------------------------
  * CONFIG
@@ -69,45 +84,92 @@ let enviando = false;
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /* ---------------------------------------------
- * WHATSAPP CLIENT
+ * WHATSAPP CLIENT (con recuperación automática)
  * -------------------------------------------*/
-const client = new Client({
-  authStrategy: new LocalAuth({ dataPath: DATA_PATH }),
-  puppeteer: {
-    headless: true,
-    executablePath: CHROMIUM_PATH,   // undefined = usa el Chromium que trae whatsapp-web.js
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  },
-});
+let client = null;          // se (re)crea desde crearClient()
+let reiniciando = false;    // evita reinicios superpuestos
 
-client.on('qr', async (qr) => {
-  estado = 'esperando_qr';
-  try { ultimoQrDataUrl = await qrcode.toDataURL(qr); } catch (_) { ultimoQrDataUrl = null; }
-  console.log('\n[WhatsApp] Escaneá este QR con la línea de la empresa');
-  console.log('           (WhatsApp › Dispositivos vinculados › Vincular dispositivo).');
-  console.log(`           También podés abrirlo en el navegador: http://localhost:${PORT}\n`);
-  qrcodeTerminal.generate(qr, { small: true });
-});
+/** Borra la carpeta de sesión (cuando quedó corrupta). */
+function borrarSesion() {
+  try {
+    fs.rmSync(DATA_PATH, { recursive: true, force: true });
+    console.log('[WhatsApp] Sesión anterior borrada (se pedirá QR nuevo).');
+  } catch (err) {
+    console.error('[WhatsApp] No se pudo borrar la sesión:', err.message);
+  }
+}
 
-client.on('loading_screen', () => { estado = 'conectando'; });
-client.on('authenticated', () => { estado = 'conectando'; ultimoQrDataUrl = null; });
+/** Crea un cliente nuevo con todos sus eventos enganchados. */
+function crearClient() {
+  const c = new Client({
+    authStrategy: new LocalAuth({ dataPath: DATA_PATH }),
+    puppeteer: {
+      headless: true,
+      executablePath: CHROMIUM_PATH,   // undefined = usa el Chrome descargado por puppeteer
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    },
+  });
 
-client.on('ready', () => {
-  estado = 'listo';
-  ultimoQrDataUrl = null;
-  console.log('[WhatsApp] Conectado y listo. La sesión quedó guardada; no hace falta re-escanear salvo que la cierres.');
-});
+  c.on('qr', async (qr) => {
+    estado = 'esperando_qr';
+    try { ultimoQrDataUrl = await qrcode.toDataURL(qr); } catch (_) { ultimoQrDataUrl = null; }
+    console.log('\n[WhatsApp] Escaneá este QR con la línea de la empresa');
+    console.log('           (WhatsApp › Dispositivos vinculados › Vincular dispositivo).');
+    console.log(`           También podés abrirlo en el navegador: http://localhost:${PORT}\n`);
+    qrcodeTerminal.generate(qr, { small: true });
+  });
 
-client.on('auth_failure', (msg) => {
-  estado = 'desconectado';
-  console.error('[WhatsApp] Falló la autenticación:', msg);
-});
+  c.on('loading_screen', () => { estado = 'conectando'; });
+  c.on('authenticated', () => { estado = 'conectando'; ultimoQrDataUrl = null; });
 
-client.on('disconnected', (reason) => {
-  estado = 'desconectado';
-  console.warn('[WhatsApp] Desconectado:', reason, '- intentando reconectar...');
-  client.initialize().catch(err => console.error('[WhatsApp] Error al reinicializar:', err.message));
-});
+  c.on('ready', () => {
+    estado = 'listo';
+    ultimoQrDataUrl = null;
+    console.log('[WhatsApp] Conectado y listo. La sesión quedó guardada; no hace falta re-escanear salvo que la cierres.');
+  });
+
+  c.on('auth_failure', (msg) => {
+    estado = 'desconectado';
+    console.error('[WhatsApp] Falló la autenticación:', msg);
+    // Credenciales inválidas → sesión corrupta: reiniciar borrándola.
+    reiniciarWhatsApp(true);
+  });
+
+  c.on('disconnected', (reason) => {
+    estado = 'desconectado';
+    console.warn('[WhatsApp] Desconectado:', reason, '- reintentando reconexión...');
+    reiniciarWhatsApp(false);
+  });
+
+  return c;
+}
+
+/**
+ * Arranca (o reinicia) el cliente de WhatsApp con recuperación:
+ *  - Si falla por sesión corrupta, la borra y vuelve a pedir QR.
+ *  - Nunca cierra el programa; reintenta con espera.
+ * @param {boolean} borrar  true para borrar la sesión antes de reintentar
+ */
+async function reiniciarWhatsApp(borrar = false) {
+  if (reiniciando) return;
+  reiniciando = true;
+  try {
+    estado = 'conectando';
+    if (client) { try { await client.destroy(); } catch (_) {} }
+    if (borrar) borrarSesion();
+    client = crearClient();
+    await client.initialize();
+    reiniciando = false;
+  } catch (err) {
+    reiniciando = false;
+    const msg = err && err.message ? err.message : String(err);
+    console.error('[WhatsApp] Error al inicializar:', msg);
+    // Estos errores suelen indicar sesión/estado corrupto → conviene borrar.
+    const corrupta = /Execution context was destroyed|Protocol error|Target closed|Session closed/i.test(msg);
+    console.log(`[WhatsApp] Reintentando en 15 segundos${corrupta ? ' (borrando sesión corrupta)' : ''}...`);
+    setTimeout(() => reiniciarWhatsApp(corrupta), 15000);
+  }
+}
 
 /* ---------------------------------------------
  * NÚMEROS
@@ -271,40 +333,48 @@ const server = http.createServer(async (req, res) => {
  * ARRANQUE
  * -------------------------------------------*/
 async function main() {
+  // 1) Base de datos (esto sí es imprescindible para funcionar)
   mongoose.set('strictQuery', true);
-  await mongoose.connect(MONGODB_URI, {
-    serverSelectionTimeoutMS: 10000,
-    socketTimeoutMS: 45000,
-  });
-  console.log('[Mongo] Conectado a la base de datos.');
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    });
+    console.log('[Mongo] Conectado a la base de datos.');
+  } catch (err) {
+    console.error('[Fatal] No se pudo conectar a la base de datos:', err.message);
+    console.error('         Revisá MONGODB_URI en el archivo .env y tu conexión a internet.');
+    process.exit(1);
+  }
 
+  // 2) Panel web (QR / estado / prueba)
   server.listen(PORT, () => {
     console.log(`[Web] Panel de control en http://localhost:${PORT}`);
   });
 
-  console.log('[WhatsApp] Inicializando cliente...');
-  await client.initialize();
-
-  // Cron: todos los días a las 19:00 hora de Argentina
+  // 3) Cron: se programa SIEMPRE, aunque WhatsApp todavía esté reconectando
   cron.schedule('0 19 * * *', () => {
     console.log('[Cron] 19:00 — disparando reporte diario por WhatsApp.');
     enviarReportes().catch(err => console.error('[Cron] Error:', err.message));
   }, { timezone: 'America/Argentina/Buenos_Aires' });
   console.log('[Cron] Programado el envío diario a las 19:00 (hora Argentina).');
 
-  // Envío inmediato opcional para probar
+  // 4) WhatsApp: arranca con recuperación automática (no bloquea ni cierra)
+  console.log('[WhatsApp] Inicializando cliente...');
+  reiniciarWhatsApp(false);
+
+  // 5) Envío inmediato opcional para probar (--enviar-ahora)
   if (process.argv.includes('--enviar-ahora')) {
     console.log('[Inicio] --enviar-ahora detectado: se enviará apenas WhatsApp esté listo.');
-    const timer = setInterval(async () => {
+    const timer = setInterval(() => {
       if (estado === 'listo') {
         clearInterval(timer);
-        await enviarReportes();
+        enviarReportes().catch(err => console.error('[Envío] Error:', err.message));
       }
     }, 3000);
   }
 }
 
 main().catch(err => {
-  console.error('[Fatal] No se pudo arrancar el worker:', err.message);
-  process.exit(1);
+  console.error('[Fatal] Error inesperado al arrancar:', err && err.message ? err.message : err);
 });
