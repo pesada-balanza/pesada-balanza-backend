@@ -1,0 +1,23 @@
+{
+  "name": "pesada-balanza-whatsapp-worker",
+  "version": "1.0.0",
+  "description": "Worker independiente que envía el reporte diario por WhatsApp (whatsapp-web.js). Corre en una PC de la oficina, no en Render.",
+  "private": true,
+  "main": "worker.js",
+  "scripts": {
+    "start": "node worker.js",
+    "enviar-ahora": "node worker.js --enviar-ahora"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "mongoose": "^8.4.0",
+    "node-cron": "^3.0.3",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}
