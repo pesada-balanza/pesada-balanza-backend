@@ -73,6 +73,25 @@ const ingresoAObservacion = {
   '5685':  '1241',
 };
 
+// Nombre de la balanza por código de observación (para el nombre del archivo
+// y el texto del mensaje). Editá acá si cambia algún nombre.
+const NOMBRES_BALANZA = {
+  '12341': 'GENERAL',
+  '1235':  'EL MATACO',
+  '1236':  'LA PRADERA',
+  '1237':  'EL C1',
+  '1238':  'EL WICHI',
+  '1239':  'EL BUFALO',
+  '1240':  'QUIMILI',
+  '1241':  'DON PACO-PASCUAL',
+};
+
+/** Nombre de balanza apto para nombre de archivo (sin caracteres inválidos). */
+function nombreBalanza(obsCode) {
+  const base = NOMBRES_BALANZA[obsCode] || obsCode;
+  return String(base).replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '-').trim();
+}
+
 /* ---------------------------------------------
  * ESTADO (para la página web de control)
  * -------------------------------------------*/
@@ -257,10 +276,11 @@ async function enviarReportes() {
       const workbook = generarWorkbookReporte(registros);
       const buffer = await workbook.xlsx.writeBuffer();
       const base64 = Buffer.from(buffer).toString('base64');
-      const filename = `reporte_${obsCode}_${hoy}.xlsx`;
+      const filename = `reporte_${nombreBalanza(obsCode)}_${hoy}.xlsx`;
       const media = new MessageMedia(MIME_XLSX, base64, filename);
       const caption =
         `*Pesada Balanza* — Reporte diario ${hoy}\n` +
+        `Balanza: ${NOMBRES_BALANZA[obsCode] || obsCode}\n` +
         `${registros.length} ticket${registros.length !== 1 ? 's' : ''} de las últimas 24 hs.`;
 
       for (const numero of numeros) {
