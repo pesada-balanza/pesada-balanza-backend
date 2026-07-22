@@ -193,9 +193,10 @@ async function resolverChatId(raw) {
   const n = normalizarNumero(raw);
   if (!n) return null;
   // WhatsApp exige el identificador LID; el @c.us da "No LID for user".
-  // Usamos el LID que devuelve getNumberId (funciona con quien ya hay chat).
+  // Los contactos argentinos se guardan CON el 9 (+54 9 ...), así que buscamos
+  // ese formato primero: suele devolver el LID correcto (el del contacto real).
   const con9 = (n.startsWith('54') && n[2] !== '9') ? '549' + n.slice(2) : n;
-  const candidatos = con9 === n ? [n] : [n, con9];
+  const candidatos = con9 === n ? [n] : [con9, n];
   for (const c of candidatos) {
     try {
       const id = await client.getNumberId(c);
