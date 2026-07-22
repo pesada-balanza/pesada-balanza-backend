@@ -192,10 +192,10 @@ function normalizarNumero(raw) {
 async function resolverChatId(raw) {
   const n = normalizarNumero(raw);
   if (!n) return null;
-  // La línea que envía usa el formato con "9" de celular argentino (54 9 ...),
-  // así que probamos ese primero y luego el número sin 9.
+  // En WhatsApp Argentina el JID que ENTREGA es el número SIN el 9 extra
+  // (54 + área + número). Lo probamos primero; el "con 9" queda de respaldo.
   const con9 = (n.startsWith('54') && n[2] !== '9') ? '549' + n.slice(2) : n;
-  const candidatos = con9 === n ? [n] : [con9, n];
+  const candidatos = con9 === n ? [n] : [n, con9];
   for (const c of candidatos) {
     try {
       const id = await client.getNumberId(c);
