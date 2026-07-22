@@ -66,6 +66,22 @@ Editá el archivo **`lineas.js`** (tiene instrucciones adentro). Cada código de
 observación (12341, 1235, …, 1241) tiene su lista de números. Guardá y reiniciá
 el programa.
 
+## IMPORTANTE: activar cada destinatario (una sola vez)
+
+Por seguridad, WhatsApp **sólo entrega** los reportes a quien **ya tiene una
+conversación** con la línea que envía. A un número "nuevo", el programa puede
+decir "OK" pero el mensaje **no llega**.
+
+Por eso, cada destinatario nuevo tiene que **activarse una vez**:
+
+- **Lo más simple:** pedile a cada persona que le mande **un mensaje cualquiera
+  (un "hola")** a la línea que envía. Con eso queda activada para siempre.
+- **Alternativa:** desde la línea que envía, escribile vos a cada uno y esperá
+  que te **respondan** (que haya ida y vuelta).
+
+Después de eso, el reporte diario les llega solo. Si algún día un destinatario
+deja de recibir, probablemente haya que reactivar la conversación.
+
 ## Para que arranque solo al prender la PC (opcional, recomendado)
 
 Así no dependés de acordarte de abrirlo:
