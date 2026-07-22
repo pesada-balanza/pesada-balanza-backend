@@ -192,16 +192,14 @@ function normalizarNumero(raw) {
 async function resolverChatId(raw) {
   const n = normalizarNumero(raw);
   if (!n) return null;
-  // En WhatsApp Argentina el JID que ENTREGA es el número SIN el 9 extra
-  // (54 + área + número). Lo probamos primero; el "con 9" queda de respaldo.
+  // WhatsApp exige el identificador LID; el @c.us da "No LID for user".
+  // Usamos el LID que devuelve getNumberId (funciona con quien ya hay chat).
   const con9 = (n.startsWith('54') && n[2] !== '9') ? '549' + n.slice(2) : n;
   const candidatos = con9 === n ? [n] : [n, con9];
   for (const c of candidatos) {
     try {
       const id = await client.getNumberId(c);
-      // IMPORTANTE: enviamos al JID basado en el NÚMERO (@c.us), no al @lid
-      // que devuelve getNumberId — el @lid no entrega a varios destinatarios.
-      if (id) return `${c}@c.us`;
+      if (id) return id._serialized;
     } catch (err) {
       console.error(`[WhatsApp] Error al resolver ${c}:`, err.message);
     }
