@@ -992,6 +992,23 @@ function flat(v) {
 }
 
 /**
+ * Configura una hoja de Excel para imprimir en A4 (horizontal, ajustada al
+ * ancho de la página, repitiendo la fila de títulos en cada página impresa).
+ */
+function configurarA4(ws) {
+  ws.pageSetup = {
+    paperSize: 9,              // 9 = A4
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,             // todo el ancho en una sola página
+    fitToHeight: 0,            // alto: tantas páginas como haga falta
+    horizontalCentered: true,
+    margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
+  };
+  ws.pageSetup.printTitlesRow = '1:1';   // repetir encabezado en cada página
+}
+
+/**
  * VUL-10: Verifica que un ticket no tenga más de `diasMaximos` días de antigüedad.
  * Un ticket de TARA es válido por 5 días para completar TARA FINAL o REGULADA.
  */
@@ -1294,6 +1311,9 @@ app.get(
           registrosCampo.forEach(r => addRowToSheet(sheetCampo, r));
         }
       }
+
+      // Configurar TODAS las hojas para impresión en A4
+      workbook.worksheets.forEach(configurarA4);
 
       res.header(
         'Content-Type',
@@ -2370,6 +2390,9 @@ async function generarExcelReporteDiario() {
   sheetSocioDiario.columns = sheet.columns.map(c => ({ header: c.header, key: c.key, width: c.width }));
   sheetSocioDiario.getRow(1).font = { bold: true };
   registrosSocioDiario.forEach(r => addRowToSheetDiario(sheetSocioDiario, r));
+
+  // Configurar TODAS las hojas para impresión en A4
+  workbook.worksheets.forEach(configurarA4);
 
   const buffer = await workbook.xlsx.writeBuffer();
   return { buffer, total: registros.length, fecha: hoy };
