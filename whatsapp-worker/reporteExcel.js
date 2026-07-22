@@ -121,7 +121,15 @@ function configurarA4(ws) {
     margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
   };
   ws.pageSetup.printTitlesRow = '1:1';   // repetir encabezado en cada página
+  // Encabezados: apilar (ajustar texto) los nombres de más de una palabra
+  ws.getRow(1).alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
 }
+
+// Columnas que NO se muestran en la hoja "Cargas SOCIO":
+// - Carga Para: redundante (ya está la columna Socio)
+// - Cargo De: redundante (ya están Silobolsa y Contratista)
+// - Tractor
+const EXCLUIR_SOCIO = ['cargaPara', 'cargoDe', 'tractor'];
 
 /**
  * Construye el workbook completo (Registros + IMPRIMIR + Cargas SOCIO) a
@@ -154,7 +162,9 @@ function generarWorkbookReporte(registros) {
     });
 
   const sheetSocio = workbook.addWorksheet('Cargas SOCIO');
-  sheetSocio.columns = COLUMNS_REGISTROS.map(c => ({ header: c.header, key: c.key, width: c.width }));
+  sheetSocio.columns = COLUMNS_REGISTROS
+    .filter(c => !EXCLUIR_SOCIO.includes(c.key))
+    .map(c => ({ header: c.header, key: c.key, width: c.width }));
   sheetSocio.getRow(1).font = { bold: true };
   registrosSocio.forEach(r => addRow(sheetSocio, r));
 
