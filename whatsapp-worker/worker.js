@@ -80,6 +80,7 @@ let estado = 'iniciando';          // iniciando | esperando_qr | conectando | li
 let ultimoQrDataUrl = null;        // QR como imagen (data URL) para mostrar en el navegador
 let ultimoResumen = null;          // resumen del último envío
 let enviando = false;
+let numeroConectado = null;        // número de la línea con la que se vinculó (quién ENVÍA)
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -125,7 +126,9 @@ function crearClient() {
   c.on('ready', () => {
     estado = 'listo';
     ultimoQrDataUrl = null;
-    console.log('[WhatsApp] Conectado y listo. La sesión quedó guardada; no hace falta re-escanear salvo que la cierres.');
+    try { numeroConectado = (c.info && c.info.wid) ? c.info.wid.user : null; } catch (_) { numeroConectado = null; }
+    console.log(`[WhatsApp] Conectado y listo. ENVÍA desde la línea: ${numeroConectado || 'desconocida'}.`);
+    console.log('[WhatsApp] La sesión quedó guardada; no hace falta re-escanear salvo que la cierres.');
   });
 
   c.on('auth_failure', (msg) => {
@@ -268,9 +271,19 @@ async function enviarReportes() {
           continue;
         }
         try {
+          const waId = String(chatId).replace('@c.us', '');
+          const autoEnvio = numeroConectado && waId === numeroConectado;
+          if (autoEnvio) {
+            // El destinatario es la MISMA línea que envía → WhatsApp lo manda al
+            // chat de "mensajes propios" y no se ve como mensaje recibido.
+            salteados++;
+            detalle.push(`⚠️ ${obsCode} → ${numero}: es la MISMA línea que envía, se saltea (auto-envío)`);
+            console.warn(`[Envío] ${obsCode} → ${numero}: coincide con la línea que envía (${numeroConectado}), salteado.`);
+            await sleep(DELAY_MS);
+            continue;
+          }
           await client.sendMessage(chatId, media, { caption });
           enviados++;
-          const waId = String(chatId).replace('@c.us', '');
           detalle.push(`✅ ${obsCode} → ${numero} [llegó a: ${waId}] (${registros.length} tickets)`);
           console.log(`[Envío] ${obsCode} → ${numero} [WhatsApp real: ${waId}]: OK (${registros.length} tickets)`);
         } catch (err) {
@@ -319,6 +332,7 @@ function paginaHtml() {
     .estado{font-size:18px;margin:12px 0}</style></head><body>
     <h1>Worker WhatsApp — Pesada Balanza</h1>
     <p class="estado">Estado: <b>${etiquetas[estado] || estado}</b></p>
+    ${numeroConectado ? `<p class="estado">Envía desde la línea: <b>${numeroConectado}</b></p>` : ''}
     ${qrBloque}
     ${estado === 'listo' ? `<form method="POST" action="/enviar"><button type="submit">Enviar reporte de prueba ahora</button></form>` : ''}
     ${resumenBloque}
