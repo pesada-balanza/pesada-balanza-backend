@@ -278,10 +278,7 @@ async function enviarReportes() {
       const base64 = Buffer.from(buffer).toString('base64');
       const filename = `reporte_${nombreBalanza(obsCode)}_${hoy}.xlsx`;
       const media = new MessageMedia(MIME_XLSX, base64, filename);
-      const caption =
-        `*Pesada Balanza* — Reporte diario ${hoy}\n` +
-        `Balanza: ${NOMBRES_BALANZA[obsCode] || obsCode}\n` +
-        `${registros.length} ticket${registros.length !== 1 ? 's' : ''} de las últimas 24 hs.`;
+      const caption = `Balanza: ${NOMBRES_BALANZA[obsCode] || obsCode}`;
 
       for (const numero of numeros) {
         const chatId = await resolverChatId(numero);
@@ -338,9 +335,7 @@ async function enviarReporteAUno(numeroDestino) {
   const workbook = generarWorkbookReporte(registros);
   const buffer = await workbook.xlsx.writeBuffer();
   const media = new MessageMedia(MIME_XLSX, Buffer.from(buffer).toString('base64'), `reporte_PRUEBA_${hoy}.xlsx`);
-  const caption =
-    `*Pesada Balanza* — PRUEBA de reporte ${hoy}\n` +
-    `${registros.length} ticket${registros.length !== 1 ? 's' : ''} de las últimas 24 hs.`;
+  const caption = `Balanza: ${NOMBRES_BALANZA['12341']} (PRUEBA)`;
 
   const chatId = await resolverChatId(numeroDestino);
   if (!chatId) {
