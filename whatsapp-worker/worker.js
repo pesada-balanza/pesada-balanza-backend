@@ -189,13 +189,19 @@ function normalizarNumero(raw) {
 async function resolverChatId(raw) {
   const n = normalizarNumero(raw);
   if (!n) return null;
-  try {
-    const id = await client.getNumberId(n);
-    return id ? id._serialized : null;
-  } catch (err) {
-    console.error(`[WhatsApp] Error al resolver ${raw}:`, err.message);
-    return null;
+  // Probamos el número tal cual y, si WhatsApp no lo encuentra, la variante
+  // con "9" de celular argentino (54 9 ...), que a veces es la registrada.
+  const variantes = [n];
+  if (n.startsWith('54') && n[2] !== '9') variantes.push('549' + n.slice(2));
+  for (const v of variantes) {
+    try {
+      const id = await client.getNumberId(v);
+      if (id) return id._serialized;
+    } catch (err) {
+      console.error(`[WhatsApp] Error al resolver ${v}:`, err.message);
+    }
   }
+  return null;
 }
 
 /* ---------------------------------------------
@@ -264,8 +270,9 @@ async function enviarReportes() {
         try {
           await client.sendMessage(chatId, media, { caption });
           enviados++;
-          detalle.push(`✅ ${obsCode} → ${numero} (${registros.length} tickets)`);
-          console.log(`[Envío] ${obsCode} → ${numero}: OK (${registros.length} tickets)`);
+          const waId = String(chatId).replace('@c.us', '');
+          detalle.push(`✅ ${obsCode} → ${numero} [llegó a: ${waId}] (${registros.length} tickets)`);
+          console.log(`[Envío] ${obsCode} → ${numero} [WhatsApp real: ${waId}]: OK (${registros.length} tickets)`);
         } catch (err) {
           salteados++;
           detalle.push(`❌ ${obsCode} → ${numero}: ${err.message}`);
