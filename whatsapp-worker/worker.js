@@ -192,16 +192,18 @@ function normalizarNumero(raw) {
 async function resolverChatId(raw) {
   const n = normalizarNumero(raw);
   if (!n) return null;
-  // Probamos el número tal cual y, si WhatsApp no lo encuentra, la variante
-  // con "9" de celular argentino (54 9 ...), que a veces es la registrada.
-  const variantes = [n];
-  if (n.startsWith('54') && n[2] !== '9') variantes.push('549' + n.slice(2));
-  for (const v of variantes) {
+  // La línea que envía usa el formato con "9" de celular argentino (54 9 ...),
+  // así que probamos ese primero y luego el número sin 9.
+  const con9 = (n.startsWith('54') && n[2] !== '9') ? '549' + n.slice(2) : n;
+  const candidatos = con9 === n ? [n] : [con9, n];
+  for (const c of candidatos) {
     try {
-      const id = await client.getNumberId(v);
-      if (id) return id._serialized;
+      const id = await client.getNumberId(c);
+      // IMPORTANTE: enviamos al JID basado en el NÚMERO (@c.us), no al @lid
+      // que devuelve getNumberId — el @lid no entrega a varios destinatarios.
+      if (id) return `${c}@c.us`;
     } catch (err) {
-      console.error(`[WhatsApp] Error al resolver ${v}:`, err.message);
+      console.error(`[WhatsApp] Error al resolver ${c}:`, err.message);
     }
   }
   return null;
@@ -303,6 +305,41 @@ async function enviarReportes() {
   return { ok: true, enviados, salteados, detalle };
 }
 
+/**
+ * Envía el reporte GENERAL (12341) a UN solo número, para probar sin
+ * mandarle a los 17 y sin arriesgar la línea.
+ */
+async function enviarReporteAUno(numeroDestino) {
+  if (estado !== 'listo') {
+    console.warn(`[Prueba] WhatsApp no está listo (estado: ${estado}).`);
+    return;
+  }
+  const hoy = ymd(new Date());
+  const registros = await fetchRegistros('12341');   // general = todos los campos
+  const workbook = generarWorkbookReporte(registros);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const media = new MessageMedia(MIME_XLSX, Buffer.from(buffer).toString('base64'), `reporte_PRUEBA_${hoy}.xlsx`);
+  const caption =
+    `*Pesada Balanza* — PRUEBA de reporte ${hoy}\n` +
+    `${registros.length} ticket${registros.length !== 1 ? 's' : ''} de las últimas 24 hs.`;
+
+  const chatId = await resolverChatId(numeroDestino);
+  if (!chatId) {
+    console.warn(`[Prueba] ${numeroDestino}: sin WhatsApp / número inválido.`);
+    ultimoResumen = { fecha: hoy, cuando: hoy, enviados: 0, salteados: 1, detalle: [`⚠️ PRUEBA → ${numeroDestino}: sin WhatsApp / número inválido`] };
+    return;
+  }
+  const waId = String(chatId).replace('@c.us', '');
+  try {
+    await client.sendMessage(chatId, media, { caption });
+    console.log(`[Prueba] ${numeroDestino} [WhatsApp real: ${waId}]: OK (${registros.length} tickets)`);
+    ultimoResumen = { fecha: hoy, cuando: hoy, enviados: 1, salteados: 0, detalle: [`✅ PRUEBA → ${numeroDestino} [llegó a: ${waId}] (${registros.length} tickets)`] };
+  } catch (err) {
+    console.error(`[Prueba] ${numeroDestino}: ERROR ${err.message}`);
+    ultimoResumen = { fecha: hoy, cuando: hoy, enviados: 0, salteados: 1, detalle: [`❌ PRUEBA → ${numeroDestino}: ${err.message}`] };
+  }
+}
+
 /* ---------------------------------------------
  * PÁGINA WEB DE CONTROL (QR / estado / prueba)
  * -------------------------------------------*/
@@ -334,7 +371,14 @@ function paginaHtml() {
     <p class="estado">Estado: <b>${etiquetas[estado] || estado}</b></p>
     ${numeroConectado ? `<p class="estado">Envía desde la línea: <b>${numeroConectado}</b></p>` : ''}
     ${qrBloque}
-    ${estado === 'listo' ? `<form method="POST" action="/enviar"><button type="submit">Enviar reporte de prueba ahora</button></form>` : ''}
+    ${estado === 'listo' ? `
+      <form method="POST" action="/enviar-uno" style="margin:12px 0">
+        <input name="numero" placeholder="Ej: 543482640795" style="padding:9px;font-size:15px;width:220px;border:1px solid #ccc;border-radius:6px" />
+        <button type="submit">Probar UN número</button>
+      </form>
+      <form method="POST" action="/enviar" onsubmit="return confirm('Esto envía a TODOS los números configurados. ¿Continuar?')">
+        <button type="submit" style="background:#888">Enviar a TODOS ahora</button>
+      </form>` : ''}
     ${resumenBloque}
     <p style="color:#888;font-size:13px">La página se actualiza sola cada 8 segundos.</p>
     </body></html>`;
@@ -345,6 +389,17 @@ const server = http.createServer(async (req, res) => {
     enviarReportes().catch(err => console.error('[Envío] Error:', err.message));
     res.writeHead(303, { Location: '/' });
     return res.end();
+  }
+  if (req.method === 'POST' && req.url === '/enviar-uno') {
+    let body = '';
+    req.on('data', c => { body += c; });
+    req.on('end', () => {
+      const numero = (new URLSearchParams(body).get('numero') || '').trim();
+      if (numero) enviarReporteAUno(numero).catch(err => console.error('[Prueba] Error:', err.message));
+      res.writeHead(303, { Location: '/' });
+      res.end();
+    });
+    return;
   }
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(paginaHtml());
