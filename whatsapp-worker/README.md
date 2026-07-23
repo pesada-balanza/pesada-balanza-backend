@@ -82,16 +82,36 @@ Por eso, cada destinatario nuevo tiene que **activarse una vez**:
 Después de eso, el reporte diario les llega solo. Si algún día un destinatario
 deja de recibir, probablemente haya que reactivar la conversación.
 
-## Para que arranque solo al prender la PC (opcional, recomendado)
+## Para que arranque solo al prender la PC (recomendado)
 
-Así no dependés de acordarte de abrirlo:
+Así no dependés de acordarte de abrir la ventana, y si el programa se cae,
+se reinicia solo.
 
-- **Windows**: instalá PM2 (`npm install -g pm2 pm2-windows-startup`), luego
-  `pm2 start worker.js --name whatsapp` y `pm2 save`. O creá una tarea en el
-  *Programador de tareas* que ejecute `npm start` en esta carpeta al iniciar
-  sesión.
-- **Linux/Mac**: usá PM2 (`pm2 start worker.js --name whatsapp && pm2 save &&
-  pm2 startup`) o un servicio de systemd.
+**Windows (método simple con el Programador de tareas):**
+
+1. En esta carpeta ya viene el archivo **`iniciar.bat`** (arranca el worker y
+   lo reinicia solo si se detiene).
+2. Menú Inicio → escribí **"Programador de tareas"** y abrilo.
+3. A la derecha, **"Crear tarea..."** (no "básica").
+4. Pestaña **General**: ponele un nombre (ej. *Worker WhatsApp*) y tildá
+   **"Ejecutar solo cuando el usuario haya iniciado sesión"**.
+5. Pestaña **Desencadenadores** → **Nuevo** → en "Iniciar la tarea" elegí
+   **"Al iniciar sesión"** → Aceptar.
+6. Pestaña **Acciones** → **Nueva** → "Iniciar un programa" → **Examinar** y
+   elegí `C:\whatsapp-worker\iniciar.bat` → Aceptar.
+7. Pestaña **Condiciones**: destildá *"Iniciar la tarea solo si el equipo está
+   conectado a corriente alterna"* (por si es notebook).
+8. Aceptar. Listo: cada vez que se inicie sesión en esa PC, el worker arranca
+   solo. Para probarlo ahora, clic derecho sobre la tarea → **Ejecutar**.
+
+> Conviene que esa PC tenga **inicio de sesión automático** para que, tras un
+> reinicio, entre sola a Windows y dispare la tarea. (Se configura con `netplwiz`.)
+
+**Alternativa avanzada (PM2):** `npm install -g pm2 pm2-windows-startup`, luego
+`pm2 start worker.js --name whatsapp` y `pm2 save`.
+
+**Linux/Mac:** PM2 (`pm2 start worker.js --name whatsapp && pm2 save &&
+pm2 startup`) o un servicio de systemd.
 
 ## Problemas frecuentes
 
