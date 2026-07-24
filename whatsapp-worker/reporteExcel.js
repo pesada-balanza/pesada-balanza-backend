@@ -125,6 +125,44 @@ function configurarA4(ws) {
   ws.getRow(1).alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
 }
 
+/**
+ * Agrega al final de la hoja una fila con el TOTAL de toneladas de la columna
+ * "Neto". El Neto se guarda en kilogramos, así que el total se divide por 1000
+ * para expresarlo en toneladas. Se usa una fórmula SUM (con el resultado ya
+ * calculado en caché) para que Excel lo recalcule si se editan valores.
+ * Los tickets anulados figuran con Neto negativo, por lo que se restan del total.
+ * (Réplica de agregarTotalNeto de app.js.)
+ */
+function agregarTotalNeto(ws) {
+  const colNeto = (ws.columns || []).find(c => c && c.key === 'neto');
+  if (!colNeto) return;                  // la hoja no tiene columna Neto
+  const ultimaFilaDatos = ws.rowCount;   // fila 1 = encabezados
+  if (ultimaFilaDatos < 2) return;       // no hay filas de datos
+
+  // Suma en kg de los valores numéricos de la columna Neto (para cachear el total)
+  let sumaKg = 0;
+  for (let f = 2; f <= ultimaFilaDatos; f++) {
+    const v = ws.getRow(f).getCell(colNeto.number).value;
+    const n = Number(v);
+    if (v !== null && v !== '' && !Number.isNaN(n)) sumaKg += n;
+  }
+
+  const letra = colNeto.letter;
+  const totalRow = ws.addRow([]);
+
+  const etiqueta = totalRow.getCell(1);
+  etiqueta.value = 'TOTAL Neto (toneladas)';
+  etiqueta.font = { bold: true };
+
+  const celdaTotal = totalRow.getCell(colNeto.number);
+  celdaTotal.value = {
+    formula: `SUM(${letra}2:${letra}${ultimaFilaDatos})/1000`,
+    result: sumaKg / 1000,
+  };
+  celdaTotal.numFmt = '#,##0.000';
+  celdaTotal.font = { bold: true };
+}
+
 // Columnas que NO se muestran en la hoja "Cargas SOCIO":
 // - Carga Para: redundante (ya está la columna Socio)
 // - Cargo De: redundante (ya están Silobolsa y Contratista)
@@ -167,6 +205,9 @@ function generarWorkbookReporte(registros) {
     .map(c => ({ header: c.header, key: c.key, width: c.width }));
   sheetSocio.getRow(1).font = { bold: true };
   registrosSocio.forEach(r => addRow(sheetSocio, r));
+
+  // Total de toneladas (columna Neto) al final de cada hoja
+  workbook.worksheets.forEach(agregarTotalNeto);
 
   // Configurar TODAS las hojas para impresión en A4
   workbook.worksheets.forEach(configurarA4);
