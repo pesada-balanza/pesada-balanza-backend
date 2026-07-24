@@ -992,6 +992,31 @@ function flat(v) {
 }
 
 /**
+ * Configura una hoja de Excel para imprimir en A4 (horizontal, ajustada al
+ * ancho de la página, repitiendo la fila de títulos en cada página impresa).
+ */
+function configurarA4(ws) {
+  ws.pageSetup = {
+    paperSize: 9,              // 9 = A4
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,             // todo el ancho en una sola página
+    fitToHeight: 0,            // alto: tantas páginas como haga falta
+    horizontalCentered: true,
+    margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
+  };
+  ws.pageSetup.printTitlesRow = '1:1';   // repetir encabezado en cada página
+  // Encabezados: apilar (ajustar texto) los nombres de más de una palabra
+  ws.getRow(1).alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' };
+}
+
+// Columnas que NO se muestran en la hoja "Cargas SOCIO":
+// - Carga Para: redundante (ya está la columna Socio)
+// - Cargo De: redundante (ya están Silobolsa y Contratista)
+// - Tractor
+const EXCLUIR_SOCIO = ['cargaPara', 'cargoDe', 'tractor'];
+
+/**
  * VUL-10: Verifica que un ticket no tenga más de `diasMaximos` días de antigüedad.
  * Un ticket de TARA es válido por 5 días para completar TARA FINAL o REGULADA.
  */
@@ -1247,7 +1272,9 @@ app.get(
         });
 
       const sheetSocio = workbook.addWorksheet('Cargas SOCIO');
-      sheetSocio.columns = sheet.columns.map(c => ({ header: c.header, key: c.key, width: c.width }));
+      sheetSocio.columns = sheet.columns
+        .filter(c => !EXCLUIR_SOCIO.includes(c.key))
+        .map(c => ({ header: c.header, key: c.key, width: c.width }));
       sheetSocio.getRow(1).font = { bold: true };
       registrosSocio.forEach(r => addRowToSheet(sheetSocio, r));
 
@@ -1295,6 +1322,9 @@ app.get(
         }
       }
 
+      // Configurar TODAS las hojas para impresión en A4
+      workbook.worksheets.forEach(configurarA4);
+
       res.header(
         'Content-Type',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -1339,8 +1369,9 @@ app.get(
       
       const col = mongoose.connection.db.collection('registros');
 
-      // Tara pendientes (sin TARA FINAL)
-      const pendientesTara = await col
+      // Tara pendientes (sin TARA FINAL). Se ocultan las VENCIDAS: un ticket de
+      // CAMIONES sólo sirve para TARA FINAL hasta 1 día después (día 0 y día 1).
+      const pendientesTara = (await col
         .find({
           pesadaPara: 'CAMIONES',
           anulado: { $ne: true },
@@ -1348,7 +1379,8 @@ app.get(
           fechaTaraFinal: { $exists: false }
         })
         .sort({ idTicket: -1 })
-        .toArray();
+        .toArray())
+        .filter(r => ticketVigente(r.fecha, 1));
 
       // Registros con TARA FINAL disponibles para REGULADA.
       // Solo se muestran los del propio operador: TARA FINAL y REGULADA deben
@@ -1598,10 +1630,10 @@ app.post('/guardar-tara-final', async (req, res) => {
       });
     }
 
-    // VUL-10: el ticket de TARA no puede tener más de 5 días de antigüedad
-    if (!ticketVigente(taraDoc.fecha, 5)) {
+    // VUL-10: el ticket de TARA no puede tener más de 1 día de antigüedad
+    if (!ticketVigente(taraDoc.fecha, 1)) {
       return res.status(400).render('error', {
-        error: `El ticket de CAMIONES del ${taraDoc.fecha} venció (máximo 5 días). Debés anularlo y crear uno nuevo.`
+        error: `El ticket de CAMIONES del ${taraDoc.fecha} venció (máximo 1 día). Debés anularlo y crear uno nuevo.`
       });
     }
 
@@ -2367,9 +2399,14 @@ async function generarExcelReporteDiario() {
     });
 
   const sheetSocioDiario = workbook.addWorksheet('Cargas SOCIO');
-  sheetSocioDiario.columns = sheet.columns.map(c => ({ header: c.header, key: c.key, width: c.width }));
+  sheetSocioDiario.columns = sheet.columns
+    .filter(c => !EXCLUIR_SOCIO.includes(c.key))
+    .map(c => ({ header: c.header, key: c.key, width: c.width }));
   sheetSocioDiario.getRow(1).font = { bold: true };
   registrosSocioDiario.forEach(r => addRowToSheetDiario(sheetSocioDiario, r));
+
+  // Configurar TODAS las hojas para impresión en A4
+  workbook.worksheets.forEach(configurarA4);
 
   const buffer = await workbook.xlsx.writeBuffer();
   return { buffer, total: registros.length, fecha: hoy };
