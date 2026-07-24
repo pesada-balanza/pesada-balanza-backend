@@ -1369,8 +1369,9 @@ app.get(
       
       const col = mongoose.connection.db.collection('registros');
 
-      // Tara pendientes (sin TARA FINAL)
-      const pendientesTara = await col
+      // Tara pendientes (sin TARA FINAL). Se ocultan las VENCIDAS: un ticket de
+      // CAMIONES sólo sirve para TARA FINAL hasta 1 día después (día 0 y día 1).
+      const pendientesTara = (await col
         .find({
           pesadaPara: 'CAMIONES',
           anulado: { $ne: true },
@@ -1378,7 +1379,8 @@ app.get(
           fechaTaraFinal: { $exists: false }
         })
         .sort({ idTicket: -1 })
-        .toArray();
+        .toArray())
+        .filter(r => ticketVigente(r.fecha, 1));
 
       // Registros con TARA FINAL disponibles para REGULADA.
       // Solo se muestran los del propio operador: TARA FINAL y REGULADA deben
@@ -1628,10 +1630,10 @@ app.post('/guardar-tara-final', async (req, res) => {
       });
     }
 
-    // VUL-10: el ticket de TARA no puede tener más de 5 días de antigüedad
-    if (!ticketVigente(taraDoc.fecha, 5)) {
+    // VUL-10: el ticket de TARA no puede tener más de 1 día de antigüedad
+    if (!ticketVigente(taraDoc.fecha, 1)) {
       return res.status(400).render('error', {
-        error: `El ticket de CAMIONES del ${taraDoc.fecha} venció (máximo 5 días). Debés anularlo y crear uno nuevo.`
+        error: `El ticket de CAMIONES del ${taraDoc.fecha} venció (máximo 1 día). Debés anularlo y crear uno nuevo.`
       });
     }
 
