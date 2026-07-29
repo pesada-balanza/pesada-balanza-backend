@@ -639,6 +639,116 @@
   };
 
   /* ═══════════════════════════════════════════════════════════════════════
+   * Compartir el PDF del ticket (WhatsApp, mail, lo que tenga el teléfono)
+   * -----------------------------------------------------------------------
+   * El archivo se baja de antemano, al abrir la pantalla. Es a propósito: el
+   * Safari del iPhone solo deja compartir si el pedido sale en el mismo toque
+   * del dedo, y no llega si primero hay que esperar una descarga.
+   * ═════════════════════════════════════════════════════════════════════ */
+
+  function bajarArchivo(url, cb) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.responseType = 'blob';
+    xhr.timeout = 20000;
+    xhr.onload = function () {
+      if (xhr.status >= 200 && xhr.status < 300 && xhr.response) return cb(null, xhr.response);
+      cb(new Error('No se pudo preparar el PDF.'), null);
+    };
+    xhr.onerror = function () { cb(new Error('sin conexión'), null); };
+    xhr.ontimeout = function () { cb(new Error('sin conexión'), null); };
+    xhr.send();
+  }
+
+  function guardarComoArchivo(blob, nombre) {
+    try {
+      if (window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveOrOpenBlob(blob, nombre);
+        return true;
+      }
+      var url = window.URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = nombre;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.setTimeout(function () { window.URL.revokeObjectURL(url); }, 20000);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * App.compartir({ boton, url, nombre, titulo, texto })
+   * Prepara el archivo al abrir la pantalla y lo comparte al tocar el botón.
+   * Si el teléfono no sabe compartir archivos, lo descarga.
+   */
+  App.compartir = function (op) {
+    var boton = op.boton;
+    if (!boton) return;
+    var listo = null;
+    var bajando = false;
+
+    function preparar() {
+      if (listo || bajando || !hayConexion()) return;
+      bajando = true;
+      bajarArchivo(op.url, function (err, blob) {
+        bajando = false;
+        if (!err) listo = blob;
+      });
+    }
+
+    function compartir(blob) {
+      var archivo = null;
+      try {
+        archivo = new File([blob], op.nombre, { type: 'application/pdf' });
+      } catch (e) {
+        archivo = null; // navegador viejo sin File()
+      }
+
+      if (archivo && navigator.canShare && navigator.share &&
+          navigator.canShare({ files: [archivo] })) {
+        navigator
+          .share({ files: [archivo], title: op.titulo || '', text: op.texto || '' })
+          .then(function () { App.brindis('Listo, se compartió.'); })
+          .catch(function (e) {
+            // Si el usuario cancela no hay nada que avisar.
+            if (e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) return;
+            if (guardarComoArchivo(blob, op.nombre)) {
+              App.brindis('Se descargó el PDF. Compartilo desde tus archivos.', 'ambar');
+            }
+          });
+        return;
+      }
+
+      // La computadora y los teléfonos que no comparten archivos: se descarga.
+      if (guardarComoArchivo(blob, op.nombre)) {
+        App.brindis('Se descargó el PDF. Compartilo desde tus archivos.', 'ambar');
+      } else {
+        window.location.href = op.url;
+      }
+    }
+
+    boton.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (listo) return compartir(listo);
+      var restaurar = bloquear(boton, 'Preparando…');
+      bajarArchivo(op.url, function (err, blob) {
+        restaurar();
+        if (err) return App.brindis('No se pudo preparar el PDF. Fijate si tenés internet.', 'rojo');
+        listo = blob;
+        compartir(blob);
+      });
+    });
+
+    preparar();
+    if (window.addEventListener) window.addEventListener('online', preparar);
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════════
    * Tickets guardados en el teléfono (para imprimirlos sin señal)
    * ═════════════════════════════════════════════════════════════════════ */
 

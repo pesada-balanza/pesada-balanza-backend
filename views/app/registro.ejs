@@ -127,6 +127,14 @@
     <div class="tarjeta" style="padding:16px; gap:9px">
       <a class="btn btn-borde-suave" href="/app/imprimir?ids=<%= r.id %>">Imprimir el ticket</a>
 
+      <%# El PDF recién se comparte cuando está cargada la regulada: antes el
+          ticket no tiene todos los pesos y solo se imprime (ref. 5e). %>
+      <% if (r.completo) { %>
+        <button type="button" class="btn btn-borde-suave" id="compartir-pdf"
+                data-necesita-internet data-clase-normal="btn btn-borde-suave"
+                data-texto="Compartir el PDF">Compartir el PDF</button>
+      <% } %>
+
       <% if (!r.anulado && (!pedido || pedido.estado !== 'PENDIENTE')) { %>
         <button type="button" class="btn btn-borde"
                 data-necesita-internet data-clase-normal="btn btn-borde"
@@ -239,6 +247,21 @@
       },
       alFallar: function (msg) { errorObs.innerHTML = App.esc(msg); }
     });
+  });
+  <% } %>
+
+  <% if (r.completo) { %>
+  App.compartir({
+    boton: document.getElementById('compartir-pdf'),
+    url: '/app/ticket-pdf/' + idReg,
+    nombre: <%- JSON.stringify('ticket-' + String(r.nro).replace(/[^\w-]/g, '') + '.pdf') %>,
+    titulo: <%- JSON.stringify('Ticket ' + r.nro + ' · ' + r.patentes) %>,
+    texto: <%- JSON.stringify(
+      'Ticket ' + r.nro + ' · ' + r.patentes +
+      (r.chofer ? ' · ' + r.chofer : '') +
+      (r.grano ? ' · ' + r.grano : '') +
+      (r.neto !== null ? ' · Neto ' + kg(r.neto) + ' kg' : '')
+    ) %>
   });
   <% } %>
 

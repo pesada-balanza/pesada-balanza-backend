@@ -66,6 +66,26 @@ balanzas, autoriza las anulaciones y corrige. GENERAL no carga pesadas.
 - El número del ticket **no es el código de la balanza** y el código no se
   imprime nunca.
 
+### Compartir el PDF
+
+Cuando el ticket ya tiene la **regulada** cargada, en el detalle aparece
+**"Compartir el PDF"**. Se toca y se abre el menú de compartir del teléfono
+(WhatsApp, mail, lo que tenga). El archivo es del tamaño exacto del ticket,
+19 × 4,5 cm, y pesa unos 3 KB.
+
+Antes de la regulada el botón no aparece: en ese momento el ticket todavía no
+tiene todos los pesos, y lo que corresponde es imprimirlo en papel para el
+chofer. Si alguien entra a la dirección del PDF antes de tiempo, la app lo
+explica en vez de dar un archivo a medias.
+
+En las computadoras y en los teléfonos que no saben compartir archivos, el
+botón descarga el PDF y se comparte a mano desde los archivos. Sin señal queda
+apagado con el motivo, como los demás.
+
+El PDF se genera sin ninguna librería: el ticket es solo texto y líneas, así
+que `app-movil-pdf.js` lo escribe directo, con las fuentes que todo lector de
+PDF ya trae. Por eso `package.json` sigue sin cambiar.
+
 ---
 
 ## Sin señal
@@ -86,8 +106,8 @@ se reasigna. Igual que un ticket anulado.
 
 ## Cómo está aislada de la web
 
-- Todo el código de la app está en `app-movil.js`, `views/app/` y
-  `app-movil-estaticos/`. Ningún archivo de la web se modificó.
+- Todo el código de la app está en `app-movil.js`, `app-movil-pdf.js`,
+  `views/app/` y `app-movil-estaticos/`. Ningún archivo de la web se modificó.
 - En `app.js` hay **un solo bloque** que engancha la app, y solo si
   `APP_MOVIL=1`.
 - Los estáticos de la app viven en `app-movil-estaticos/` y **no** en `public/`,
@@ -155,6 +175,7 @@ Las anulaciones y las ediciones de observaciones se registran en
 | `/app/registro/:id` | detalle del ticket |
 | `/app/pedir/:id?tipo=anulacion\|correccion` | pedido a GENERAL |
 | `/app/imprimir?ids=…` | hoja de impresión del ticket |
+| `/app/ticket-pdf/:id` | PDF del ticket (solo con la regulada cargada) |
 | `/app/balanza` | balanza y turno · salir |
 
 **GENERAL**
@@ -181,5 +202,6 @@ Las anulaciones y las ediciones de observaciones se registran en
 ## Segunda etapa (queda pendiente del handoff)
 
 - Vista de **Acumulado** de campaña (`8b` del diseño). Se eligió `8a` como
-  resumen principal; esta quedó para después.
-- Compartir el PDF del ticket después de la regulada.
+  resumen principal. La idea es no hacer una pantalla nueva sino agregarle una
+  hoja al Excel que ya sale por mail, con el acumulado por lote, por grano y por
+  transporte.

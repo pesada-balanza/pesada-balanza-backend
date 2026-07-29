@@ -26,6 +26,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
+const { generarPdf, nombreArchivo } = require('./app-movil-pdf');
 
 module.exports = function crearAppMovil(deps) {
   const {
@@ -1321,6 +1322,42 @@ module.exports = function crearAppMovil(deps) {
       const ids = abiertos.filter((c) => c.sinImprimir).map((c) => c.id);
       if (!ids.length) return res.redirect('/app/patio');
       return res.redirect('/app/imprimir?ids=' + encodeURIComponent(ids.join(',')));
+    } catch (err) {
+      return siguienteError(err, req, res);
+    }
+  });
+
+  /**
+   * PDF del ticket, para compartir por WhatsApp.
+   * Solo se habilita DESPUÉS de la REGULADA: antes de eso el ticket todavía no
+   * tiene todos los pesos y lo único que corresponde es imprimirlo en papel para
+   * el chofer (así lo pide el handoff, ref. 5e).
+   */
+  router.get('/ticket-pdf/:id', exigirApp, async (req, res) => {
+    try {
+      const s = sesionApp(req);
+      const r = await traerRegistroDeBalanza(req.params.id, s.esGeneral ? null : s.codigoIngreso);
+      if (!r) return noEncontrado(res);
+
+      if (!r.fechaRegulada) {
+        return pantallaError(
+          res,
+          'Todavía no',
+          'El PDF se puede compartir recién cuando esté cargada la regulada. Por ahora, el ticket se imprime en papel y se le entrega al chofer.',
+          '/app/registro/' + String(r._id)
+        );
+      }
+
+      const vista = vistaRegistro(r);
+      const pdf = generarPdf(vista, { titulo: 'Ticket ' + vista.nro + ' · ' + vista.patentes });
+      const nombre = nombreArchivo(vista);
+
+      res.set('Content-Type', 'application/pdf');
+      res.set('Content-Length', String(pdf.length));
+      // `inline` para que el teléfono lo pueda previsualizar antes de compartir.
+      res.set('Content-Disposition', 'inline; filename="' + nombre + '"');
+      res.set('Cache-Control', 'private, max-age=0, must-revalidate');
+      return res.send(pdf);
     } catch (err) {
       return siguienteError(err, req, res);
     }
