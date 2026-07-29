@@ -61,12 +61,9 @@ poner el código de una balanza.
 
 ### Salir o cambiar de código
 
-Arriba a la derecha de todas las pantallas hay un botón **Salir**. Ahí adentro:
-
-- **Entrar con otro código** — para pasar de GENERAL a una balanza, o de una
-  balanza a otra.
-- **Cambiar quién está en la balanza** — si tomó el turno otra persona.
-- **Salir de la app**.
+Arriba a la derecha de todas las pantallas hay un botón **Salir**, que lleva a
+**Balanza y turno**. Ahí está todo junto: cambiar de balanza (poniendo el código
+de la otra), cambiar quién está en la balanza hoy, y salir de la app.
 
 Si quedaron pesadas sin subir, la app avisa y no deja cambiar de código hasta
 que se suban: si no, se perderían.
@@ -109,9 +106,27 @@ PDF ya trae. Por eso `package.json` sigue sin cambiar.
 
 ## Sin señal
 
-Se puede: cargar CAMIONES, TARA FINAL y REGULADA, imprimir el ticket y ver el
-día en curso. Las pesadas quedan guardadas en el teléfono con el chip
-`SIN SUBIR` y **se suben solas** cuando vuelve internet, sin que nadie haga nada.
+Se puede cerrar **el ticket completo**: CAMIONES, TARA FINAL y REGULADA, más
+imprimir el ticket del chofer y ver el día en curso. Todo queda guardado en el
+teléfono con el chip `SIN SUBIR` y **se sube solo** cuando vuelve internet, sin
+que nadie haga nada.
+
+Funciona en los dos casos:
+
+- **Un camión que se cargó sin señal.** El teléfono no conoce todavía el número
+  interno que le va a poner la base, así que la tara final y la regulada quedan
+  apuntando al camión por su identificador local. Cuando la cola se sube, va
+  primero la pesada y después sus pasos, en orden, sobre el mismo ticket.
+- **Un camión que se cargó con señal más temprano** y ahora no hay conexión. Sus
+  datos salen de la última foto del patio que guardó el teléfono.
+
+En los dos casos el botón del paso que falta lleva a la pantalla `/app/local`,
+que el teléfono dibuja solo con lo que tiene guardado. Al volver la señal, la
+pantalla normal vuelve sola.
+
+Para que esto ande, la app deja preparado en el teléfono (cuando hay señal):
+números de ticket reservados, la lista de campos con su siembra y contratistas,
+y las pantallas que va a necesitar. Se hace de fondo, sin que nadie lo pida.
 
 No se puede: pedir una anulación o una corrección (hay que avisarle a GENERAL).
 El botón se muestra apagado con el motivo "necesita internet" debajo.
@@ -134,6 +149,11 @@ se reasigna. Igual que un ticket anulado.
   detrás de la llave.
 - La app no usa Bootstrap ni el layout de la web: tiene su propio CSS.
 - No agrega ninguna librería nueva: `package.json` no cambió.
+
+**Al subir cambios de la app**, hay que subir el número de versión que está
+arriba de `app-movil-estaticos/sw.js` (`pesada-app-v2`, `v3`, …). Eso hace que
+los teléfonos descarten lo que tenían guardado y tomen la versión nueva sin que
+nadie borre nada a mano.
 
 ### Los datos
 
@@ -195,6 +215,7 @@ Las anulaciones y las ediciones de observaciones se registran en
 | `/app/pedir/:id?tipo=anulacion\|correccion` | pedido a GENERAL |
 | `/app/imprimir?ids=…` | hoja de impresión del ticket |
 | `/app/ticket-pdf/:id` | PDF del ticket (solo con la regulada cargada) |
+| `/app/local?paso=…` | seguir un ticket sin señal (la dibuja el teléfono) |
 | `/app/balanza` | balanza y turno · salir |
 
 **GENERAL**

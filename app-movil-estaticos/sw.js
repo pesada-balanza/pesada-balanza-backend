@@ -11,7 +11,9 @@
  * ========================================================================== */
 'use strict';
 
-var VERSION = 'pesada-app-v1';
+// Al subir cambios hay que subir este número: así el teléfono descarta lo
+// guardado y toma la versión nueva sin que nadie borre nada a mano.
+var VERSION = 'pesada-app-v2';
 var ESENCIALES = [
   '/app/estatico/app.css',
   '/app/estatico/app.js',
@@ -19,6 +21,9 @@ var ESENCIALES = [
   '/app/estatico/ticket.js',
   '/app/manifest.webmanifest',
   '/app/icono.svg',
+  // Pantalla para seguir un ticket sin señal. Se guarda desde el arranque
+  // porque justamente hace falta cuando ya no hay conexión para pedirla.
+  '/app/local',
 ];
 
 self.addEventListener('install', function (ev) {

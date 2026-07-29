@@ -15,17 +15,16 @@
       </span>
     </div>
 
+    <%# "Balanza y turno" ya tiene todo lo de cambiar de código y de persona, así
+        que acá no se repite: se entra ahí y se resuelve en un solo lugar. %>
     <div class="botonera">
-      <%# Lo que pidió: pasar de un usuario a otro %>
-      <button type="button" class="btn" id="menu-otro-codigo">Entrar con otro código</button>
+      <a class="btn" href="/app/balanza">Balanza y turno</a>
 
       <% if (puedeCargar) { %>
         <a class="btn btn-borde-suave" href="/app/dia?cambio=1">Cambiar quién está en la balanza</a>
       <% } %>
 
-      <a class="btn btn-borde-suave" href="/app/balanza">Balanza y turno</a>
-
-      <button type="button" class="btn btn-texto" id="menu-salir">Salir de la app</button>
+      <button type="button" class="btn btn-borde-suave" id="menu-salir">Salir de la app</button>
       <button type="button" class="btn btn-texto" data-cierra-modal="modal-menu">Cancelar</button>
     </div>
 
@@ -56,11 +55,6 @@
       window.location.href = '/app/ingreso';
     });
   }
-
-  document.getElementById('menu-otro-codigo').addEventListener('click', function (ev) {
-    ev.preventDefault();
-    cerrarSesion('Vas a volver a la pantalla del código. ¿Seguimos?');
-  });
 
   document.getElementById('menu-salir').addEventListener('click', function (ev) {
     ev.preventDefault();

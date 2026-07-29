@@ -13,6 +13,7 @@
   var CLAVE_COLA = 'pesada.cola';
   var CLAVE_NUMEROS = 'pesada.numeros';
   var CLAVE_TICKETS = 'pesada.tickets';
+  var CLAVE_PATIO = 'pesada.patio';
   var CLAVE_FALLIDOS = 'pesada.fallidos';
 
   var App = {};
@@ -324,6 +325,10 @@
     }
   }
 
+  App.tablasGuardadas = function () {
+    return leer('pesada.tablas', null);
+  };
+
   /* ═══════════════════════════════════════════════════════════════════════
    * Números de ticket reservados (para poder cargar e imprimir sin señal)
    * ═════════════════════════════════════════════════════════════════════ */
@@ -570,8 +575,8 @@
    * Botones-opción (reemplazan los radios: área táctil grande)
    * ═════════════════════════════════════════════════════════════════════ */
 
-  function conectarOpciones() {
-    var grupos = document.querySelectorAll('[data-opciones]');
+  function conectarOpciones(raiz) {
+    var grupos = (raiz || document).querySelectorAll('[data-opciones]');
     for (var g = 0; g < grupos.length; g++) {
       (function (grupo) {
         var nombre = grupo.getAttribute('data-opciones');
@@ -599,6 +604,74 @@
       })(grupos[g]);
     }
   }
+
+  App.conectarOpciones = conectarOpciones;
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * Foto del patio
+   * -----------------------------------------------------------------------
+   * Se guarda para poder seguir sin señal un camión que YA está en el
+   * servidor: sus datos salen de acá, porque la pantalla del paso no se puede
+   * pedir sin conexión.
+   * ═════════════════════════════════════════════════════════════════════ */
+
+  App.guardarPatio = function (datos) {
+    escribir(CLAVE_PATIO, datos);
+  };
+
+  App.camionGuardado = function (id) {
+    var patio = leer(CLAVE_PATIO, null);
+    if (!patio || !patio.camiones) return null;
+    for (var i = 0; i < patio.camiones.length; i++) {
+      if (patio.camiones[i].id === id) return patio.camiones[i];
+    }
+    return null;
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * Dejar guardadas las pantallas que se van a necesitar sin señal
+   * -----------------------------------------------------------------------
+   * El service worker guarda toda pantalla que se abre. Estas se piden de
+   * fondo, con señal, para que estén disponibles cuando se corte aunque el
+   * balancero no las haya abierto todavía.
+   * ═════════════════════════════════════════════════════════════════════ */
+
+  function prepararPantallas() {
+    if (!hayConexion() || !window.fetch) return;
+    var pantallas = ['/app/patio', '/app/nueva-pesada', '/app/local', '/app/balanza'];
+    for (var i = 0; i < pantallas.length; i++) {
+      try {
+        window.fetch(pantallas[i], { credentials: 'same-origin' });
+      } catch (e) {
+        /* si falla, se guardará cuando el balancero la abra */
+      }
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * Tablas para trabajar sin señal (campos, siembra, contratistas)
+   * -----------------------------------------------------------------------
+   * Se guardan en el teléfono para poder armar la tara final y la regulada de
+   * una pesada que todavía no se subió, cuando no hay señal.
+   * ═════════════════════════════════════════════════════════════════════ */
+
+  App.cargarTablas = function (cb) {
+    var guardadas = leer('pesada.tablas', null);
+    if (guardadas && !hayConexion()) {
+      if (cb) cb(guardadas);
+      return;
+    }
+    if (!hayConexion()) { if (cb) cb(null); return; }
+
+    pedir('GET', '/app/api/tablas', null, function (err, res) {
+      if (err || !res || !res.datos) {
+        if (cb) cb(guardadas);
+        return;
+      }
+      escribir('pesada.tablas', res.datos);
+      if (cb) cb(res.datos);
+    });
+  };
 
   /* ═══════════════════════════════════════════════════════════════════════
    * Sugerencias para autocompletar (patentes, choferes, transportes)
@@ -799,11 +872,14 @@
       window.addEventListener('offline', pintarConexion);
     }
 
-    // Al abrir: subir lo que quedó pendiente y rellenar números reservados.
+    // Al abrir: subir lo que quedó pendiente, rellenar números reservados y
+    // refrescar las tablas que hacen falta para trabajar sin señal.
     if (hayConexion()) {
       sincronizar();
       if (document.body.getAttribute('data-puede-cargar') === '1') {
         App.numeros.asegurar(3);
+        App.cargarTablas();
+        prepararPantallas();
       }
     }
 

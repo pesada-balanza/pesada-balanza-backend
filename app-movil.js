@@ -770,6 +770,36 @@ module.exports = function crearAppMovil(deps) {
   });
 
   /* =========================================================================
+   * TABLAS PARA TRABAJAR SIN SEÑAL
+   * -------------------------------------------------------------------------
+   * Campos, planilla de siembra y contratistas. El teléfono las guarda para
+   * poder armar los formularios de tara final y regulada cuando no hay señal.
+   * ======================================================================= */
+  router.get('/api/tablas', exigirApp, (req, res) => {
+    res.set('Cache-Control', 'private, max-age=3600');
+    return res.json({
+      ok: true,
+      datos: {
+        campos,
+        siembra: datosSiembra,
+        contratistas: getContratistas() || {},
+        brutosEstimados: [45000, 52500, 55000],
+      },
+    });
+  });
+
+  /**
+   * Pantalla para seguir un ticket que quedó guardado en el teléfono.
+   * Es una cáscara SIN datos: el teléfono la llena con lo que tiene guardado.
+   * No pide sesión a propósito, así el service worker la puede guardar desde el
+   * arranque y está disponible aunque la señal se corte antes de usarla. No
+   * muestra nada de la base: para guardar sí hace falta la sesión.
+   */
+  router.get('/local', (req, res) => {
+    return res.render('app/local', { layout: 'app/layout', titulo: 'Sin señal' });
+  });
+
+  /* =========================================================================
    * RESERVA DE NÚMEROS (para poder cargar e imprimir sin señal)
    * ======================================================================= */
 
@@ -970,6 +1000,35 @@ module.exports = function crearAppMovil(deps) {
     return r;
   }
 
+  /**
+   * Resuelve el ticket de un paso que se cargó SIN SEÑAL sobre una pesada que
+   * tampoco se había subido todavía.
+   *
+   * Sin conexión el teléfono no conoce el id que le va a poner la base al
+   * registro, así que la tara final y la regulada se encolan apuntando al id
+   * local de la pesada (`refLocal`). Cuando la cola se sube, la pesada va
+   * primero y deja su id en `app_localids`; recién entonces este paso lo
+   * encuentra. Así el balancero puede cerrar el ticket completo sin señal.
+   */
+  async function resolverRegistro(cuerpo, codigoIngreso) {
+    const id = String(cuerpo.id || '').trim();
+    if (id) return { registro: await traerRegistroDeBalanza(id, codigoIngreso) };
+
+    const refLocal = String(cuerpo.refLocal || '').trim();
+    if (!refLocal) return { registro: null };
+
+    const enlace = await colLocalIds().findOne({ localId: refLocal });
+    if (!enlace) {
+      // La pesada de origen todavía no llegó (o el servidor la rechazó).
+      return {
+        registro: null,
+        error: 'La pesada de este camión todavía no se subió. Se reintenta cuando suba.',
+        codigo: 409,
+      };
+    }
+    return { registro: await traerRegistroDeBalanza(String(enlace.registroId), codigoIngreso) };
+  }
+
   router.get('/tara-final/:id', exigirApp, exigirBalancero, exigirNombreDia, async (req, res) => {
     try {
       const s = sesionApp(req);
@@ -1010,7 +1069,9 @@ module.exports = function crearAppMovil(deps) {
         if (yaEsta) return res.json({ ok: true, duplicado: true, id: String(yaEsta.registroId) });
       }
 
-      const r = await traerRegistroDeBalanza(req.body.id, s.codigoIngreso);
+      const hallado = await resolverRegistro(req.body, s.codigoIngreso);
+      if (hallado.error) return fallar(res, hallado.codigo || 400, hallado.error);
+      const r = hallado.registro;
       if (!r) return fallar(res, 404, 'No se encontró el camión.');
       if (r.anulado) return fallar(res, 400, 'Este ticket está anulado.');
       if (r.fechaTaraFinal) return fallar(res, 400, 'Este camión ya tiene la tara final cargada.');
@@ -1126,7 +1187,9 @@ module.exports = function crearAppMovil(deps) {
         if (yaEsta) return res.json({ ok: true, duplicado: true, id: String(yaEsta.registroId) });
       }
 
-      const r = await traerRegistroDeBalanza(req.body.id, s.codigoIngreso);
+      const hallado = await resolverRegistro(req.body, s.codigoIngreso);
+      if (hallado.error) return fallar(res, hallado.codigo || 400, hallado.error);
+      const r = hallado.registro;
       if (!r) return fallar(res, 404, 'No se encontró el camión.');
       if (r.anulado) return fallar(res, 400, 'Este ticket está anulado.');
       if (!r.fechaTaraFinal) return fallar(res, 400, 'Primero hay que cargar la tara final.');

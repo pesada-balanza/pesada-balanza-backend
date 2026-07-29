@@ -1,0 +1,460 @@
+<%#
+  Seguir un ticket que todavía está guardado en el teléfono (sin señal).
+
+  Las pantallas normales de tara final y regulada las dibuja el servidor a
+  partir del ticket ya guardado en la base. Sin señal eso no existe todavía, así
+  que esta pantalla es una cáscara que el propio teléfono llena con lo que tiene
+  guardado en la cola. Los pasos se encolan apuntando al id local de la pesada
+  (`refLocal`) y el servidor los enlaza cuando la cola se sube, en orden.
+
+  Las validaciones que se hacen acá son para no dejar guardar cualquier cosa; la
+  validación que manda es la del servidor, que corre igual cuando sube la cola.
+%>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="/app/patio" class="volver"><span class="flecha">‹</span><span class="texto">Patio</span></a>
+      <span class="etiqueta" id="l-etiqueta">Guardado en el teléfono</span>
+      <span class="t-pantalla mono" id="l-patente">—</span>
+    </div>
+    <span class="conexion sin-senal" data-conexion>SIN SEÑAL</span>
+  </div>
+
+  <div class="cuerpo con-barra">
+
+    <div class="aviso apilado" id="l-aviso">
+      <span class="aviso-titulo">Esta pesada todavía no se subió</span>
+      <span class="aviso-detalle">
+        Se puede seguir igual. Todo se sube junto y en orden cuando vuelva internet.
+      </span>
+    </div>
+
+    <%# Los bloques se dibujan con JS: el contenedor pone la separación, igual
+        que en las pantallas normales. %>
+    <div id="l-cuerpo" style="display:flex; flex-direction:column; gap:14px"></div>
+
+    <div id="l-error" class="campo-error" style="min-height:18px"></div>
+    <div class="espaciador"></div>
+  </div>
+
+  <div class="barra-fija">
+    <button type="button" id="l-guardar" class="btn btn-grande">Guardar</button>
+  </div>
+</div>
+
+<%# Recordatorio de impresión, igual que con señal (ref. 5e) %>
+<div class="velo" id="modal-imprimir" hidden>
+  <div class="hoja">
+    <div class="hoja-texto">
+      <span class="etiqueta-verde">Tara final guardada en el teléfono</span>
+      <span class="t-modal" id="l-modal-titulo">Imprimí el ticket para el chofer</span>
+      <span class="txt" style="font-size:14px; line-height:1.5" id="l-modal-detalle"></span>
+    </div>
+    <div class="botonera">
+      <a class="btn" id="l-imprimir" href="#">Imprimir ahora</a>
+      <a class="btn btn-texto" href="/app/patio">Más tarde</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var cuerpo = document.getElementById('l-cuerpo');
+  var error = document.getElementById('l-error');
+  var btn = document.getElementById('l-guardar');
+
+  /* ── Qué ticket y qué paso ─────────────────────────────────────────────── */
+  function parametro(nombre) {
+    var m = new RegExp('[?&]' + nombre + '=([^&]*)').exec(window.location.search);
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+  }
+
+  var ref = parametro('ref');           // pesada que todavía está en el teléfono
+  var idServidor = parametro('id');     // camión que ya está en el servidor
+  var paso = parametro('paso') === 'regulada' ? 'regulada' : 'tara-final';
+
+  /* ── De dónde salen los datos ──────────────────────────────────────────────
+     Dos casos, los dos sin señal:
+      a) la pesada todavía está en la cola del teléfono → sale de ahí
+      b) el camión ya está en el servidor (se cargó con señal más temprano) →
+         sale de la última foto del patio que guardó el teléfono
+     ─────────────────────────────────────────────────────────────────────── */
+  var cola = App.cola.todo();
+  var pesada = null;
+  var yaEncolado = {};
+
+  if (ref) {
+    for (var i = 0; i < cola.length; i++) {
+      var it = cola[i];
+      if (it.tipo === 'pesada' && it.localId === ref) pesada = it.datos;
+      if (it.refLocal === ref) yaEncolado[it.tipo] = it.datos;
+    }
+  } else if (idServidor) {
+    var c = App.camionGuardado(idServidor);
+    if (c) {
+      pesada = {
+        patentes: c.patentes, chofer: c.chofer, transporte: c.transporte,
+        campo: c.campo, nro: c.nro, brutoEstimado: c.brutoEstimado,
+        cargaPara: 'AMH', socio: ''
+      };
+      // Si ya tenía la tara final cargada, el paso que sigue es la regulada.
+      if (c.paso === 'REGULADA') yaEncolado['tara-final'] = { taraNueva: c.tara };
+    }
+    for (var j = 0; j < cola.length; j++) {
+      if (cola[j].refServidor === idServidor) yaEncolado[cola[j].tipo] = cola[j].datos;
+    }
+  }
+
+  if (!pesada) {
+    cuerpo.innerHTML =
+      '<div class="tarjeta"><span class="cuerpo-fuerte">No hay datos de este camión en el teléfono</span>' +
+      '<span class="txt">Volvé al patio. Con internet vas a poder seguir normalmente.</span>' +
+      '<a class="btn" href="/app/patio" style="margin-top:6px">Ir al patio</a></div>';
+    btn.style.display = 'none';
+    return;
+  }
+
+  document.getElementById('l-patente').innerHTML = App.esc(pesada.patentes || '');
+  document.getElementById('l-etiqueta').innerHTML =
+    'Ticket ' + App.esc(pesada.nro || 'sin número') + (ref ? ' · sin subir' : '');
+
+  if (!ref) {
+    // El camión ya está en el servidor: no hace falta el aviso de "sin subir".
+    var aviso = document.getElementById('l-aviso');
+    aviso.querySelector('.aviso-titulo').innerHTML = 'Estás sin señal';
+    aviso.querySelector('.aviso-detalle').innerHTML =
+      'Se puede cargar igual. Se sube solo cuando vuelva internet.';
+  }
+
+  var taraFinalLocal = yaEncolado['tara-final'] ? Number(yaEncolado['tara-final'].taraNueva) : null;
+  if (paso === 'regulada' && taraFinalLocal === null) paso = 'tara-final';
+
+  /* ── Tablas guardadas (campos, siembra, contratistas) ──────────────────── */
+  var TABLAS = App.leer('pesada.tablas', null);
+
+  /* ── Bloques comunes ───────────────────────────────────────────────────── */
+  function tarjetaDatos(extra) {
+    return '<div class="tarjeta">' +
+      '<span class="txt">' +
+        App.esc([pesada.transporte, pesada.chofer].filter(Boolean).join(' · ')) +
+      '</span>' +
+      '<div class="divisor"></div>' +
+      '<div class="fila-col"><span class="etiqueta">Campo</span>' +
+      '<span class="cuerpo-fuerte" id="l-campo-texto" style="font-size:16px">' +
+        App.esc(pesada.campo || '—') + '</span></div>' +
+      '<div class="divisor"></div>' +
+      '<div class="fila"><div class="fila-col"><span class="etiqueta">Bruto estimado</span>' +
+      '<span class="dato-g">' + App.miles(pesada.brutoEstimado) + ' kg</span></div>' +
+      '<span class="chip-fijo">🔒 fijo</span></div>' +
+      (extra || '') +
+      '</div>';
+  }
+
+  function campoNumero(id, etiqueta, ayuda) {
+    return '<div class="campo"><label class="etiqueta" for="' + id + '">' + App.esc(etiqueta) + '</label>' +
+      '<input type="number" id="' + id + '" class="mono" inputmode="numeric" min="0" max="60000" step="10">' +
+      (ayuda ? '<span class="txt-chico">' + App.esc(ayuda) + '</span>' : '') + '</div>';
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+   * PASO 2 — TARA FINAL
+   * ════════════════════════════════════════════════════════════════════ */
+  function pintarTaraFinal() {
+    cuerpo.innerHTML =
+      tarjetaDatos() +
+      campoNumero('l-tara', 'Tara final (kg)') +
+      '<div class="tarjeta tarjeta-gris" id="l-calculo" hidden>' +
+      '<div class="fila-base"><span class="txt">Neto estimado</span>' +
+      '<span class="dato mono" id="l-neto">—</span></div></div>';
+    btn.innerHTML = 'Guardar tara final';
+
+    var input = document.getElementById('l-tara');
+    var caja = document.getElementById('l-calculo');
+    var salida = document.getElementById('l-neto');
+    var bruto = Number(pesada.brutoEstimado) || 0;
+
+    input.addEventListener('input', function () {
+      var v = Number(input.value);
+      if (isFinite(v) && v > 0 && bruto > 0) {
+        caja.hidden = false;
+        salida.innerHTML = App.miles(bruto - v);
+      } else {
+        caja.hidden = true;
+      }
+    });
+  }
+
+  function guardarTaraFinal() {
+    error.innerHTML = '';
+    var v = Number(document.getElementById('l-tara').value);
+    if (!isFinite(v) || v < 1000 || v > 30000) {
+      error.innerHTML = 'La tara final va entre 1.000 y 30.000 kg.';
+      return;
+    }
+
+    // Se encola apuntando al id local de la pesada: el servidor los enlaza
+    // cuando sube la cola, primero la pesada y después este paso.
+    App.cola.agregar({
+      localId: App.unId(),
+      refLocal: ref,
+      tipo: 'tara-final',
+      url: '/app/api/tara-final',
+      refServidor: idServidor || undefined,
+      datos: ref ? { refLocal: ref, taraNueva: v } : { id: idServidor, taraNueva: v },
+      creadoEn: new Date().toISOString()
+    });
+
+    // El ticket ya se puede imprimir con estos datos.
+    App.guardarTicketLocal({
+      localId: ref || undefined,
+      id: idServidor || undefined,
+      nro: pesada.nro || '',
+      patentes: pesada.patentes,
+      chofer: pesada.chofer,
+      transporte: pesada.transporte,
+      campoCorto: (pesada.campo || '').split(' - ')[0],
+      titular: pesada.cargaPara === 'SOCIO' ? 'Socio ' + (pesada.socio || '') : 'AMH',
+      brutoEstimado: Number(pesada.brutoEstimado) || 0,
+      tara: v,
+      fechaTaraFinal: 'local',
+      fechaLarga: '', hora: '', cp: '', comentarios: '',
+      grano: '', loteTexto: '', brutoLote: null, bruto: null, neto: null
+    });
+
+    document.getElementById('l-modal-titulo').innerHTML =
+      'Imprimí el ticket ' + App.esc(pesada.nro || '') + ' para el chofer';
+    document.getElementById('l-modal-detalle').innerHTML =
+      App.esc([pesada.patentes, pesada.chofer].filter(Boolean).join(' · ')) +
+      '. Se corta y se entrega al chofer. El ticket ya tiene todo lo que hace falta.';
+    document.getElementById('l-imprimir').href = ref
+      ? '/app/imprimir?locales=' + encodeURIComponent(ref)
+      : '/app/imprimir?locales=' + encodeURIComponent(idServidor);
+    App.abrirModal('modal-imprimir');
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+   * PASO 3 — REGULADA
+   * ════════════════════════════════════════════════════════════════════ */
+  var campoElegido = pesada.campo || '';
+
+  function siembraDe(campo) {
+    return (TABLAS && TABLAS.siembra && TABLAS.siembra[campo]) || {};
+  }
+
+  function pintarRegulada() {
+    if (!TABLAS) {
+      cuerpo.innerHTML =
+        '<div class="aviso apilado"><span class="aviso-titulo">Falta la lista de campos y lotes</span>' +
+        '<span class="aviso-detalle">Abrí la app una vez con internet y después se puede cargar la ' +
+        'regulada sin señal. La tara final ya quedó guardada.</span></div>';
+      btn.style.display = 'none';
+      return;
+    }
+
+    var opcionesCampo = '';
+    for (var i = 0; i < TABLAS.campos.length; i++) {
+      var c = TABLAS.campos[i];
+      opcionesCampo += '<option value="' + App.esc(c) + '"' +
+        (c === campoElegido ? ' selected' : '') + '>' + App.esc(c) + '</option>';
+    }
+
+    var contr = '';
+    var nombres = Object.keys(TABLAS.contratistas || {});
+    for (var j = 0; j < nombres.length; j++) {
+      contr += '<label class="casilla"><input type="checkbox" name="l-contratista" value="' +
+        App.esc(nombres[j]) + '"><span>' + App.esc(nombres[j]) + '</span></label>';
+    }
+
+    cuerpo.innerHTML =
+      tarjetaDatos(
+        '<div class="divisor"></div>' +
+        '<div class="fila"><div class="fila-col"><span class="etiqueta">Tara final</span>' +
+        '<span class="dato-g">' + App.miles(taraFinalLocal) + ' kg</span></div>' +
+        '<span class="chip-fijo">🔒 fijo</span></div>' +
+        '<div class="divisor"></div>' +
+        '<div class="campo"><label class="etiqueta" for="l-campo">Cambiar el campo</label>' +
+        '<select id="l-campo">' + opcionesCampo + '</select>' +
+        '<span class="txt-chico">Si lo cambiás hay que elegir de nuevo el grano y el lote.</span></div>'
+      ) +
+      '<div class="campo"><label class="etiqueta" for="l-grano">Grano</label>' +
+      '<select id="l-grano"><option value="">Elegí el grano</option></select></div>' +
+      '<div class="campo"><span class="etiqueta">Lote (uno o más)</span>' +
+      '<div class="lista-casillas" id="l-lotes"><div class="lista-vacia">Elegí primero el grano.</div></div></div>' +
+      '<div class="campo"><span class="etiqueta">Cargó de</span>' +
+      '<div class="opciones" data-opciones="l-cargoDe">' +
+      '<button type="button" class="opcion" data-valor="SILOBOLSA">Silobolsa</button>' +
+      '<button type="button" class="opcion" data-valor="CONTRATISTA">Contratista</button></div>' +
+      '<input type="hidden" name="l-cargoDe" id="l-cargoDe" value=""></div>' +
+      '<div class="campo oculto" id="l-caja-silo"><label class="etiqueta" for="l-silo">Número de silobolsa</label>' +
+      '<input type="text" id="l-silo" maxlength="40"></div>' +
+      '<div class="campo oculto" id="l-caja-contr"><span class="etiqueta">Contratista (uno o más)</span>' +
+      '<div class="lista-casillas">' + (contr || '<div class="lista-vacia">No hay contratistas cargados.</div>') + '</div></div>' +
+      '<div class="campo oculto" id="l-caja-tractor"><span class="etiqueta">Tractor (uno o más)</span>' +
+      '<div class="lista-casillas" id="l-tractores"><div class="lista-vacia">Elegí primero el contratista.</div></div></div>' +
+      campoNumero('l-brutoLote', 'Bruto lote (kg)') +
+      campoNumero('l-bruto', 'Bruto regulado (kg)') +
+      '<div class="tarjeta tarjeta-gris" id="l-caja-neto" hidden>' +
+      '<div class="fila-base"><span class="cuerpo-fuerte">Neto</span>' +
+      '<span class="dato-g mono" id="l-neto-reg">—</span></div></div>' +
+      '<div class="campo"><label class="etiqueta" for="l-obs">Observaciones</label>' +
+      '<textarea id="l-obs" maxlength="500" rows="3"></textarea></div>';
+
+    btn.innerHTML = 'Guardar regulada';
+
+    var selCampo = document.getElementById('l-campo');
+    var selGrano = document.getElementById('l-grano');
+    var listaLotes = document.getElementById('l-lotes');
+    var ocultoCargo = document.getElementById('l-cargoDe');
+    var inputBruto = document.getElementById('l-bruto');
+
+    function pintarGranos() {
+      var granos = Object.keys(siembraDe(campoElegido));
+      var h = '<option value="">Elegí el grano</option>';
+      for (var k = 0; k < granos.length; k++) {
+        h += '<option value="' + App.esc(granos[k]) + '">' + App.esc(granos[k]) + '</option>';
+      }
+      selGrano.innerHTML = h;
+    }
+
+    function pintarLotes() {
+      var g = selGrano.value;
+      var lotes = (g && siembraDe(campoElegido)[g]) || [];
+      if (!lotes.length) {
+        listaLotes.innerHTML = '<div class="lista-vacia">' +
+          (g ? 'Este grano no tiene lotes para el campo.' : 'Elegí primero el grano.') + '</div>';
+        return;
+      }
+      var h = '';
+      for (var k = 0; k < lotes.length; k++) {
+        h += '<label class="casilla"><input type="checkbox" name="l-lote" value="' +
+          App.esc(lotes[k]) + '"><span>' + App.esc(lotes[k]) + '</span></label>';
+      }
+      listaLotes.innerHTML = h;
+    }
+
+    function pintarTractores() {
+      var elegidos = [];
+      var ch = document.querySelectorAll('input[name="l-contratista"]');
+      for (var k = 0; k < ch.length; k++) if (ch[k].checked) elegidos.push(ch[k].value);
+      var tr = [];
+      for (var m = 0; m < elegidos.length; m++) {
+        var lista = (TABLAS.contratistas[elegidos[m]] || []);
+        for (var n = 0; n < lista.length; n++) if (tr.indexOf(lista[n]) === -1) tr.push(lista[n]);
+      }
+      var caja = document.getElementById('l-tractores');
+      if (!tr.length) {
+        caja.innerHTML = '<div class="lista-vacia">Elegí primero el contratista.</div>';
+        return;
+      }
+      var h = '';
+      for (var q = 0; q < tr.length; q++) {
+        h += '<label class="casilla"><input type="checkbox" name="l-tractor" value="' +
+          App.esc(tr[q]) + '"><span class="mono">' + App.esc(tr[q]) + '</span></label>';
+      }
+      caja.innerHTML = h;
+    }
+
+    selCampo.addEventListener('change', function () {
+      campoElegido = selCampo.value;
+      document.getElementById('l-campo-texto').innerHTML = App.esc(campoElegido);
+      pintarGranos();
+      pintarLotes();
+    });
+    selGrano.addEventListener('change', pintarLotes);
+
+    var chs = document.querySelectorAll('input[name="l-contratista"]');
+    for (var z = 0; z < chs.length; z++) chs[z].addEventListener('change', pintarTractores);
+
+    ocultoCargo.addEventListener('cambio-opcion', function () {
+      var v = ocultoCargo.value;
+      document.getElementById('l-caja-silo').className = v === 'SILOBOLSA' ? 'campo' : 'campo oculto';
+      document.getElementById('l-caja-contr').className = v === 'CONTRATISTA' ? 'campo' : 'campo oculto';
+      document.getElementById('l-caja-tractor').className = v === 'CONTRATISTA' ? 'campo' : 'campo oculto';
+    });
+
+    inputBruto.addEventListener('input', function () {
+      var b = Number(inputBruto.value);
+      var caja = document.getElementById('l-caja-neto');
+      if (isFinite(b) && b > 0) {
+        caja.hidden = false;
+        document.getElementById('l-neto-reg').innerHTML = App.miles(b - taraFinalLocal);
+      } else {
+        caja.hidden = true;
+      }
+    });
+
+    // Los botones-opción se dibujaron recién ahora: hay que engancharlos.
+    App.conectarOpciones(cuerpo);
+
+    pintarGranos();
+    pintarLotes();
+  }
+
+  function marcados(nombre) {
+    var out = [];
+    var ch = document.querySelectorAll('input[name="' + nombre + '"]');
+    for (var i = 0; i < ch.length; i++) if (ch[i].checked) out.push(ch[i].value);
+    return out;
+  }
+
+  function guardarRegulada() {
+    error.innerHTML = '';
+    var datos = {
+      campo: campoElegido,
+      grano: document.getElementById('l-grano').value,
+      lote: marcados('l-lote'),
+      cargoDe: document.getElementById('l-cargoDe').value,
+      silobolsa: document.getElementById('l-silo').value,
+      contratista: marcados('l-contratista'),
+      tractor: marcados('l-tractor'),
+      brutoLote: document.getElementById('l-brutoLote').value,
+      bruto: document.getElementById('l-bruto').value,
+      comentarios: document.getElementById('l-obs').value,
+      confirmarTara: 'SI'
+    };
+    if (ref) datos.refLocal = ref;
+    else datos.id = idServidor;
+
+    var faltan = [];
+    if (!datos.grano) faltan.push('el grano');
+    if (!datos.lote.length) faltan.push('el lote');
+    if (!datos.cargoDe) faltan.push('si cargó de silobolsa o contratista');
+    if (datos.cargoDe === 'CONTRATISTA') {
+      if (!datos.contratista.length) faltan.push('el contratista');
+      if (!datos.tractor.length) faltan.push('el tractor');
+    }
+    if (!datos.brutoLote) faltan.push('el bruto lote');
+    if (!datos.bruto) faltan.push('el bruto regulado');
+    if (faltan.length) {
+      error.innerHTML = 'Falta ' + App.esc(faltan.join(', '));
+      return;
+    }
+
+    App.cola.agregar({
+      localId: App.unId(),
+      refLocal: ref || undefined,
+      refServidor: idServidor || undefined,
+      tipo: 'regulada',
+      url: '/app/api/regulada',
+      datos: datos,
+      creadoEn: new Date().toISOString()
+    });
+
+    App.brindis('Regulada guardada en el teléfono. Se sube sola cuando vuelva internet.', 'ambar');
+    window.setTimeout(function () { window.location.href = '/app/patio'; }, 900);
+  }
+
+  /* ── Arranque ──────────────────────────────────────────────────────────── */
+  if (paso === 'regulada') pintarRegulada();
+  else pintarTaraFinal();
+
+  btn.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    if (paso === 'regulada') guardarRegulada();
+    else guardarTaraFinal();
+  });
+})();
+</script>

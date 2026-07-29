@@ -94,11 +94,16 @@
             <span class="txt-chico">Tara final <%= c.fechaTaraFinalCorta %><%= c.sinImprimir ? '' : ' · ticket entregado' %></span>
           <% } %>
 
-          <%# Un botón grande con el paso que falta %>
+          <%# Un botón grande con el paso que falta. Sin señal, el mismo botón
+              lleva a la pantalla que el teléfono puede dibujar solo. %>
           <% if (c.paso === 'TARA_FINAL') { %>
-            <a class="btn" style="min-height:52px" href="/app/tara-final/<%= c.id %>">Cargar tara final</a>
+            <a class="btn" style="min-height:52px" href="/app/tara-final/<%= c.id %>"
+               data-con-senal="/app/tara-final/<%= c.id %>"
+               data-sin-senal="/app/local?paso=tara-final&id=<%= c.id %>">Cargar tara final</a>
           <% } else { %>
-            <a class="btn" style="min-height:52px" href="/app/regulada/<%= c.id %>">Cargar regulada</a>
+            <a class="btn" style="min-height:52px" href="/app/regulada/<%= c.id %>"
+               data-con-senal="/app/regulada/<%= c.id %>"
+               data-sin-senal="/app/local?paso=regulada&id=<%= c.id %>">Cargar regulada</a>
           <% } %>
 
           <div class="botonera-fila">
@@ -127,30 +132,87 @@
 (function () {
   'use strict';
 
+  // Guardar la foto del patio: es lo que permite seguir un camión que ya está
+  // en el servidor cuando después se corta la señal.
+  App.guardarPatio(<%- JSON.stringify(datos) %>);
+
+  // Los botones del paso que falta apuntan a un lado o a otro según la señal.
+  function acomodarEnlaces() {
+    var enLinea = App.hayConexion();
+    var enlaces = document.querySelectorAll('[data-sin-senal]');
+    for (var e = 0; e < enlaces.length; e++) {
+      enlaces[e].href = enLinea
+        ? enlaces[e].getAttribute('data-con-senal')
+        : enlaces[e].getAttribute('data-sin-senal');
+    }
+  }
+  acomodarEnlaces();
+  if (window.addEventListener) {
+    window.addEventListener('online', acomodarEnlaces);
+    window.addEventListener('offline', acomodarEnlaces);
+  }
+
   // Aviso puntual al volver de otra pantalla
   var aviso = '<%= aviso %>';
   if (aviso === 'pedido-enviado') App.brindis('Pedido enviado a GENERAL.');
   if (aviso === 'anulado') App.brindis('Ticket anulado. El número no se vuelve a usar.');
   if (aviso === 'guardado') App.brindis('Pesada guardada.');
 
-  // Dibujar las pesadas que todavía están en el teléfono, con el chip SIN SUBIR.
+  // Dibujar las pesadas que todavía están en el teléfono, con el chip SIN SUBIR
+  // y el paso que falta. Sin señal el ticket se puede cerrar igual: los pasos se
+  // encolan apuntando a la pesada y el servidor los enlaza cuando todo sube.
   var contenedor = document.getElementById('locales');
   var pendientes = App.cola.todo();
+
+  // Qué pasos ya se encolaron para cada pesada local
+  var pasosPorRef = {};
+  for (var k = 0; k < pendientes.length; k++) {
+    var q = pendientes[k];
+    if (!q.refLocal) continue;
+    if (!pasosPorRef[q.refLocal]) pasosPorRef[q.refLocal] = {};
+    pasosPorRef[q.refLocal][q.tipo] = q.datos || {};
+  }
+
   var html = '';
   for (var i = 0; i < pendientes.length; i++) {
     var p = pendientes[i];
     if (p.tipo !== 'pesada') continue;
     var d = p.datos || {};
+    var pasos = pasosPorRef[p.localId] || {};
+    var tieneTF = !!pasos['tara-final'];
+    var tieneReg = !!pasos['regulada'];
+
+    var chips = '<span class="chip chip-ambar">Sin subir</span>';
+    var accion = '';
+
+    if (tieneReg) {
+      chips += '<span class="chip chip-verde">Ticket completo</span>';
+      accion = '<span class="txt-chico">Listo. Se sube solo cuando vuelva internet.</span>';
+    } else if (tieneTF) {
+      chips += '<span class="chip">Falta regulada</span>';
+      accion =
+        '<a class="btn" style="min-height:52px" href="/app/local?paso=regulada&ref=' +
+        encodeURIComponent(p.localId) + '">Cargar regulada</a>' +
+        '<a class="btn btn-borde-suave" style="min-height:48px; font-size:14px" ' +
+        'href="/app/imprimir?locales=' + encodeURIComponent(p.localId) + '">Imprimir el ticket</a>';
+    } else {
+      chips += '<span class="chip">Falta tara final</span>';
+      accion =
+        '<a class="btn" style="min-height:52px" href="/app/local?paso=tara-final&ref=' +
+        encodeURIComponent(p.localId) + '">Cargar tara final</a>';
+    }
+
     html += '<div class="tarjeta">' +
       '<div class="fila-base"><span class="dato">' + App.esc(d.patentes || '') + '</span>' +
       '<span class="mono-chico">#' + App.esc(d.nro || '—') + '</span></div>' +
-      '<span class="txt">' + App.esc([d.transporte, d.chofer].filter(Boolean).join(' · ')) + '</span>' +
-      '<div class="chips">' +
-        '<span class="chip chip-ambar">Sin subir</span>' +
-        '<span class="chip">Falta tara final</span>' +
-      '</div>' +
-      '<div class="btn btn-apagado"><span>Cargar tara final</span>' +
-      '<span class="motivo">cuando se suba esta pesada</span></div>' +
+      '<span class="txt">' + App.esc([d.transporte, d.chofer, (d.campo || '').split(' - ')[0]]
+        .filter(Boolean).join(' · ')) + '</span>' +
+      '<div class="chips">' + chips + '</div>' +
+      (tieneTF && !tieneReg
+        ? '<span class="txt-chico">Tara final ' +
+          App.miles(pasos['tara-final'].taraNueva) + ' kg · guardada en el teléfono</span>'
+        : '') +
+      accion +
       '</div>';
   }
   contenedor.innerHTML = html;
