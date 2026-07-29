@@ -1,0 +1,100 @@
+<%# Lo que ve GENERAL — ref. 6f. Anular o rechazar deja constancia de quién decidió. %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="/app/general" class="volver">‹ Resumen</a>
+      <span class="etiqueta">General</span>
+      <span class="t-pantalla">Pedidos</span>
+    </div>
+    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+  </div>
+
+  <div class="cuerpo">
+
+    <% if (!pendientes.length) { %>
+      <div class="tarjeta" style="gap:6px">
+        <span class="cuerpo-fuerte">No hay pedidos pendientes</span>
+        <span class="txt">Cuando un balancero pida anular o corregir, aparece acá.</span>
+      </div>
+    <% } %>
+
+    <% pendientes.forEach(function (p) { %>
+      <div class="tarjeta" style="padding:16px; gap:13px; border-color:var(--aviso-borde)">
+        <div class="fila-base">
+          <span class="dato"><%= p.patentes %></span>
+          <span class="mono-chico">#<%= p.nro %> · <%= p.balanza %></span>
+        </div>
+
+        <span class="chip chip-ambar" style="align-self:flex-start">
+          <%= p.tipo === 'ANULACION' ? 'Pide anular' : 'Pide corregir' %>
+        </span>
+
+        <span class="txt" style="font-size:14px; color:var(--tinta)">“<%= p.motivo %>”</span>
+        <span class="txt-aux"><%= p.pedidoPor %> · <%= p.cuando %></span>
+
+        <a class="btn btn-borde-suave" style="min-height:48px; font-size:14px" href="/app/registro/<%= p.registroId %>">Ver el ticket</a>
+
+        <div class="botonera-fila">
+          <% if (p.tipo === 'ANULACION') { %>
+            <button type="button" class="btn btn-rojo" data-decidir="<%= p.id %>" data-decision="ANULAR">Anular</button>
+          <% } %>
+          <button type="button" class="btn btn-borde-suave" data-decidir="<%= p.id %>" data-decision="RECHAZAR">Rechazar</button>
+        </div>
+      </div>
+    <% }); %>
+
+    <% if (resueltos.length) { %>
+      <div class="divisor" style="margin:6px 0"></div>
+      <span class="etiqueta">Últimos resueltos</span>
+      <% resueltos.forEach(function (p) { %>
+        <div class="tarjeta tarjeta-chica" style="gap:8px">
+          <div class="fila-base">
+            <span class="mono" style="font:600 17px/1 var(--mono)"><%= p.patentes %></span>
+            <span class="mono-chico">#<%= p.nro %> · <%= p.balanza %></span>
+          </div>
+          <div class="chips">
+            <span class="chip <%= p.estado === 'ANULADO' ? 'chip-ambar' : '' %>">
+              <%= p.estado === 'ANULADO' ? 'Anulado' : 'Rechazado' %>
+            </span>
+          </div>
+          <span class="txt-chico">“<%= p.motivo %>” · <%= p.pedidoPor %></span>
+        </div>
+      <% }); %>
+    <% } %>
+
+    <div class="espaciador"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var botones = document.querySelectorAll('[data-decidir]');
+  for (var i = 0; i < botones.length; i++) {
+    (function (b) {
+      b.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        var decision = b.getAttribute('data-decision');
+        var texto = decision === 'ANULAR'
+          ? '¿Anular el ticket? El número no se vuelve a usar.'
+          : '¿Rechazar el pedido? El ticket queda vigente.';
+        if (!window.confirm(texto)) return;
+
+        var respuesta = '';
+        if (decision === 'RECHAZAR') {
+          respuesta = window.prompt('Motivo del rechazo (opcional):') || '';
+        }
+
+        App.enviar({
+          url: '/app/api/pedido/' + b.getAttribute('data-decidir') + '/resolver',
+          datos: { decision: decision, respuesta: respuesta },
+          boton: b,
+          alListo: function () { window.location.reload(); },
+          alFallar: function (msg) { App.brindis(msg, 'rojo'); }
+        });
+      });
+    })(botones[i]);
+  }
+})();
+</script>

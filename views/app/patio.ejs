@@ -1,0 +1,155 @@
+<%# Patio — ref. 1a, con los estados de 7a (sin señal), 7c (sin regular) y 5f. %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col" style="min-width:0">
+      <span class="t-pantalla recorta">Patio · <%= datos.balanza %></span>
+      <a href="/app/dia?cambio=1" class="txt-aux" style="padding:4px 0">
+        <%= datos.nombreDia %> · <span style="color:var(--punteado)">cambiar</span>
+      </a>
+    </div>
+    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+  </div>
+
+  <div class="cuerpo con-barra">
+
+    <%# Franja de pesadas guardadas en el teléfono (ref. 7a) %>
+    <div class="aviso apilado" data-pendientes hidden>
+      <span class="aviso-titulo" data-pendientes-titulo>Pesadas guardadas en el teléfono</span>
+      <span class="aviso-detalle">Seguí cargando normal. Se suben solas cuando vuelva internet.</span>
+    </div>
+
+    <%# Tickets sin imprimir (ref. 5f) %>
+    <% if (datos.sinImprimir.length) { %>
+      <div class="aviso">
+        <div class="aviso-col">
+          <span class="aviso-titulo">
+            <%= datos.sinImprimir.length %> ticket<%= datos.sinImprimir.length === 1 ? '' : 's' %> sin imprimir
+          </span>
+          <span class="aviso-detalle mono"><%= datos.sinImprimir.map(function(t){ return t.nro; }).join(' · ') %></span>
+        </div>
+        <a class="pastilla" href="/app/tickets-pendientes">Imprimir</a>
+      </div>
+    <% } %>
+
+    <%# Camiones sin regular que quedaron de ayer (ref. 7c) %>
+    <% if (datos.sinRegular.length) { %>
+      <div class="aviso">
+        <div class="aviso-col">
+          <span class="aviso-titulo">
+            <%= datos.sinRegular.length %> camión<%= datos.sinRegular.length === 1 ? '' : 'es' %> sin regular
+          </span>
+          <span class="aviso-detalle">quedaron de antes · <span class="mono"><%= datos.sinRegular.map(function(t){ return t.nro; }).join(' · ') %></span></span>
+        </div>
+        <a class="pastilla" href="#lista">Ver</a>
+      </div>
+    <% } %>
+
+    <div id="lista" style="display:flex; flex-direction:column; gap:12px">
+
+      <%# Pesadas que todavía están en el teléfono (se dibujan con JS) %>
+      <div id="locales" style="display:flex; flex-direction:column; gap:12px"></div>
+
+      <% if (!datos.camiones.length) { %>
+        <div class="tarjeta" style="align-items:flex-start; gap:6px">
+          <span class="cuerpo-fuerte">No hay camiones en curso</span>
+          <span class="txt">Cuando entre el primero, tocá “Nueva pesada”.</span>
+        </div>
+      <% } %>
+
+      <% datos.camiones.forEach(function (c) { %>
+        <div class="tarjeta">
+          <div class="fila-base">
+            <span class="dato"><%= c.patentes %></span>
+            <span class="mono-chico">#<%= c.nro %></span>
+          </div>
+
+          <span class="txt">
+            <%= [c.transporte, c.chofer, c.campoCorto].filter(Boolean).join(' · ') %>
+          </span>
+
+          <div class="chips">
+            <% if (c.sinRegularDeAyer) { %>
+              <span class="chip chip-ambar">Sin regular de ayer</span>
+            <% } %>
+            <% if (c.sinImprimir) { %>
+              <span class="chip chip-ambar">Ticket sin imprimir</span>
+            <% } %>
+            <% if (c.paso === 'TARA_FINAL') { %>
+              <span class="chip">Falta tara final</span>
+            <% } else { %>
+              <span class="chip">Falta regulada</span>
+            <% } %>
+            <% if (c.pedido && c.pedido.tipo === 'ANULACION') { %>
+              <span class="chip chip-ambar">Anulación pedida</span>
+            <% } else if (c.pedido) { %>
+              <span class="chip chip-ambar">Corrección pedida</span>
+            <% } %>
+          </div>
+
+          <% if (c.fechaTaraFinal && c.sinRegularDeAyer) { %>
+            <span class="txt-chico">Tara final <%= c.fechaTaraFinalCorta %><%= c.sinImprimir ? '' : ' · ticket entregado' %></span>
+          <% } %>
+
+          <%# Un botón grande con el paso que falta %>
+          <% if (c.paso === 'TARA_FINAL') { %>
+            <a class="btn" style="min-height:52px" href="/app/tara-final/<%= c.id %>">Cargar tara final</a>
+          <% } else { %>
+            <a class="btn" style="min-height:52px" href="/app/regulada/<%= c.id %>">Cargar regulada</a>
+          <% } %>
+
+          <div class="botonera-fila">
+            <a class="btn btn-borde-suave" style="min-height:48px; font-size:14px" href="/app/registro/<%= c.id %>">Ver ticket</a>
+            <% if (!c.pedido) { %>
+              <button type="button" class="btn btn-borde-suave" style="min-height:48px; font-size:14px"
+                      data-necesita-internet data-clase-normal="btn btn-borde-suave"
+                      data-texto="Pedir anulación"
+                      onclick="location.href='/app/pedir/<%= c.id %>?tipo=anulacion'">Pedir anulación</button>
+            <% } %>
+          </div>
+        </div>
+      <% }); %>
+
+    </div>
+
+    <div class="espaciador"></div>
+  </div>
+
+  <div class="barra-fija">
+    <a class="btn btn-grande" href="/app/nueva-pesada">＋ Nueva pesada</a>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // Aviso puntual al volver de otra pantalla
+  var aviso = '<%= aviso %>';
+  if (aviso === 'pedido-enviado') App.brindis('Pedido enviado a GENERAL.');
+  if (aviso === 'anulado') App.brindis('Ticket anulado. El número no se vuelve a usar.');
+  if (aviso === 'guardado') App.brindis('Pesada guardada.');
+
+  // Dibujar las pesadas que todavía están en el teléfono, con el chip SIN SUBIR.
+  var contenedor = document.getElementById('locales');
+  var pendientes = App.cola.todo();
+  var html = '';
+  for (var i = 0; i < pendientes.length; i++) {
+    var p = pendientes[i];
+    if (p.tipo !== 'pesada') continue;
+    var d = p.datos || {};
+    html += '<div class="tarjeta">' +
+      '<div class="fila-base"><span class="dato">' + App.esc(d.patentes || '') + '</span>' +
+      '<span class="mono-chico">#' + App.esc(d.nro || '—') + '</span></div>' +
+      '<span class="txt">' + App.esc([d.transporte, d.chofer].filter(Boolean).join(' · ')) + '</span>' +
+      '<div class="chips">' +
+        '<span class="chip chip-ambar">Sin subir</span>' +
+        '<span class="chip">Falta tara final</span>' +
+      '</div>' +
+      '<div class="btn btn-apagado"><span>Cargar tara final</span>' +
+      '<span class="motivo">cuando se suba esta pesada</span></div>' +
+      '</div>';
+  }
+  contenedor.innerHTML = html;
+})();
+</script>

@@ -1,0 +1,47 @@
+<%# Detalle de una balanza — ref. 8c. Los que faltan regular no suman al total. %>
+<div class="pantalla">
+
+  <div class="enc" style="align-items:flex-start; flex-direction:column; gap:9px">
+    <a href="/app/general?fecha=<%= fecha %>" class="volver">‹ <%= diaBonito %></a>
+    <div class="fila" style="width:100%; align-items:flex-end">
+      <div class="fila-col">
+        <span class="t-pantalla-g"><%= balanza %></span>
+        <span class="txt-aux">
+          <%= [nombreDia, camiones.length + (camiones.length === 1 ? ' camión' : ' camiones')].filter(Boolean).join(' · ') %>
+        </span>
+      </div>
+      <span class="dato-g"><%= kg(total) %></span>
+    </div>
+  </div>
+
+  <div class="cuerpo" style="gap:9px">
+
+    <% if (!camiones.length) { %>
+      <div class="tarjeta" style="gap:6px">
+        <span class="cuerpo-fuerte">No hay camiones ese día</span>
+        <span class="txt">Esta balanza no registró pesadas en la fecha elegida.</span>
+      </div>
+    <% } %>
+
+    <% camiones.forEach(function (c) { %>
+      <a class="tarjeta tarjeta-chica" href="/app/registro/<%= c.id %>"
+         style="flex-direction:row; align-items:center; justify-content:space-between; gap:12px">
+        <div class="fila-col">
+          <span class="mono" style="font:600 16px/1 var(--mono)"><%= c.patentes %></span>
+          <span class="txt" style="font-size:12px"><%= [c.transporte, c.chofer].filter(Boolean).join(' · ') %></span>
+          <span class="txt-aux"><%= [c.grano, c.lote].filter(Boolean).join(' · ') || '—' %></span>
+        </div>
+        <div class="fila-der">
+          <span class="mono" style="font:600 17px/1 var(--mono)"><%= kg(c.neto) %></span>
+          <% if (c.sinRegular) { %>
+            <span class="chip chip-ambar">Sin regular</span>
+          <% } else { %>
+            <span class="mono-chico" style="letter-spacing:.06em; font-size:10px">NETO</span>
+          <% } %>
+        </div>
+      </a>
+    <% }); %>
+
+    <div class="espaciador"></div>
+  </div>
+</div>

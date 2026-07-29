@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<%#
+  Hoja de impresión del ticket (19 × 4,5 cm, formato 5a).
+  Es una cáscara sin datos: los tickets los dibuja ticket.js, con los datos del
+  servidor si hay señal o con los guardados en el teléfono si no la hay. Así el
+  papel sale igual en los dos casos.
+%>
+<html lang="es-AR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Ticket · Pesada de Balanza</title>
+  <link rel="stylesheet" href="/app/estatico/ticket.css">
+</head>
+<body class="tk-body">
+
+  <div class="tk-barra">
+    <a class="tk-btn secundario" href="<%= volver %>">‹ Volver</a>
+    <button type="button" class="tk-btn" id="tk-imprimir">Imprimir</button>
+    <span class="tk-nota">
+      Elegí hoja A4, tamaño real (100 %) y sin márgenes agregados por la impresora.
+    </span>
+  </div>
+
+  <div class="tk-aviso" id="tk-aviso" style="display:none"></div>
+
+  <div class="tk-visor" id="tk-visor"
+       data-ids="<%= ids.join(',') %>"
+       data-locales="<%= locales %>">
+    <div class="tk-aviso">Armando el ticket…</div>
+  </div>
+
+  <script src="/app/estatico/ticket.js"></script>
+</body>
+</html>

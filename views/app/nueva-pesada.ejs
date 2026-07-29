@@ -1,0 +1,235 @@
+<%# Nueva pesada (CAMIONES) — paso 1. Incluye el aviso de camión repetido (7b). %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="/app/patio" class="volver">‹ Patio</a>
+      <span class="t-pantalla">Nueva pesada</span>
+    </div>
+    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+  </div>
+
+  <div class="cuerpo con-barra">
+
+    <form id="form-pesada" novalidate style="display:flex; flex-direction:column; gap:14px">
+
+      <div class="campo">
+        <span class="etiqueta">Carga para</span>
+        <div class="opciones" data-opciones="cargaPara">
+          <button type="button" class="opcion elegida" data-valor="AMH">AMH</button>
+          <button type="button" class="opcion" data-valor="SOCIO">Socio</button>
+        </div>
+        <input type="hidden" name="cargaPara" value="AMH">
+      </div>
+
+      <div class="campo oculto" id="campo-socio">
+        <label class="etiqueta" for="socio">Nombre del socio</label>
+        <input type="text" id="socio" name="socio" autocapitalize="words" maxlength="60">
+      </div>
+
+      <div class="campo">
+        <label class="etiqueta" for="patentes">Patentes</label>
+        <input type="text" id="patentes" name="patentes" class="mono" list="lista-patentes"
+               autocapitalize="characters" autocomplete="off" maxlength="40"
+               placeholder="AC 884 TF">
+        <datalist id="lista-patentes"></datalist>
+      </div>
+
+      <div class="campo">
+        <label class="etiqueta" for="chofer">Chofer</label>
+        <input type="text" id="chofer" name="chofer" list="lista-choferes"
+               autocapitalize="words" autocomplete="off" maxlength="60">
+        <datalist id="lista-choferes"></datalist>
+      </div>
+
+      <div class="campo">
+        <label class="etiqueta" for="transporte">Transporte</label>
+        <input type="text" id="transporte" name="transporte" list="lista-transportes"
+               autocapitalize="words" autocomplete="off" maxlength="60">
+        <datalist id="lista-transportes"></datalist>
+      </div>
+
+      <div class="campo">
+        <label class="etiqueta" for="campo">Campo</label>
+        <select id="campo" name="campo">
+          <option value="">Elegí el campo</option>
+          <% campos.forEach(function (c) { %>
+            <option value="<%= c %>"><%= c %></option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div class="campo">
+        <span class="etiqueta">Bruto estimado</span>
+        <div class="opciones" data-opciones="brutoEstimado">
+          <% brutosEstimados.forEach(function (b, i) { %>
+            <button type="button" class="opcion<%= i === 1 ? ' elegida' : '' %>" data-valor="<%= b %>">
+              <span class="mono"><%= b.toLocaleString('es-AR') %></span>
+            </button>
+          <% }); %>
+        </div>
+        <input type="hidden" name="brutoEstimado" value="<%= brutosEstimados[1] %>">
+      </div>
+
+      <div class="campo">
+        <label class="etiqueta" for="tara">Tara (opcional)</label>
+        <input type="number" id="tara" name="tara" class="mono" inputmode="numeric"
+               min="0" max="30000" step="10" placeholder="—">
+      </div>
+
+      <div id="error-pesada" class="campo-error" style="min-height:18px"></div>
+    </form>
+
+    <div class="espaciador"></div>
+  </div>
+
+  <div class="barra-fija">
+    <button type="button" id="guardar" class="btn btn-grande">Guardar pesada</button>
+  </div>
+</div>
+
+<%# Modal de camión repetido — ref. 7b %>
+<div class="velo centrado" id="modal-repetido" hidden>
+  <div class="hoja">
+    <div class="hoja-texto">
+      <span class="etiqueta-ambar">Camión repetido hoy</span>
+      <span class="t-modal" id="rep-titulo"></span>
+      <span class="txt" style="font-size:14px; line-height:1.5" id="rep-detalle"></span>
+    </div>
+    <div class="botonera">
+      <a class="btn btn-borde-suave" id="rep-ver" href="#">Ver el otro ticket</a>
+      <button type="button" class="btn" id="rep-seguir">Es otro viaje, seguir</button>
+    </div>
+    <span class="txt-chico">El mismo aviso le llega a GENERAL. No bloquea la carga.</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var form = document.getElementById('form-pesada');
+  var error = document.getElementById('error-pesada');
+  var btn = document.getElementById('guardar');
+  var ocultoCarga = form.elements['cargaPara'];
+  var campoSocio = document.getElementById('campo-socio');
+  var inputPatentes = document.getElementById('patentes');
+  var yaAvisado = '';
+
+  // Autocompletar con lo que ya está cargado en la base.
+  App.cargarSugerencias(function (d) {
+    App.llenarLista('lista-patentes', d.patentes);
+    App.llenarLista('lista-choferes', d.choferes);
+    App.llenarLista('lista-transportes', d.transportes);
+  });
+
+  // Mostrar/ocultar el nombre del socio
+  function revisarSocio() {
+    if (ocultoCarga.value === 'SOCIO') campoSocio.className = 'campo';
+    else campoSocio.className = 'campo oculto';
+  }
+  ocultoCarga.addEventListener('cambio-opcion', revisarSocio);
+  revisarSocio();
+
+  // Aviso de camión repetido: se consulta al salir del campo Patentes.
+  inputPatentes.addEventListener('blur', function () {
+    var p = (inputPatentes.value || '').trim();
+    if (!p || p === yaAvisado || !App.hayConexion()) return;
+    App.pedir('GET', '/app/api/repetido?patentes=' + encodeURIComponent(p), null, function (err, res) {
+      if (err || !res || !res.repetido) return;
+      yaAvisado = p;
+      mostrarRepetido(res.repetido);
+    });
+  });
+
+  function mostrarRepetido(r) {
+    document.getElementById('rep-titulo').innerHTML =
+      App.esc(r.patentes) + ' ya se cargó hoy en ' + App.esc(r.balanza);
+    var partes = [];
+    if (r.nro) partes.push('Ticket ' + r.nro);
+    if (r.hora) partes.push('a las ' + r.hora);
+    if (r.usuario) partes.push('por ' + r.usuario);
+    document.getElementById('rep-detalle').innerHTML =
+      App.esc(partes.join(', ')) + '. Fijate que no sea el mismo viaje cargado dos veces.';
+    document.getElementById('rep-ver').href = '/app/registro/' + r.id;
+    App.abrirModal('modal-repetido');
+  }
+
+  document.getElementById('rep-seguir').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    App.cerrarModal('modal-repetido');
+  });
+
+  function guardar() {
+    error.innerHTML = '';
+    var datos = App.datosDe(form);
+
+    var faltan = [];
+    if (!datos.patentes) faltan.push('la patente');
+    if (!datos.chofer) faltan.push('el chofer');
+    if (!datos.transporte) faltan.push('el transporte');
+    if (!datos.campo) faltan.push('el campo');
+    if (datos.cargaPara === 'SOCIO' && !datos.socio) faltan.push('el nombre del socio');
+    if (faltan.length) {
+      error.innerHTML = 'Falta ' + App.esc(faltan.join(', '));
+      return;
+    }
+
+    datos.patentes = datos.patentes.toUpperCase();
+
+    // Número reservado: permite cargar e imprimir aunque no haya señal.
+    var nro = App.numeros.tomar();
+    if (nro) datos.nro = nro;
+
+    App.enviar({
+      url: '/app/api/pesada',
+      datos: datos,
+      offline: true,
+      tipo: 'pesada',
+      boton: btn,
+
+      alGuardarLocal: function (d) {
+        // Sin señal: se confirma en el momento, sin dejar spinner esperando.
+        App.guardarTicketLocal({
+          localId: d.localId,
+          nro: d.nro || '',
+          patentes: d.patentes,
+          chofer: d.chofer,
+          transporte: d.transporte,
+          campoCorto: (d.campo || '').split(' - ')[0],
+          titular: d.cargaPara === 'SOCIO' ? 'Socio ' + (d.socio || '') : 'AMH',
+          brutoEstimado: Number(d.brutoEstimado) || 0,
+          tara: Number(d.tara) || 0,
+          fechaLarga: '',
+          hora: ''
+        });
+        App.brindis('Pesada guardada en el teléfono. Se sube sola cuando vuelva internet.', 'ambar');
+        window.setTimeout(function () { window.location.href = '/app/patio'; }, 900);
+      },
+
+      alListo: function (res) {
+        if (res.repetido) {
+          // Se guardó igual (no bloquea), pero se avisa.
+          mostrarRepetido(res.repetido);
+          document.getElementById('rep-seguir').innerHTML = 'Listo, volver al patio';
+          document.getElementById('rep-seguir').onclick = function (ev) {
+            ev.preventDefault();
+            window.location.href = '/app/patio';
+          };
+          return;
+        }
+        window.location.href = '/app/patio?aviso=guardado';
+      },
+
+      alFallar: function (msg) {
+        // Si el servidor rechazó, el número reservado vuelve a la reserva.
+        if (nro) App.numeros.devolver(nro);
+        error.innerHTML = App.esc(msg);
+      }
+    });
+  }
+
+  btn.addEventListener('click', function (ev) { ev.preventDefault(); guardar(); });
+  form.addEventListener('submit', function (ev) { ev.preventDefault(); guardar(); });
+})();
+</script>

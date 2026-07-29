@@ -1,0 +1,582 @@
+/* =============================================================================
+ * app.css — App móvil "Pesada de Balanza"
+ * Tokens tomados de design_handoff_app_movil_balanza/README.md ("Tokens") y del
+ * HTML de referencia. No usa Bootstrap: la app tiene su propio CSS para no
+ * tocar ni contaminar el estilo de la web actual.
+ * ========================================================================== */
+
+:root {
+  --fondo: #f8f7f4;
+  --tinta: #1b1a17;
+  --texto2: #5f5c55;
+  --texto3: #7a776e;
+  --mono-label: #8f8b82;
+  --borde-tarjeta: #e4e1da;
+  --borde-fuerte: #dcd9d2;
+  --divisor: #eeece6;
+  --gris: #f4f2ed;
+  --punteado: #a8a49b;
+  --aviso-fondo: #fbf1e2;
+  --aviso-borde: #e8d4b4;
+  --aviso-texto: #7a5514;
+  --aviso-texto-fuerte: #8f5514;
+  --ok-fondo: #e7efe9;
+  --ok-borde: #c6dccd;
+  --ok-texto: #1f5c3d;
+  --destructivo: #8f2f22;
+  --oscuro-campo: #2b2926;
+  --oscuro-borde: #45423c;
+  --oscuro-apagado: #6f6c64;
+
+  --sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+/* `hidden` tiene que ganarle a cualquier display de acá abajo (las tarjetas y
+   los avisos son flex, y si no se pisa esto se ven cuando no corresponde). */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--fondo);
+  color: var(--tinta);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100%;
+  /* Respeta el notch del iPhone y la barra de gestos */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+body.oscuro { background: var(--tinta); color: var(--fondo); }
+
+a { color: inherit; text-decoration: none; }
+
+/* Nada de animaciones decorativas: la app se usa a la intemperie y apurado. */
+* { -webkit-tap-highlight-color: rgba(27, 26, 23, .08); }
+
+/* ── Estructura de pantalla ────────────────────────────────────────────── */
+
+.pantalla {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.enc {
+  padding: 16px 20px 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.enc-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.cuerpo {
+  flex: 1;
+  padding: 14px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cuerpo.con-barra { padding-bottom: 92px; }
+
+.espaciador { flex: 1; min-height: 8px; }
+
+/* ── Tipografía ────────────────────────────────────────────────────────── */
+
+.t-seccion { font: 600 34px/1.15 var(--sans); margin: 0; }
+.t-pantalla { font: 600 24px/1.2 var(--sans); margin: 0; }
+.t-pantalla-g { font: 600 25px/1.2 var(--sans); margin: 0; }
+.t-modal { font: 600 23px/1.2 var(--sans); margin: 0; }
+
+.etiqueta {
+  font: 500 9px/1 var(--mono);
+  letter-spacing: .12em;
+  color: var(--mono-label);
+  text-transform: uppercase;
+}
+
+.etiqueta-verde { color: var(--ok-texto); letter-spacing: .14em; font: 600 11px/1 var(--mono); text-transform: uppercase; }
+.etiqueta-ambar { color: var(--aviso-texto-fuerte); letter-spacing: .1em; font: 600 11px/1 var(--mono); text-transform: uppercase; }
+
+.dato { font: 600 19px/1 var(--mono); }
+.dato-g { font: 600 22px/1 var(--mono); }
+.dato-xg { font: 600 26px/1 var(--mono); }
+.cuerpo-fuerte { font: 600 15px/1.2 var(--sans); }
+.txt { font: 400 13px/1.4 var(--sans); color: var(--texto2); }
+.txt-chico { font: 400 12px/1.45 var(--sans); color: var(--texto3); }
+.txt-aux { font: 400 11px/1.3 var(--sans); color: var(--texto3); }
+.mono-chico { font: 400 11px/1 var(--mono); color: var(--texto3); }
+
+.volver {
+  font: 600 13px/1 var(--sans);
+  color: var(--texto3);
+  display: inline-block;
+  padding: 12px 0;
+  min-height: 44px;
+}
+
+.conexion { font: 600 12px/1 var(--mono); white-space: nowrap; }
+.conexion.en-linea { color: var(--ok-texto); }
+.conexion.sin-senal { color: var(--aviso-texto-fuerte); }
+
+/* ── Tarjetas ──────────────────────────────────────────────────────────── */
+
+.tarjeta {
+  background: #fff;
+  border: 1px solid var(--borde-tarjeta);
+  border-radius: 16px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.tarjeta-chica { border-radius: 14px; padding: 13px 14px; }
+.tarjeta-gris { background: var(--gris); border-color: var(--borde-tarjeta); }
+
+.fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fila-base { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.fila-col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fila-der { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+.divisor { height: 1px; background: var(--divisor); }
+
+/* ── Avisos ────────────────────────────────────────────────────────────── */
+
+.aviso {
+  background: var(--aviso-fondo);
+  border: 1px solid var(--aviso-borde);
+  border-radius: 14px;
+  padding: 14px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Aviso apilado (sin pastilla a la derecha). Es una clase y no un estilo
+   suelto para que `hidden` siga funcionando cuando el aviso no corresponde. */
+.aviso.apilado { flex-direction: column; align-items: stretch; gap: 4px; }
+
+.aviso-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.aviso-titulo { font: 600 14px/1.2 var(--sans); color: var(--tinta); }
+.aviso-detalle { font: 400 12px/1.4 var(--sans); color: var(--aviso-texto); }
+
+.aviso-ok {
+  background: var(--ok-fondo);
+  border: 1px solid var(--ok-borde);
+  border-radius: 14px;
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.aviso-ok .aviso-titulo { color: var(--ok-texto); }
+.aviso-ok .aviso-detalle { color: #2f5c43; }
+
+.pastilla {
+  font: 600 13px/1 var(--sans);
+  color: var(--aviso-texto);
+  background: #fff;
+  border: 1px solid var(--aviso-borde);
+  border-radius: 999px;
+  padding: 12px 14px;
+  white-space: nowrap;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── Chips ─────────────────────────────────────────────────────────────── */
+
+.chips { display: flex; gap: 7px; flex-wrap: wrap; }
+
+.chip {
+  font: 600 10px/1 var(--mono);
+  letter-spacing: .06em;
+  border-radius: 999px;
+  padding: 7px 9px;
+  color: var(--oscuro-apagado);
+  background: var(--divisor);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.chip-ambar { color: var(--aviso-texto); background: var(--aviso-fondo); border: 1px solid var(--aviso-borde); }
+.chip-verde { color: var(--ok-texto); background: var(--ok-fondo); border: 1px solid var(--ok-borde); }
+.chip-fijo {
+  font: 600 12px/1 var(--sans);
+  color: var(--punteado);
+  background: var(--gris);
+  border: 1px solid var(--borde-tarjeta);
+  border-radius: 999px;
+  padding: 9px 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.chip-elegible {
+  font: 600 14px/1 var(--sans);
+  color: var(--tinta);
+  background: #fff;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 999px;
+  padding: 12px 15px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ── Botones ───────────────────────────────────────────────────────────── */
+
+.btn {
+  -webkit-appearance: none;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--tinta);
+  color: var(--fondo);
+  font: 600 16px/1 var(--sans);
+  padding: 8px 16px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btn-grande { min-height: 58px; border-radius: 15px; }
+.btn-claro { background: var(--fondo); color: var(--tinta); }
+.btn-borde { background: transparent; color: var(--tinta); border: 1px solid var(--tinta); }
+.btn-borde-suave { background: transparent; color: var(--tinta); border: 1px solid var(--borde-fuerte); }
+.btn-rojo { background: var(--destructivo); color: var(--fondo); }
+.btn-texto { background: transparent; color: var(--texto3); min-height: 48px; font: 600 15px/1 var(--sans); }
+
+.btn-apagado,
+.btn:disabled {
+  background: var(--gris);
+  border: 1px solid var(--borde-tarjeta);
+  color: var(--punteado);
+  flex-direction: column;
+  gap: 2px;
+  min-height: 50px;
+  cursor: default;
+}
+.btn-apagado .motivo { font: 400 11px/1 var(--sans); color: var(--punteado); }
+
+.botonera { display: flex; flex-direction: column; gap: 9px; }
+.botonera-fila { display: flex; gap: 9px; }
+.botonera-fila > .btn { flex: 1; min-height: 52px; }
+
+.barra-fija {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--fondo) 62%, rgba(248, 247, 244, 0));
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── Formularios ───────────────────────────────────────────────────────── */
+
+.campo { display: flex; flex-direction: column; gap: 7px; }
+
+.campo input[type="text"],
+.campo input[type="number"],
+.campo input[type="tel"],
+.campo select,
+.campo textarea {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  min-height: 54px;
+  background: #fff;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 14px;
+  padding: 0 15px;
+  font: 500 17px/1.2 var(--sans);
+  color: var(--tinta);
+}
+
+.campo textarea {
+  min-height: 96px;
+  padding: 14px 15px;
+  font: 400 15px/1.45 var(--sans);
+  resize: vertical;
+}
+
+.campo select {
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%235f5c55' stroke-width='1.6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+}
+
+/* El texto de ayuda tiene que verse claramente distinto de un dato cargado:
+   si no, el balancero puede creer que el número ya está puesto. */
+.campo input::placeholder,
+.campo textarea::placeholder { color: var(--punteado); font-weight: 400; opacity: 1; }
+.campo input::-webkit-input-placeholder,
+.campo textarea::-webkit-input-placeholder { color: var(--punteado); font-weight: 400; }
+
+.campo input:focus,
+.campo select:focus,
+.campo textarea:focus {
+  outline: 0;
+  border: 2px solid var(--tinta);
+  padding-left: 14px;
+}
+
+.campo input.mono, .campo .mono { font-family: var(--mono); font-weight: 600; }
+
+.campo-error { font: 400 12px/1.4 var(--sans); color: var(--destructivo); }
+
+.opciones { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Botón-opción (reemplaza radios: área táctil grande) */
+.opcion {
+  flex: 1 1 auto;
+  min-width: 92px;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 14px;
+  font: 600 15px/1 var(--sans);
+  color: var(--tinta);
+  cursor: pointer;
+  padding: 8px 12px;
+  text-align: center;
+}
+.opcion.elegida { background: var(--tinta); border-color: var(--tinta); color: var(--fondo); }
+.opcion .mono { font-family: var(--mono); }
+
+/* Lista de casillas (lotes, contratistas, tractores) */
+.lista-casillas {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #fff;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 14px;
+  max-height: 260px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.casilla {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--divisor);
+  font: 400 15px/1.3 var(--sans);
+  cursor: pointer;
+}
+.casilla:last-child { border-bottom: 0; }
+.casilla input { width: 22px; height: 22px; flex: 0 0 auto; accent-color: #1b1a17; }
+.lista-vacia { padding: 15px; font: 400 13px/1.4 var(--sans); color: var(--texto3); }
+
+/* ── Teclado numérico propio (ref. 6a / 6d) ───────────────────────────── */
+
+.casilleros { display: flex; gap: 10px; }
+
+.casillero {
+  flex: 1;
+  height: 74px;
+  background: var(--oscuro-campo);
+  border: 1px solid var(--oscuro-borde);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 30px/1 var(--mono);
+  color: var(--fondo);
+}
+.casillero.activo { border: 2px solid var(--fondo); }
+
+/* Variante clara, para el modal de anulación sobre fondo blanco */
+.casilleros.claro .casillero {
+  height: 64px;
+  background: var(--gris);
+  border: 1px solid var(--borde-fuerte);
+  color: var(--tinta);
+  font-size: 26px;
+}
+.casilleros.claro .casillero.activo { border: 2px solid var(--tinta); }
+
+.teclado {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+
+.tecla {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 58px;
+  background: var(--oscuro-campo);
+  border: 0;
+  border-radius: 13px;
+  font: 500 25px/1 var(--mono);
+  color: var(--fondo);
+  cursor: pointer;
+}
+.tecla.vacia { background: transparent; }
+.tecla.borrar { background: transparent; color: var(--mono-label); font-size: 22px; }
+
+.teclado.claro .tecla { background: var(--gris); color: var(--tinta); }
+.teclado.claro .tecla.vacia { background: transparent; }
+.teclado.claro .tecla.borrar { background: transparent; color: var(--texto3); }
+
+/* ── Modales (hoja inferior) ──────────────────────────────────────────── */
+
+.velo {
+  position: fixed;
+  inset: 0;
+  background: rgba(27, 26, 23, .42);
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 14px;
+}
+.velo[hidden] { display: none; }
+.velo.centrado { align-items: center; }
+
+.hoja {
+  width: 100%;
+  max-width: 452px;
+  background: #fff;
+  border-radius: 22px;
+  padding: 22px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 20px 44px -20px rgba(27, 26, 23, .5);
+  max-height: 92vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hoja-texto { display: flex; flex-direction: column; gap: 7px; }
+.hoja-nota { border-top: 1px solid var(--divisor); padding-top: 12px; }
+
+/* ── Resumen de GENERAL (ref. 8a) ─────────────────────────────────────── */
+
+.kpis { display: flex; gap: 10px; }
+
+.kpi {
+  flex: 1;
+  background: #fff;
+  border: 1px solid var(--borde-tarjeta);
+  border-radius: 16px;
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.bloque-revisar {
+  background: var(--aviso-fondo);
+  border: 1px solid var(--aviso-borde);
+  border-radius: 16px;
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.revisar-fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.revisar-fila .ver {
+  font: 600 12px/1 var(--sans);
+  color: var(--aviso-texto);
+  background: #fff;
+  border: 1px solid var(--aviso-borde);
+  border-radius: 999px;
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+
+.lotes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 2px solid var(--divisor);
+}
+
+/* ── Utilidades ───────────────────────────────────────────────────────── */
+
+.mono { font-family: var(--mono); }
+.centro { text-align: center; }
+.oculto { display: none !important; }
+.recorta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* Franja de estado sin conexión, fija arriba */
+.franja-offline {
+  background: var(--aviso-fondo);
+  border-bottom: 1px solid var(--aviso-borde);
+  padding: 10px 20px;
+  font: 600 12px/1.3 var(--sans);
+  color: var(--aviso-texto);
+  text-align: center;
+}
+
+/* Cartelito de confirmación (verde) que aparece y se va */
+.brindis {
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  z-index: 60;
+  background: var(--ok-fondo);
+  border: 1px solid var(--ok-borde);
+  border-radius: 14px;
+  padding: 14px 15px;
+  color: var(--ok-texto);
+  font: 600 14px/1.3 var(--sans);
+  max-width: 452px;
+  margin: 0 auto;
+}
+.brindis[hidden] { display: none; }
+.brindis.ambar { background: var(--aviso-fondo); border-color: var(--aviso-borde); color: var(--aviso-texto); }
+.brindis.rojo { background: #f7e9e6; border-color: #e0c2bb; color: var(--destructivo); }
+
+@media (min-width: 481px) {
+  .pantalla { border-left: 1px solid var(--borde-fuerte); border-right: 1px solid var(--borde-fuerte); }
+}
+
+/* De 360 px para arriba: apretar un poco los márgenes en pantallas chicas */
+@media (max-width: 374px) {
+  .enc, .cuerpo { padding-left: 16px; padding-right: 16px; }
+  .barra-fija { padding-left: 16px; padding-right: 16px; }
+  .dato { font-size: 17px; }
+  .t-pantalla { font-size: 22px; }
+}

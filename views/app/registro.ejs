@@ -1,0 +1,276 @@
+<%# Detalle del ticket — ref. 7d. Pesos con candado; solo observaciones editables.
+     Incluye el modal de anulación con código GENERAL (ref. 6d). %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="/app/patio" class="volver">‹ Patio</a>
+      <span class="etiqueta">Ticket <%= r.nro %> · <%= r.balanza %></span>
+      <span class="t-pantalla mono"><%= r.patentes %></span>
+    </div>
+    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+  </div>
+
+  <div class="cuerpo">
+
+    <% if (r.anulado) { %>
+      <div class="aviso">
+        <div class="aviso-col">
+          <span class="aviso-titulo">Ticket anulado</span>
+          <span class="aviso-detalle">El número <%= r.nro %> no se vuelve a usar.</span>
+        </div>
+      </div>
+    <% } %>
+
+    <% if (pedido && pedido.estado === 'PENDIENTE') { %>
+      <div class="aviso">
+        <div class="aviso-col">
+          <span class="aviso-titulo"><%= pedido.tipo === 'ANULACION' ? 'Anulación pedida' : 'Corrección pedida' %></span>
+          <span class="aviso-detalle">“<%= pedido.motivo %>” · <%= pedido.pedidoPor %> <%= pedido.hora %></span>
+        </div>
+      </div>
+    <% } else if (pedido && pedido.estado === 'RECHAZADO') { %>
+      <div class="aviso">
+        <div class="aviso-col">
+          <span class="aviso-titulo">GENERAL rechazó el pedido</span>
+          <span class="aviso-detalle">El ticket sigue vigente. Motivo del pedido: “<%= pedido.motivo %>”</span>
+        </div>
+      </div>
+    <% } %>
+
+    <div class="tarjeta">
+      <span class="txt"><%= [r.transporte, r.chofer, r.campoCorto].filter(Boolean).join(' · ') %></span>
+      <% if (r.grano || r.loteTexto) { %>
+        <span class="txt-aux"><%= [r.grano, r.loteTexto].filter(Boolean).join(' · ') %></span>
+      <% } %>
+    </div>
+
+    <%# Los pesos: fijos una vez guardados %>
+    <div class="tarjeta" style="padding:16px; gap:12px">
+      <div class="fila">
+        <div class="fila-col">
+          <span class="etiqueta">Bruto estimado</span>
+          <span class="dato-g"><%= kg(r.brutoEstimado) %> kg</span>
+        </div>
+        <span class="chip-fijo">🔒 fijo</span>
+      </div>
+
+      <% if (r.fechaTaraFinal) { %>
+        <div class="divisor"></div>
+        <div class="fila">
+          <div class="fila-col">
+            <span class="etiqueta">Tara final</span>
+            <span class="dato-g"><%= kg(r.tara) %> kg</span>
+          </div>
+          <span class="chip-fijo">🔒 fijo</span>
+        </div>
+      <% } %>
+
+      <% if (r.brutoLote) { %>
+        <div class="divisor"></div>
+        <div class="fila">
+          <div class="fila-col">
+            <span class="etiqueta">Bruto lote</span>
+            <span class="dato-g"><%= kg(r.brutoLote) %> kg</span>
+          </div>
+          <span class="chip-fijo">🔒 fijo</span>
+        </div>
+      <% } %>
+
+      <% if (r.bruto) { %>
+        <div class="divisor"></div>
+        <div class="fila">
+          <div class="fila-col">
+            <span class="etiqueta">Bruto regulado</span>
+            <span class="dato-g"><%= kg(r.bruto) %> kg</span>
+          </div>
+          <span class="chip-fijo">🔒 fijo</span>
+        </div>
+      <% } %>
+
+      <% if (r.neto !== null) { %>
+        <div class="divisor" style="background:var(--tinta); height:1.5px"></div>
+        <div class="fila">
+          <div class="fila-col">
+            <span class="etiqueta">Neto</span>
+            <span class="dato-xg"><%= kg(r.neto) %> kg</span>
+          </div>
+        </div>
+      <% } %>
+
+      <div class="divisor"></div>
+      <div class="fila">
+        <div class="fila-col" style="min-width:0">
+          <span class="etiqueta">Observaciones</span>
+          <span class="cuerpo-fuerte" id="texto-obs" style="font-weight:400; font-size:15px">
+            <%= r.comentarios || '—' %>
+          </span>
+        </div>
+        <% if (puedeEditarComentarios) { %>
+          <button type="button" class="chip-fijo" data-abre-modal="modal-obs"
+                  style="color:var(--tinta); border-color:var(--borde-fuerte); background:transparent; cursor:pointer">Editar</button>
+        <% } %>
+      </div>
+      <% if (r.cp) { %>
+        <div class="divisor"></div>
+        <div class="fila">
+          <div class="fila-col">
+            <span class="etiqueta">CP / CTG</span>
+            <span class="dato mono"><%= r.cp %></span>
+          </div>
+          <span class="chip-fijo">🔒 fijo</span>
+        </div>
+      <% } %>
+    </div>
+
+    <%# Acciones %>
+    <div class="tarjeta" style="padding:16px; gap:9px">
+      <a class="btn btn-borde-suave" href="/app/imprimir?ids=<%= r.id %>">Imprimir el ticket</a>
+
+      <% if (!r.anulado && (!pedido || pedido.estado !== 'PENDIENTE')) { %>
+        <button type="button" class="btn btn-borde"
+                data-necesita-internet data-clase-normal="btn btn-borde"
+                data-texto="Pedir corrección a GENERAL"
+                onclick="location.href='/app/pedir/<%= r.id %>?tipo=correccion'">Pedir corrección a GENERAL</button>
+
+        <button type="button" class="btn btn-borde-suave"
+                data-necesita-internet data-clase-normal="btn btn-borde-suave"
+                data-texto="Pedir anulación"
+                onclick="location.href='/app/pedir/<%= r.id %>?tipo=anulacion'">Pedir anulación</button>
+
+        <%# Si GENERAL está en el patio, anula en el momento con su código %>
+        <button type="button" class="btn btn-texto" data-abre-modal="modal-anular">Anular con código GENERAL</button>
+      <% } %>
+    </div>
+
+    <div class="espaciador"></div>
+    <p class="txt-aux" style="margin:0">Cargado por <%= r.cargadoPor || '—' %></p>
+  </div>
+</div>
+
+<%# Editar observaciones %>
+<% if (puedeEditarComentarios) { %>
+<div class="velo" id="modal-obs" hidden>
+  <div class="hoja">
+    <div class="hoja-texto">
+      <span class="etiqueta">Observaciones</span>
+      <span class="t-modal">Editar observaciones</span>
+      <span class="txt-chico">Quedan <%= 2 - r.modificaciones %> edición<%= (2 - r.modificaciones) === 1 ? '' : 'es' %>.</span>
+    </div>
+    <div class="campo">
+      <textarea id="obs" maxlength="500" rows="4"><%= r.comentarios || '' %></textarea>
+    </div>
+    <div id="error-obs" class="campo-error" style="min-height:16px"></div>
+    <div class="botonera">
+      <button type="button" class="btn" id="guardar-obs">Guardar</button>
+      <button type="button" class="btn btn-texto" data-cierra-modal="modal-obs">Cancelar</button>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<%# Anular con código GENERAL — ref. 6d %>
+<div class="velo centrado" id="modal-anular" hidden>
+  <div class="hoja" id="zona-anular" tabindex="0" style="outline:none">
+    <div class="hoja-texto">
+      <span class="etiqueta-ambar">Requiere GENERAL</span>
+      <span class="t-modal">Anular el ticket <%= r.nro %></span>
+      <span class="txt" style="font-size:14px; line-height:1.5">
+        <%= [r.patentes, r.chofer, r.balanza].filter(Boolean).join(' · ') %>.
+        El balancero no puede anular; que lo haga GENERAL con su código.
+      </span>
+    </div>
+
+    <div class="casilleros claro">
+      <% for (var i = 0; i < 6; i++) { %>
+        <div class="casillero" data-casillero data-clase="casillero"></div>
+      <% } %>
+    </div>
+
+    <div class="teclado claro">
+      <button type="button" class="tecla" data-tecla="1">1</button>
+      <button type="button" class="tecla" data-tecla="2">2</button>
+      <button type="button" class="tecla" data-tecla="3">3</button>
+      <button type="button" class="tecla" data-tecla="4">4</button>
+      <button type="button" class="tecla" data-tecla="5">5</button>
+      <button type="button" class="tecla" data-tecla="6">6</button>
+      <button type="button" class="tecla" data-tecla="7">7</button>
+      <button type="button" class="tecla" data-tecla="8">8</button>
+      <button type="button" class="tecla" data-tecla="9">9</button>
+      <span class="tecla vacia"></span>
+      <button type="button" class="tecla" data-tecla="0">0</button>
+      <button type="button" class="tecla borrar" data-tecla="borrar" aria-label="Borrar">⌫</button>
+    </div>
+
+    <div id="error-anular" class="campo-error" style="min-height:16px"></div>
+
+    <div class="botonera">
+      <button type="button" class="btn btn-rojo" id="confirmar-anular">Anular registro</button>
+      <button type="button" class="btn btn-texto" data-cierra-modal="modal-anular">Cancelar</button>
+    </div>
+
+    <div class="hoja-nota">
+      <span class="txt-chico">
+        Queda asentado quién anuló y cuándo. El ticket no desaparece: se marca ANULADO
+        en los registros y el número <%= r.nro %> no se vuelve a usar.
+      </span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var idReg = '<%= r.id %>';
+
+  <% if (puedeEditarComentarios) { %>
+  var errorObs = document.getElementById('error-obs');
+  document.getElementById('guardar-obs').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    var texto = document.getElementById('obs').value;
+    App.enviar({
+      url: '/app/api/comentarios/' + idReg,
+      datos: { comentarios: texto },
+      boton: this,
+      alListo: function () {
+        document.getElementById('texto-obs').innerHTML = App.esc(texto || '—');
+        App.cerrarModal('modal-obs');
+        App.brindis('Observaciones guardadas.');
+      },
+      alFallar: function (msg) { errorObs.innerHTML = App.esc(msg); }
+    });
+  });
+  <% } %>
+
+  var errorAnular = document.getElementById('error-anular');
+  var teclado = App.teclado({
+    raiz: document.getElementById('zona-anular'),
+    largo: 6,
+    oculto: true,
+    alCambiar: function () { errorAnular.innerHTML = ''; }
+  });
+
+  document.getElementById('confirmar-anular').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    var code = teclado.valor();
+    if (code.length < 4) {
+      errorAnular.innerHTML = 'Falta el código de GENERAL.';
+      return;
+    }
+    if (!App.hayConexion()) {
+      errorAnular.innerHTML = 'Anular necesita internet.';
+      return;
+    }
+    App.enviar({
+      url: '/app/api/anular',
+      datos: { id: idReg, code: code },
+      boton: this,
+      alListo: function (res) { window.location.href = res.destino || '/app/patio'; },
+      alFallar: function (msg) {
+        errorAnular.innerHTML = App.esc(msg);
+        teclado.limpiar();
+      }
+    });
+  });
+})();
+</script>

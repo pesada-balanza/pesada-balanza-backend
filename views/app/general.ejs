@@ -1,0 +1,115 @@
+<%# Resumen del día — ref. 8a (el elegido). GENERAL no carga nada: mira y autoriza. %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <span class="etiqueta"><%= resumen.alcance %></span>
+      <span class="t-pantalla-g"><%= resumen.esHoy ? 'Hoy, ' + resumen.diaBonito : resumen.diaBonito %></span>
+    </div>
+    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+  </div>
+
+  <div class="cuerpo">
+
+    <%# 1. Los dos números que importan %>
+    <div class="kpis">
+      <div class="kpi">
+        <span class="etiqueta">Neto del día</span>
+        <span class="dato-xg"><%= kg(resumen.netoDia) %></span>
+        <span class="txt-aux">kg · <%= resumen.camionesCerrados %> <%= resumen.camionesCerrados === 1 ? 'camión' : 'camiones' %></span>
+      </div>
+      <div class="kpi">
+        <span class="etiqueta">En curso</span>
+        <span class="dato-xg"><%= resumen.enCurso %></span>
+        <span class="txt-aux">sin cerrar ahora</span>
+      </div>
+    </div>
+
+    <%# 2. Para revisar — desaparece cuando está limpio %>
+    <% if (resumen.revisar.length) { %>
+      <div class="bloque-revisar">
+        <span class="cuerpo-fuerte">Para revisar · <%= resumen.revisar.length %></span>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <% resumen.revisar.forEach(function (x) { %>
+            <a class="revisar-fila" href="<%= x.url %>">
+              <span class="txt" style="color:var(--tinta)"><%= x.texto %></span>
+              <span class="ver">Ver</span>
+            </a>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+
+    <%# 3. Por balanza — tocable, abre el detalle %>
+    <% if (resumen.porBalanza.length) { %>
+      <div class="tarjeta" style="gap:13px">
+        <span class="cuerpo-fuerte">Por balanza</span>
+        <div style="display:flex; flex-direction:column; gap:11px">
+          <% resumen.porBalanza.forEach(function (b, i) { %>
+            <% if (i > 0) { %><div class="divisor"></div><% } %>
+            <a class="fila" href="/app/general/balanza/<%= b.codigo %>?fecha=<%= resumen.fecha %>">
+              <div class="fila-col">
+                <span class="cuerpo-fuerte"><%= b.nombre %></span>
+                <span class="txt-aux">
+                  <%= [b.nombreDia, b.camiones + (b.camiones === 1 ? ' camión' : ' camiones')].filter(Boolean).join(' · ') %>
+                </span>
+              </div>
+              <span class="mono" style="font:600 16px/1 var(--mono)"><%= kg(b.neto) %></span>
+            </a>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+
+    <%# 4. Por grano, con sus lotes indentados %>
+    <% if (resumen.porGrano.length) { %>
+      <div class="tarjeta" style="gap:13px">
+        <div class="fila-base">
+          <span class="cuerpo-fuerte">Por grano</span>
+          <span class="mono-chico" style="letter-spacing:.06em"><%= resumen.esHoy ? 'HOY' : resumen.diaBonito.toUpperCase() %></span>
+        </div>
+
+        <% resumen.porGrano.forEach(function (g, i) { %>
+          <% if (i > 0) { %><div class="divisor"></div><% } %>
+          <div style="display:flex; flex-direction:column; gap:8px">
+            <div class="fila-base">
+              <span class="cuerpo-fuerte" style="font-size:16px"><%= g.grano %></span>
+              <span class="mono" style="font:600 16px/1 var(--mono)"><%= kg(g.neto) %></span>
+            </div>
+            <div class="lotes">
+              <% g.lotes.forEach(function (l) { %>
+                <% if (g.unLote) { %>
+                  <%# Un solo lote: va como línea gris, sin repetir el kilaje %>
+                  <div class="fila-base">
+                    <span class="txt-chico"><%= l.lote %> · <%= l.camiones %> <%= l.camiones === 1 ? 'camión' : 'camiones' %></span>
+                  </div>
+                <% } else { %>
+                  <div class="fila-base">
+                    <span class="txt" style="font-size:13px">
+                      <%= l.lote %> <span style="color:var(--punteado)">· <%= l.camiones %> cam.</span>
+                    </span>
+                    <span class="mono" style="font:500 13px/1 var(--mono)"><%= kg(l.neto) %></span>
+                  </div>
+                <% } %>
+              <% }); %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } else { %>
+      <div class="tarjeta" style="gap:6px">
+        <span class="cuerpo-fuerte">Todavía no hay reguladas cerradas</span>
+        <span class="txt">El neto del día aparece cuando los camiones cierran la regulada.</span>
+      </div>
+    <% } %>
+
+    <div class="espaciador"></div>
+
+    <div class="botonera">
+      <% if (puedeCargar) { %>
+        <a class="btn btn-borde-suave" href="/app/patio">Ir al patio</a>
+      <% } %>
+      <a class="btn btn-texto" href="/app/balanza">Balanza y turno</a>
+    </div>
+  </div>
+</div>

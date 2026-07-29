@@ -1,0 +1,101 @@
+<%# Pedir anulación / corrección — ref. 6e. Motivo escrito obligatorio.
+     Necesita internet: no se puede encolar. %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="/app/registro/<%= r.id %>" class="volver">‹ Ticket <%= r.nro %></a>
+      <span class="t-pantalla"><%= tipo === 'CORRECCION' ? 'Pedir corrección' : 'Pedir anulación' %></span>
+    </div>
+    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+  </div>
+
+  <div class="cuerpo con-barra">
+
+    <div class="tarjeta" style="gap:6px">
+      <div class="fila-base">
+        <span class="dato"><%= r.patentes %></span>
+        <span class="mono-chico">#<%= r.nro %></span>
+      </div>
+      <span class="txt">
+        <%= [r.transporte, r.chofer, r.campoCorto].filter(Boolean).join(' · ') %><%
+        %><%= r.fechaTaraFinal ? ' · tara final ' + kg(r.tara) : '' %>
+      </span>
+    </div>
+
+    <% if (pendiente) { %>
+      <div class="aviso">
+        <div class="aviso-col">
+          <span class="aviso-titulo">Ya hay un pedido pendiente</span>
+          <span class="aviso-detalle">GENERAL todavía no decidió. El ticket sigue vigente.</span>
+        </div>
+      </div>
+    <% } else { %>
+
+      <div class="campo">
+        <label class="etiqueta" for="motivo">Motivo (obligatorio)</label>
+        <textarea id="motivo" rows="4" maxlength="500"
+                  placeholder="<%= tipo === 'CORRECCION' ? 'Qué dato hay que corregir y por qué.' : 'Por qué hay que anular este ticket.' %>"></textarea>
+      </div>
+
+      <div id="error-pedido" class="campo-error" style="min-height:18px"></div>
+
+      <div class="aviso apilado" data-sin-senal hidden>
+        <span class="aviso-titulo">Sin conexión</span>
+        <span class="aviso-detalle">
+          El pedido necesita internet para avisarle a GENERAL. Mientras tanto el ticket
+          sigue vigente y sigue contando en el resumen.
+        </span>
+      </div>
+
+    <% } %>
+
+    <div class="espaciador"></div>
+  </div>
+
+  <% if (!pendiente) { %>
+  <div class="barra-fija">
+    <button type="button" id="enviar-pedido" class="btn btn-grande"
+            data-necesita-internet data-clase-normal="btn btn-grande"
+            data-texto="Enviar pedido a GENERAL">Enviar pedido a GENERAL</button>
+  </div>
+  <% } %>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // La franja de "sin conexión" acompaña al botón apagado.
+  function revisar() {
+    var franjas = document.querySelectorAll('[data-sin-senal]');
+    for (var i = 0; i < franjas.length; i++) franjas[i].hidden = App.hayConexion();
+  }
+  revisar();
+  if (window.addEventListener) {
+    window.addEventListener('online', revisar);
+    window.addEventListener('offline', revisar);
+  }
+
+  var btn = document.getElementById('enviar-pedido');
+  if (!btn) return;
+  var error = document.getElementById('error-pedido');
+
+  btn.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    var motivo = (document.getElementById('motivo').value || '').trim();
+    if (motivo.length < 5) {
+      error.innerHTML = 'Escribí el motivo: GENERAL lo va a leer para decidir.';
+      return;
+    }
+    App.enviar({
+      url: '/app/api/pedido',
+      datos: { id: '<%= r.id %>', tipo: '<%= tipo %>', motivo: motivo },
+      boton: btn,
+      textoGuardando: 'Enviando…',
+      alListo: function (res) { window.location.href = res.destino || '/app/patio'; },
+      alFallar: function (msg) { error.innerHTML = App.esc(msg); }
+    });
+  });
+})();
+</script>

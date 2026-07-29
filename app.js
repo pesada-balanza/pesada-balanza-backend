@@ -1083,6 +1083,23 @@ function validarNumero(v, min = 0, max = 60000) {
 }
 
 /* ---------------------------------------------
+ * APP MÓVIL (/app) — PWA para los balanceros
+ * Vive entera en app-movil.js y cuelga del prefijo /app. Está detrás del flag
+ * APP_MOVIL: con la variable apagada no se monta nada y la web queda exactamente
+ * como está hoy. Escribe en la misma colección `registros`, así que sus tickets
+ * aparecen en Ver Registros, en el Excel y en el mail de las 19hs sin cambios.
+ * -------------------------------------------*/
+if (process.env.APP_MOVIL === '1') {
+  app.use('/app', require('./app-movil')({
+    campos, datosSiembra, campoUsuario,
+    getContratistas: () => contratistas,   // se carga async desde el xlsx
+    codigosIngreso, codigosObservacion, ingresoAObservacion,
+    ymd, validarNumero, ticketVigente, notificar, resolverNombreCodigo,
+  }));
+  console.log('APP MÓVIL habilitada en /app');
+}
+
+/* ---------------------------------------------
  * RUTAS: LOGIN
  * -------------------------------------------*/
 app.get('/', (req, res) => {

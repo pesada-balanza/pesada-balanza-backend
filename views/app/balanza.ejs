@@ -1,0 +1,120 @@
+<%# Balanza y turno — ref. 6c. %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="<%= puedeCargar ? '/app/patio' : '/app/general' %>" class="volver">‹ Volver</a>
+      <span class="t-pantalla">Balanza y turno</span>
+    </div>
+    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+  </div>
+
+  <div class="cuerpo">
+
+    <div class="tarjeta" style="padding:16px; gap:13px">
+      <div class="fila">
+        <div class="fila-col">
+          <span class="etiqueta">Balanza</span>
+          <span class="cuerpo-fuerte" style="font-size:19px"><%= balanza || 'GENERAL' %></span>
+        </div>
+        <button type="button" class="chip-fijo" id="cambiar-balanza"
+                style="color:var(--tinta); border-color:var(--borde-fuerte); background:transparent; cursor:pointer">Cambiar</button>
+      </div>
+
+      <% if (puedeCargar) { %>
+        <div class="divisor"></div>
+        <div class="fila">
+          <div class="fila-col">
+            <span class="etiqueta">Hoy en la balanza</span>
+            <span class="cuerpo-fuerte" style="font-size:19px"><%= nombreDia || '—' %></span>
+          </div>
+          <a class="chip-fijo" href="/app/dia?cambio=1"
+             style="color:var(--tinta); border-color:var(--borde-fuerte); background:transparent">Cambiar</a>
+        </div>
+      <% } %>
+    </div>
+
+    <p class="txt" style="margin:0">
+      <% if (puedeCargar) { %>
+        El nombre escrito al empezar el día se guarda en cada ticket. Si cambia la persona,
+        se cambia acá sin salir de la app.
+      <% } else { %>
+        Este código entra a mirar. Para cargar pesadas hace falta el código de una balanza.
+      <% } %>
+    </p>
+
+    <div class="tarjeta" style="padding:16px; gap:12px">
+      <span class="cuerpo-fuerte">Puede hacer</span>
+      <div style="display:flex; flex-direction:column; gap:9px">
+        <% if (puedeCargar) { %>
+          <div class="fila" style="justify-content:flex-start; gap:10px">
+            <span style="color:var(--ok-texto); font-weight:600">✓</span>
+            <span class="txt" style="color:var(--tinta)">Registrar Camiones, Tara final y Regulada</span>
+          </div>
+          <div class="fila" style="justify-content:flex-start; gap:10px">
+            <span style="color:var(--ok-texto); font-weight:600">✓</span>
+            <span class="txt" style="color:var(--tinta)">Imprimir el ticket y editar observaciones</span>
+          </div>
+          <div class="fila" style="justify-content:flex-start; gap:10px">
+            <span style="color:var(--ok-texto); font-weight:600">✓</span>
+            <span class="txt" style="color:var(--tinta)">Ver los registros de sus balanzas</span>
+          </div>
+          <div class="fila" style="justify-content:flex-start; gap:10px">
+            <span style="color:var(--punteado); font-weight:600">✕</span>
+            <span class="txt">Anular o corregir pesos — se le pide a GENERAL</span>
+          </div>
+        <% } else { %>
+          <div class="fila" style="justify-content:flex-start; gap:10px">
+            <span style="color:var(--ok-texto); font-weight:600">✓</span>
+            <span class="txt" style="color:var(--tinta)">Ver el resumen<%= esGeneral ? ' de todas las balanzas' : ' de su balanza' %></span>
+          </div>
+          <% if (esGeneral) { %>
+            <div class="fila" style="justify-content:flex-start; gap:10px">
+              <span style="color:var(--ok-texto); font-weight:600">✓</span>
+              <span class="txt" style="color:var(--tinta)">Autorizar anulaciones y correcciones</span>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (esGeneral) { %>
+      <a class="btn btn-borde-suave" href="/app/general">Resumen del día</a>
+      <a class="btn btn-borde-suave" href="/app/general/pedidos">Pedidos de anulación</a>
+    <% } %>
+
+    <div class="espaciador"></div>
+
+    <button type="button" id="salir" class="btn btn-borde-suave" style="min-height:54px">Salir de la app</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  function salir(mensaje) {
+    if (App.cola.cantidad() > 0) {
+      window.alert(
+        'Hay ' + App.cola.cantidad() + ' pesada(s) todavía guardadas en el teléfono. ' +
+        'Conectate a internet y esperá a que se suban antes de salir.'
+      );
+      return;
+    }
+    if (mensaje && !window.confirm(mensaje)) return;
+    App.pedir('POST', '/app/api/salir', {}, function () {
+      window.location.href = '/app/ingreso';
+    });
+  }
+
+  document.getElementById('salir').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    salir('¿Salir de la app? Después hay que volver a poner el código de la balanza.');
+  });
+
+  document.getElementById('cambiar-balanza').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    salir('Para cambiar de balanza hay que poner el código de la otra. ¿Seguimos?');
+  });
+})();
+</script>

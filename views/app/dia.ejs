@@ -1,0 +1,84 @@
+<%# Nombre del día — ref. 6b. Se pide una vez por día y por balanza. %>
+<div class="pantalla">
+  <div class="cuerpo" style="padding:30px 24px 22px; gap:20px">
+
+    <div style="display:flex; flex-direction:column; gap:9px">
+      <span class="etiqueta-verde"><%= balanza %> · <%= diaBonito.toUpperCase() %> <%= fechaCorta %></span>
+      <span style="font:600 29px/1.15 var(--sans)"><%= cambio ? '¿Quién toma la balanza?' : '¿Quién está en la balanza hoy?' %></span>
+      <span class="txt" style="font-size:14px; line-height:1.5">Se pide una vez por día, al primer ingreso con el código. Este nombre queda en todos los tickets que registres hoy.</span>
+    </div>
+
+    <form id="form-dia" novalidate>
+      <div class="campo">
+        <label class="etiqueta" for="nombre">Nombre y apellido</label>
+        <input type="text" id="nombre" name="nombre" autocomplete="name"
+               autocapitalize="words" enterkeyhint="done" maxlength="60"
+               value="<%= nombreActual || '' %>" placeholder="Juan Sosa">
+      </div>
+      <div id="error-dia" class="campo-error" style="min-height:16px; margin-top:6px"></div>
+    </form>
+
+    <% if (sugeridos && sugeridos.length) { %>
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <span class="etiqueta">Últimos en esta balanza</span>
+        <div class="opciones" style="gap:8px">
+          <% sugeridos.forEach(function (n) { %>
+            <button type="button" class="chip-elegible" data-sugerido="<%= n %>"><%= n %></button>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+
+    <button type="button" id="empezar" class="btn btn-grande" style="min-height:60px; font-size:17px">
+      <%= cambio ? 'Cambiar el nombre' : 'Empezar el día' %>
+    </button>
+
+    <div class="espaciador"></div>
+
+    <p class="txt-chico" style="margin:0">
+      Si otra persona toma la balanza a mitad del día, se cambia el nombre desde el encabezado del Patio.
+    </p>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var input = document.getElementById('nombre');
+  var error = document.getElementById('error-dia');
+  var btn = document.getElementById('empezar');
+
+  var chips = document.querySelectorAll('[data-sugerido]');
+  for (var i = 0; i < chips.length; i++) {
+    (function (c) {
+      c.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        input.value = c.getAttribute('data-sugerido');
+        error.innerHTML = '';
+      });
+    })(chips[i]);
+  }
+
+  function guardar() {
+    var nombre = (input.value || '').replace(/\s+/g, ' ').trim();
+    if (nombre.length < 3) {
+      error.innerHTML = 'Escribí nombre y apellido.';
+      input.focus();
+      return;
+    }
+    App.enviar({
+      url: '/app/api/dia',
+      datos: { nombre: nombre },
+      boton: btn,
+      alListo: function (res) { window.location.href = res.destino || '/app/patio'; },
+      alFallar: function (msg) { error.innerHTML = App.esc(msg); }
+    });
+  }
+
+  btn.addEventListener('click', function (ev) { ev.preventDefault(); guardar(); });
+  document.getElementById('form-dia').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    guardar();
+  });
+})();
+</script>

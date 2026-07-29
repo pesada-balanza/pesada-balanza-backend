@@ -1,0 +1,46 @@
+<%# Listas de revisión de GENERAL: camiones repetidos y sin regular. %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="/app/general" class="volver">‹ Resumen</a>
+      <span class="t-pantalla"><%= encabezado %></span>
+    </div>
+    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+  </div>
+
+  <div class="cuerpo">
+
+    <p class="txt" style="margin:0"><%= detalle %></p>
+
+    <% if (!grupos.length) { %>
+      <div class="tarjeta" style="gap:6px">
+        <span class="cuerpo-fuerte"><%= vacio %></span>
+      </div>
+    <% } %>
+
+    <% grupos.forEach(function (g) { %>
+      <div class="tarjeta" style="gap:11px">
+        <span class="dato"><%= g.patentes %></span>
+        <% g.tickets.forEach(function (t, i) { %>
+          <% if (i > 0) { %><div class="divisor"></div><% } %>
+          <a class="fila" href="/app/registro/<%= t.id %>">
+            <div class="fila-col">
+              <span class="txt" style="color:var(--tinta)"><%= t.balanza %></span>
+              <span class="txt-aux">
+                #<%= t.nro %><%= t.hora ? ' · ' + t.hora : '' %><%= t.usuario ? ' · ' + t.usuario : '' %>
+              </span>
+            </div>
+            <% if (t.neto !== null) { %>
+              <span class="mono" style="font:600 15px/1 var(--mono)"><%= kg(t.neto) %></span>
+            <% } else { %>
+              <span class="chip chip-ambar">Sin regular</span>
+            <% } %>
+          </a>
+        <% }); %>
+      </div>
+    <% }); %>
+
+    <div class="espaciador"></div>
+  </div>
+</div>

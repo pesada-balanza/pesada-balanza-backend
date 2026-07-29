@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1b1a17">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Pesada">
+  <meta name="robots" content="noindex, nofollow">
+  <title><%= typeof titulo !== 'undefined' && titulo ? titulo + ' · Pesada de Balanza' : 'Pesada de Balanza' %></title>
+  <link rel="manifest" href="/app/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/app/icono.svg">
+  <link rel="icon" href="/app/icono.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app/estatico/app.css">
+  <%# Se carga acá, y no al final, porque los scripts de cada pantalla usan App
+      en cuanto se dibujan. Es un archivo chico y el service worker lo cachea. %>
+  <script src="/app/estatico/app.js"></script>
+</head>
+<body<%= typeof oscuro !== 'undefined' && oscuro ? ' class="oscuro"' : '' %> data-puede-cargar="<%= typeof puedeCargar !== 'undefined' && puedeCargar ? '1' : '0' %>">
+  <%# El cartelito de avisos va arriba (es position:fixed) para que ya exista
+      cuando una pantalla quiera usarlo al abrirse. %>
+  <div id="brindis" class="brindis" hidden></div>
+  <%- body %>
+</body>
+</html>

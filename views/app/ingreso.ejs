@@ -1,0 +1,79 @@
+<%# Ingreso por código — ref. 6a. Pantalla oscura, teclado numérico propio. %>
+<div class="pantalla" style="background:#1b1a17;color:#f8f7f4">
+  <div id="zona-teclado" tabindex="0" style="flex:1; display:flex; flex-direction:column; justify-content:space-between; padding:34px 26px calc(26px + env(safe-area-inset-bottom)); outline:none">
+
+    <div style="display:flex; flex-direction:column; gap:9px">
+      <span style="font:600 11px/1 var(--mono); letter-spacing:.16em; color:#8f8b82">PESADA DE BALANZA</span>
+      <span style="font:600 30px/1.15 var(--sans); color:#f8f7f4">Ingresá el código de la balanza</span>
+      <span style="font:400 14px/1.5 var(--sans); color:#a8a49b">Una sola vez. Después queda abierta en este teléfono.</span>
+    </div>
+
+    <div id="zona-codigo" style="display:flex; flex-direction:column; gap:16px">
+      <div class="casilleros">
+        <% for (var i = 0; i < 6; i++) { %>
+          <div class="casillero" data-casillero data-clase="casillero"></div>
+        <% } %>
+      </div>
+      <div id="error-codigo" class="campo-error" style="min-height:16px; color:#e8a397"></div>
+      <button type="button" id="entrar" class="btn btn-claro btn-grande" style="min-height:60px; font-size:17px">Entrar</button>
+    </div>
+
+    <div class="teclado" id="teclado">
+      <button type="button" class="tecla" data-tecla="1">1</button>
+      <button type="button" class="tecla" data-tecla="2">2</button>
+      <button type="button" class="tecla" data-tecla="3">3</button>
+      <button type="button" class="tecla" data-tecla="4">4</button>
+      <button type="button" class="tecla" data-tecla="5">5</button>
+      <button type="button" class="tecla" data-tecla="6">6</button>
+      <button type="button" class="tecla" data-tecla="7">7</button>
+      <button type="button" class="tecla" data-tecla="8">8</button>
+      <button type="button" class="tecla" data-tecla="9">9</button>
+      <span class="tecla vacia"></span>
+      <button type="button" class="tecla" data-tecla="0">0</button>
+      <button type="button" class="tecla borrar" data-tecla="borrar" aria-label="Borrar">⌫</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var error = document.getElementById('error-codigo');
+  var btn = document.getElementById('entrar');
+
+  var zona = document.getElementById('zona-teclado');
+  var teclado = App.teclado({
+    raiz: zona,
+    largo: 6,
+    alCambiar: function () { error.innerHTML = ''; }
+  });
+  try { zona.focus(); } catch (e) {}
+
+  // El teclado físico también sirve (para probar desde la computadora).
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); entrar(); }
+  });
+
+  function entrar() {
+    var codigo = teclado.valor();
+    if (codigo.length < 4) {
+      error.innerHTML = 'El código tiene 4 o 5 números.';
+      return;
+    }
+    App.enviar({
+      url: '/app/api/ingreso',
+      datos: { code: codigo },
+      boton: btn,
+      textoGuardando: 'Entrando…',
+      alListo: function (res) { window.location.href = res.destino || '/app'; },
+      alFallar: function (msg) {
+        error.innerHTML = App.esc(msg);
+        teclado.limpiar();
+      }
+    });
+  }
+
+  btn.addEventListener('click', function (ev) { ev.preventDefault(); entrar(); });
+})();
+</script>

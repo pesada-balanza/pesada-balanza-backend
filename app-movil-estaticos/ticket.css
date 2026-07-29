@@ -1,0 +1,217 @@
+/* =============================================================================
+ * ticket.css — Ticket para el chofer, formato 5a del handoff.
+ *
+ * MEDIDAS EXACTAS (README, sección 6):
+ *   Banda de 19 cm de ancho × 4,5 cm de alto, sobre A4 vertical (21 × 29,7 cm)
+ *   con 1 cm de margen a cada lado y 1 cm arriba y abajo.
+ *   27,7 cm útiles / 4,5 cm = 6 tickets por hoja (sobran 0,7 cm).
+ *   Los tickets van PEGADOS: la punteada que cierra uno abre el siguiente.
+ * ========================================================================== */
+
+@page {
+  size: A4 portrait;
+  margin: 1cm;
+}
+
+:root {
+  --tk-tinta: #1b1a17;
+  --tk-linea: #d8d5ce;
+  --tk-label: #8f8b82;
+  --tk-suave: #6f6c64;
+  --tk-punteado: #a8a49b;
+  --tk-corte: #c2beb5;
+  --tk-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --tk-mono: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.tk-hoja {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+}
+
+/* ── Un ticket ─────────────────────────────────────────────────────────── */
+
+.tk {
+  box-sizing: border-box;
+  width: 190mm;          /* 19 cm */
+  height: 45mm;          /* 4,5 cm — incluye la franja de corte */
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.tk-cuerpo {
+  box-sizing: border-box;
+  flex: 1;
+  display: flex;
+  gap: 4mm;
+  padding: 3.4mm 4.8mm 2mm;
+  min-height: 0;
+}
+
+/* Izquierda: identidad + número */
+.tk-izq {
+  box-sizing: border-box;
+  width: 35mm;
+  flex: 0 0 35mm;
+  border-right: 1px solid var(--tk-linea);
+  padding-right: 3.7mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.tk-establecimiento { font: 600 16px/1.1 var(--tk-sans); color: var(--tk-tinta); }
+.tk-titular { font: 400 9px/1.2 var(--tk-mono); letter-spacing: .06em; color: var(--tk-suave); }
+.tk-nro-label { font: 500 8px/1 var(--tk-mono); letter-spacing: .1em; color: var(--tk-label); }
+.tk-nro { font: 600 26px/1 var(--tk-mono); color: var(--tk-tinta); }
+.tk-fecha { font: 400 9px/1.2 var(--tk-mono); color: var(--tk-suave); }
+
+/* Centro: datos del viaje, grilla de 3 columnas */
+.tk-centro {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.9mm 3.7mm;
+  align-content: space-between;
+}
+
+.tk-dato { display: flex; flex-direction: column; gap: .3mm; min-width: 0; }
+.tk-dato.ancho { grid-column: 1 / -1; }
+.tk-label { font: 500 8px/1 var(--tk-mono); letter-spacing: .1em; color: var(--tk-label); }
+.tk-valor { font: 500 12px/1.1 var(--tk-sans); color: var(--tk-tinta); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-valor.patente { font: 600 13px/1.1 var(--tk-mono); }
+/* El chofer es el dato que más se busca */
+.tk-valor.chofer { font: 700 14px/1.1 var(--tk-sans); }
+
+/* Renglón punteado: lo que todavía no está y se completa a mano */
+.tk-renglon { border-bottom: 1px dotted var(--tk-punteado); min-height: 4mm; display: block; }
+
+/* Derecha: los pesos */
+.tk-der {
+  box-sizing: border-box;
+  width: 46mm;
+  flex: 0 0 46mm;
+  border-left: 1px solid var(--tk-linea);
+  padding-left: 3.7mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.tk-pesos { display: flex; flex-direction: column; gap: .8mm; }
+.tk-peso { display: flex; justify-content: space-between; align-items: flex-end; gap: 2mm; }
+.tk-peso-nombre { font: 400 10px/1 var(--tk-sans); color: var(--tk-suave); }
+.tk-peso-valor { font: 600 12px/1 var(--tk-mono); color: var(--tk-tinta); }
+.tk-peso .tk-renglon { width: 18mm; min-height: 3.6mm; }
+
+.tk-neto {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-top: 1.5px solid var(--tk-tinta);
+  padding-top: 1.6mm;
+}
+.tk-neto-label { font: 600 11px/1 var(--tk-mono); letter-spacing: .1em; color: var(--tk-tinta); }
+.tk-neto-valor { font: 600 15px/1 var(--tk-mono); color: var(--tk-tinta); }
+.tk-neto .tk-renglon { width: 25mm; min-height: 5.5mm; }
+
+.tk-firma { display: flex; flex-direction: column; gap: .8mm; }
+.tk-firma-linea { height: 1px; background: var(--tk-label); }
+.tk-firma-texto { font: 400 8px/1 var(--tk-mono); letter-spacing: .08em; color: var(--tk-label); }
+
+/* Franja de corte: la punteada que cierra uno es la que abre el siguiente */
+.tk-corte {
+  height: 5mm;
+  flex: 0 0 5mm;
+  border-top: 1px dashed var(--tk-punteado);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tk-corte span { font: 400 7px/1 var(--tk-mono); letter-spacing: .24em; color: var(--tk-corte); }
+
+.tk-anulado {
+  position: absolute;
+  font: 700 34px/1 var(--tk-sans);
+  letter-spacing: .3em;
+  color: rgba(143, 47, 34, .28);
+  transform: rotate(-8deg);
+  margin: 8mm 0 0 60mm;
+}
+
+/* ── Vista en pantalla (antes de imprimir) ────────────────────────────── */
+
+@media screen {
+  body.tk-body {
+    margin: 0;
+    background: #e9e7e2;
+    font-family: var(--tk-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .tk-barra {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8f7f4;
+    border-bottom: 1px solid #dcd9d2;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .tk-barra .tk-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 50px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 14px;
+    background: #1b1a17;
+    color: #f8f7f4;
+    font: 600 15px/1 var(--tk-sans);
+    cursor: pointer;
+  }
+  .tk-barra .tk-btn.secundario { background: transparent; color: #1b1a17; border: 1px solid #dcd9d2; }
+  .tk-barra .tk-nota { font: 400 12px/1.35 var(--tk-sans); color: #5f5c55; flex: 1 1 160px; min-width: 0; }
+
+  .tk-visor {
+    padding: 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tk-hoja {
+    width: 190mm;
+    margin: 0 auto;
+    box-shadow: 0 14px 32px -24px rgba(27, 26, 23, .4);
+    border: 1px solid #dcd9d2;
+  }
+
+  .tk { border-bottom: 0; }
+
+  .tk-aviso {
+    max-width: 190mm;
+    margin: 0 auto 12px;
+    background: #fbf1e2;
+    border: 1px solid #e8d4b4;
+    border-radius: 14px;
+    padding: 12px 14px;
+    font: 400 12px/1.45 var(--tk-sans);
+    color: #7a5514;
+  }
+}
+
+@media print {
+  .tk-barra, .tk-aviso { display: none !important; }
+  .tk-visor { padding: 0; overflow: visible; }
+  .tk-hoja { width: auto; margin: 0; box-shadow: none; border: 0; }
+  body.tk-body { background: #fff; margin: 0; }
+}

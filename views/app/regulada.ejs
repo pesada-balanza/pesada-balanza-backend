@@ -1,0 +1,302 @@
+<%# Regulada — paso 3. Cierra el ticket: acá sale el neto. %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="/app/patio" class="volver">‹ Patio</a>
+      <span class="etiqueta">Ticket <%= r.nro %> · tara final <%= kg(r.tara) %></span>
+      <span class="t-pantalla mono"><%= r.patentes %></span>
+    </div>
+    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+  </div>
+
+  <div class="cuerpo con-barra">
+
+    <div class="tarjeta">
+      <span class="txt"><%= [r.transporte, r.chofer, r.campoCorto].filter(Boolean).join(' · ') %></span>
+      <div class="divisor"></div>
+      <div class="fila">
+        <div class="fila-col">
+          <span class="etiqueta">Tara final</span>
+          <span class="dato-g"><%= kg(r.tara) %> kg</span>
+        </div>
+        <button type="button" class="chip-fijo" id="btn-corregir-tara" style="cursor:pointer">🔒 fijo</button>
+      </div>
+      <div class="campo oculto" id="campo-tara-nueva">
+        <label class="etiqueta" for="taraNuevaReg">Tara corregida (kg)</label>
+        <input type="number" id="taraNuevaReg" class="mono" inputmode="numeric"
+               min="1000" max="30000" step="10" placeholder="<%= r.tara %>">
+        <span class="txt-chico">Solo si la tara pesada estaba mal.</span>
+      </div>
+    </div>
+
+    <form id="form-reg" novalidate style="display:flex; flex-direction:column; gap:14px">
+
+      <div class="campo">
+        <label class="etiqueta" for="grano">Grano</label>
+        <select id="grano" name="grano">
+          <option value="">Elegí el grano</option>
+          <% Object.keys(granosDelCampo).forEach(function (g) { %>
+            <option value="<%= g %>"><%= g %></option>
+          <% }); %>
+        </select>
+        <% if (!Object.keys(granosDelCampo).length) { %>
+          <span class="txt-chico">Este campo no tiene granos cargados en la planilla de siembra. Escribilo abajo.</span>
+          <input type="text" id="granoLibre" name="grano" autocapitalize="characters" maxlength="40"
+                 placeholder="SOJA" style="margin-top:8px">
+        <% } %>
+      </div>
+
+      <div class="campo">
+        <span class="etiqueta">Lote <span style="text-transform:none; letter-spacing:0">(uno o más)</span></span>
+        <div class="lista-casillas" id="lista-lotes">
+          <div class="lista-vacia">Elegí primero el grano.</div>
+        </div>
+      </div>
+
+      <div class="campo">
+        <span class="etiqueta">Cargó de</span>
+        <div class="opciones" data-opciones="cargoDe">
+          <button type="button" class="opcion" data-valor="SILOBOLSA">Silobolsa</button>
+          <button type="button" class="opcion" data-valor="CONTRATISTA">Contratista</button>
+        </div>
+        <input type="hidden" name="cargoDe" value="">
+      </div>
+
+      <div class="campo oculto" id="campo-silobolsa">
+        <label class="etiqueta" for="silobolsa">Número de silobolsa</label>
+        <input type="text" id="silobolsa" name="silobolsa" maxlength="40">
+      </div>
+
+      <div class="campo oculto" id="campo-contratista">
+        <span class="etiqueta">Contratista <span style="text-transform:none; letter-spacing:0">(uno o más)</span></span>
+        <div class="lista-casillas" id="lista-contratistas">
+          <% Object.keys(contratistas).forEach(function (n, i) { %>
+            <label class="casilla">
+              <input type="checkbox" name="contratista" value="<%= n %>" data-contratista="<%= n %>">
+              <span><%= n %></span>
+            </label>
+          <% }); %>
+          <% if (!Object.keys(contratistas).length) { %>
+            <div class="lista-vacia">No hay contratistas cargados.</div>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="campo oculto" id="campo-tractor">
+        <span class="etiqueta">Tractor <span style="text-transform:none; letter-spacing:0">(uno o más)</span></span>
+        <div class="lista-casillas" id="lista-tractores">
+          <div class="lista-vacia">Elegí primero el contratista.</div>
+        </div>
+      </div>
+
+      <div class="campo">
+        <label class="etiqueta" for="brutoLote">Bruto lote (kg)</label>
+        <input type="number" id="brutoLote" name="brutoLote" class="mono" inputmode="numeric"
+               min="0" max="60000" step="10">
+      </div>
+
+      <div class="campo">
+        <label class="etiqueta" for="bruto">Bruto regulado (kg)</label>
+        <input type="number" id="bruto" name="bruto" class="mono" inputmode="numeric"
+               min="0" max="60000" step="10">
+      </div>
+
+      <div class="tarjeta tarjeta-gris" id="calculo-neto" hidden>
+        <div class="fila-base">
+          <span class="cuerpo-fuerte">Neto</span>
+          <span class="dato-g mono" id="neto">—</span>
+        </div>
+      </div>
+
+      <div class="campo">
+        <label class="etiqueta" for="comentarios">Observaciones</label>
+        <textarea id="comentarios" name="comentarios" maxlength="500" rows="3"></textarea>
+      </div>
+
+      <div id="error-reg" class="campo-error" style="min-height:18px"></div>
+    </form>
+
+    <div class="espaciador"></div>
+  </div>
+
+  <div class="barra-fija">
+    <button type="button" id="guardar-reg" class="btn btn-grande">Guardar regulada</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DATOS_LOTES = <%- JSON.stringify(granosDelCampo).replace(/</g, '\\u003c') %>;
+  var DATOS_TRACTORES = <%- JSON.stringify(contratistas).replace(/</g, '\\u003c') %>;
+
+  var form = document.getElementById('form-reg');
+  var error = document.getElementById('error-reg');
+  var btn = document.getElementById('guardar-reg');
+  var selGrano = document.getElementById('grano');
+  var listaLotes = document.getElementById('lista-lotes');
+  var ocultoCargo = form.elements['cargoDe'];
+  var campoSilo = document.getElementById('campo-silobolsa');
+  var campoContr = document.getElementById('campo-contratista');
+  var campoTractor = document.getElementById('campo-tractor');
+  var listaTractores = document.getElementById('lista-tractores');
+  var inputBruto = document.getElementById('bruto');
+  var inputTaraNueva = document.getElementById('taraNuevaReg');
+  var campoTaraNueva = document.getElementById('campo-tara-nueva');
+  var calculoNeto = document.getElementById('calculo-neto');
+  var salidaNeto = document.getElementById('neto');
+  var taraOriginal = <%= Number(r.tara) || 0 %>;
+  var corrigiendoTara = false;
+
+  /* ── Lotes según el grano ─────────────────────────────────────────────── */
+  function pintarLotes() {
+    var g = selGrano ? selGrano.value : '';
+    var lotes = (g && DATOS_LOTES[g]) || [];
+    if (!lotes.length) {
+      listaLotes.innerHTML = '<div class="lista-vacia">' +
+        (g ? 'Este grano no tiene lotes cargados para el campo.' : 'Elegí primero el grano.') +
+        '</div>';
+      return;
+    }
+    var h = '';
+    for (var i = 0; i < lotes.length; i++) {
+      h += '<label class="casilla"><input type="checkbox" name="lote" value="' +
+        App.esc(lotes[i]) + '"><span>' + App.esc(lotes[i]) + '</span></label>';
+    }
+    listaLotes.innerHTML = h;
+  }
+  if (selGrano) selGrano.addEventListener('change', pintarLotes);
+  pintarLotes();
+
+  /* ── Silobolsa / contratista ──────────────────────────────────────────── */
+  function revisarCargo() {
+    var v = ocultoCargo.value;
+    campoSilo.className = v === 'SILOBOLSA' ? 'campo' : 'campo oculto';
+    campoContr.className = v === 'CONTRATISTA' ? 'campo' : 'campo oculto';
+    campoTractor.className = v === 'CONTRATISTA' ? 'campo' : 'campo oculto';
+  }
+  ocultoCargo.addEventListener('cambio-opcion', revisarCargo);
+  revisarCargo();
+
+  /* ── Tractores según los contratistas elegidos ────────────────────────── */
+  function pintarTractores() {
+    var elegidos = [];
+    var chks = document.querySelectorAll('[data-contratista]');
+    for (var i = 0; i < chks.length; i++) {
+      if (chks[i].checked) elegidos.push(chks[i].getAttribute('data-contratista'));
+    }
+    var tractores = [];
+    for (var j = 0; j < elegidos.length; j++) {
+      var lista = DATOS_TRACTORES[elegidos[j]] || [];
+      for (var k = 0; k < lista.length; k++) {
+        if (tractores.indexOf(lista[k]) === -1) tractores.push(lista[k]);
+      }
+    }
+    if (!tractores.length) {
+      listaTractores.innerHTML = '<div class="lista-vacia">Elegí primero el contratista.</div>';
+      return;
+    }
+    var h = '';
+    for (var m = 0; m < tractores.length; m++) {
+      h += '<label class="casilla"><input type="checkbox" name="tractor" value="' +
+        App.esc(tractores[m]) + '"><span class="mono">' + App.esc(tractores[m]) + '</span></label>';
+    }
+    listaTractores.innerHTML = h;
+  }
+  var chksContr = document.querySelectorAll('[data-contratista]');
+  for (var i = 0; i < chksContr.length; i++) {
+    chksContr[i].addEventListener('change', pintarTractores);
+  }
+
+  /* ── Corregir la tara (queda registrado en el ticket) ─────────────────── */
+  document.getElementById('btn-corregir-tara').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    corrigiendoTara = !corrigiendoTara;
+    campoTaraNueva.className = corrigiendoTara ? 'campo' : 'campo oculto';
+    this.innerHTML = corrigiendoTara ? 'Dejar la pesada' : '🔒 fijo';
+    if (!corrigiendoTara) inputTaraNueva.value = '';
+    calcularNeto();
+  });
+
+  function taraEnUso() {
+    if (corrigiendoTara) {
+      var v = Number(inputTaraNueva.value);
+      if (isFinite(v) && v > 0) return v;
+    }
+    return taraOriginal;
+  }
+
+  function calcularNeto() {
+    var b = Number(inputBruto.value);
+    if (isFinite(b) && b > 0) {
+      calculoNeto.hidden = false;
+      salidaNeto.innerHTML = App.miles(b - taraEnUso());
+    } else {
+      calculoNeto.hidden = true;
+    }
+  }
+  inputBruto.addEventListener('input', calcularNeto);
+  inputTaraNueva.addEventListener('input', calcularNeto);
+
+  /* ── Guardar ──────────────────────────────────────────────────────────── */
+  function guardar() {
+    error.innerHTML = '';
+    var datos = App.datosDe(form);
+    datos.id = '<%= r.id %>';
+
+    var faltan = [];
+    if (!datos.grano) faltan.push('el grano');
+    if (!datos.lote || !datos.lote.length) faltan.push('el lote');
+    if (!datos.cargoDe) faltan.push('si cargó de silobolsa o contratista');
+    if (datos.cargoDe === 'CONTRATISTA') {
+      if (!datos.contratista || !datos.contratista.length) faltan.push('el contratista');
+      if (!datos.tractor || !datos.tractor.length) faltan.push('el tractor');
+    }
+    if (!datos.brutoLote) faltan.push('el bruto lote');
+    if (!datos.bruto) faltan.push('el bruto regulado');
+    if (faltan.length) {
+      error.innerHTML = 'Falta ' + App.esc(faltan.join(', '));
+      return;
+    }
+
+    if (corrigiendoTara) {
+      var t = Number(inputTaraNueva.value);
+      if (!isFinite(t) || t < 1000 || t > 30000) {
+        error.innerHTML = 'La tara corregida va entre 1.000 y 30.000 kg.';
+        return;
+      }
+      datos.confirmarTara = 'NO';
+      datos.taraNueva = t;
+    } else {
+      datos.confirmarTara = 'SI';
+    }
+
+    App.enviar({
+      url: '/app/api/regulada',
+      datos: datos,
+      offline: true,
+      tipo: 'regulada',
+      boton: btn,
+
+      alGuardarLocal: function () {
+        App.brindis('Regulada guardada en el teléfono. Se sube sola cuando vuelva internet.', 'ambar');
+        window.setTimeout(function () { window.location.href = '/app/patio'; }, 900);
+      },
+
+      alListo: function (res) {
+        App.brindis('Regulada guardada. Neto ' + App.miles(res.neto) + ' kg.');
+        window.setTimeout(function () {
+          window.location.href = '/app/registro/' + res.id;
+        }, 900);
+      },
+
+      alFallar: function (msg) { error.innerHTML = App.esc(msg); }
+    });
+  }
+
+  btn.addEventListener('click', function (ev) { ev.preventDefault(); guardar(); });
+  form.addEventListener('submit', function (ev) { ev.preventDefault(); guardar(); });
+})();
+</script>

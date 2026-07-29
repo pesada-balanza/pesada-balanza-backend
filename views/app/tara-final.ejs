@@ -1,0 +1,156 @@
+<%# Tara final — paso 2. Al guardar aparece el recordatorio de impresión (5e). %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="/app/patio" class="volver">‹ Patio</a>
+      <span class="etiqueta">Ticket <%= r.nro %></span>
+      <span class="t-pantalla mono"><%= r.patentes %></span>
+    </div>
+    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+  </div>
+
+  <div class="cuerpo con-barra">
+
+    <div class="tarjeta">
+      <span class="txt"><%= [r.transporte, r.chofer, r.campoCorto].filter(Boolean).join(' · ') %></span>
+      <div class="divisor"></div>
+      <div class="fila">
+        <div class="fila-col">
+          <span class="etiqueta">Bruto estimado</span>
+          <span class="dato-g"><%= kg(r.brutoEstimado) %> kg</span>
+        </div>
+        <span class="chip-fijo">🔒 fijo</span>
+      </div>
+    </div>
+
+    <form id="form-tf" novalidate>
+      <div class="campo">
+        <label class="etiqueta" for="taraNueva">Tara final (kg)</label>
+        <input type="number" id="taraNueva" name="taraNueva" class="mono" inputmode="numeric"
+               min="1000" max="30000" step="10" enterkeyhint="done" placeholder="15600">
+      </div>
+      <div id="error-tf" class="campo-error" style="min-height:18px; margin-top:8px"></div>
+      <div class="tarjeta tarjeta-gris" id="calculo" hidden style="margin-top:4px">
+        <div class="fila-base">
+          <span class="txt">Neto estimado</span>
+          <span class="dato mono" id="neto-est">—</span>
+        </div>
+      </div>
+    </form>
+
+    <div class="espaciador"></div>
+  </div>
+
+  <div class="barra-fija">
+    <button type="button" id="guardar-tf" class="btn btn-grande">Guardar tara final</button>
+  </div>
+</div>
+
+<%# Recordatorio de impresión — ref. 5e %>
+<div class="velo" id="modal-imprimir" hidden>
+  <div class="hoja">
+    <div class="hoja-texto">
+      <span class="etiqueta-verde">Tara final guardada</span>
+      <span class="t-modal">Imprimí el ticket <%= r.nro %> para el chofer</span>
+      <span class="txt" style="font-size:14px; line-height:1.5">
+        <%= r.patentes %><%= r.chofer ? ' · ' + r.chofer : '' %>. Se corta y se entrega al chofer.
+        Este ticket solo se imprime; el PDF se puede compartir después de la regulada.
+      </span>
+    </div>
+    <div class="botonera">
+      <a class="btn" id="btn-imprimir-ahora" href="/app/imprimir?ids=<%= r.id %>">Imprimir ahora</a>
+      <button type="button" class="btn btn-texto" id="btn-mas-tarde">Más tarde</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var form = document.getElementById('form-tf');
+  var input = document.getElementById('taraNueva');
+  var error = document.getElementById('error-tf');
+  var btn = document.getElementById('guardar-tf');
+  var calculo = document.getElementById('calculo');
+  var netoEst = document.getElementById('neto-est');
+  var brutoEstimado = <%= Number(r.brutoEstimado) || 0 %>;
+
+  // Datos fijos del ticket, para poder imprimirlo aunque se corte la señal.
+  var base = {
+    id: '<%= r.id %>',
+    nro: '<%= r.nro %>',
+    patentes: <%- JSON.stringify(r.patentes) %>,
+    chofer: <%- JSON.stringify(r.chofer) %>,
+    transporte: <%- JSON.stringify(r.transporte) %>,
+    campoCorto: <%- JSON.stringify(r.campoCorto) %>,
+    titular: <%- JSON.stringify(r.titular) %>,
+    fechaLarga: <%- JSON.stringify(r.fechaLarga) %>,
+    hora: <%- JSON.stringify(r.hora) %>,
+    brutoEstimado: brutoEstimado,
+    cp: '',
+    comentarios: '',
+    grano: '',
+    loteTexto: '',
+    brutoLote: null,
+    bruto: null,
+    neto: null
+  };
+
+  input.addEventListener('input', function () {
+    var v = Number(input.value);
+    if (isFinite(v) && v > 0 && brutoEstimado > 0) {
+      calculo.hidden = false;
+      netoEst.innerHTML = App.miles(brutoEstimado - v);
+    } else {
+      calculo.hidden = true;
+    }
+  });
+
+  document.getElementById('btn-mas-tarde').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    // No bloquea nada: el pendiente queda visible en el patio.
+    window.location.href = '/app/patio';
+  });
+
+  function guardar() {
+    error.innerHTML = '';
+    var v = Number(input.value);
+    if (!isFinite(v) || v < 1000 || v > 30000) {
+      error.innerHTML = 'La tara final va entre 1.000 y 30.000 kg.';
+      input.focus();
+      return;
+    }
+
+    App.enviar({
+      url: '/app/api/tara-final',
+      datos: { id: base.id, taraNueva: v },
+      offline: true,
+      tipo: 'tara-final',
+      boton: btn,
+
+      alGuardarLocal: function () {
+        // Sin señal: el ticket ya se puede imprimir con estos datos.
+        base.tara = v;
+        base.fechaTaraFinal = 'local';
+        App.guardarTicketLocal(base);
+        App.brindis('Tara final guardada en el teléfono. Se sube sola cuando vuelva internet.', 'ambar');
+        App.abrirModal('modal-imprimir');
+      },
+
+      alListo: function () {
+        base.tara = v;
+        base.fechaTaraFinal = 'ok';
+        App.guardarTicketLocal(base);
+        App.abrirModal('modal-imprimir');
+      },
+
+      alFallar: function (msg) { error.innerHTML = App.esc(msg); }
+    });
+  }
+
+  btn.addEventListener('click', function (ev) { ev.preventDefault(); guardar(); });
+  form.addEventListener('submit', function (ev) { ev.preventDefault(); guardar(); });
+})();
+</script>
