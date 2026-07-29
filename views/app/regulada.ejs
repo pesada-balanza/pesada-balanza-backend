@@ -3,17 +3,42 @@
 
   <div class="enc">
     <div class="enc-col">
-      <a href="/app/patio" class="volver">‹ Patio</a>
+      <a href="/app/patio" class="volver"><span class="flecha">‹</span><span class="texto">Patio</span></a>
       <span class="etiqueta">Ticket <%= r.nro %> · tara final <%= kg(r.tara) %></span>
       <span class="t-pantalla mono"><%= r.patentes %></span>
     </div>
-    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+      <%- include('menu') %>
+    </div>
   </div>
 
   <div class="cuerpo con-barra">
 
+    <%# Lo que se cargó en CAMIONES, a la vista. El campo se puede corregir acá. %>
     <div class="tarjeta">
-      <span class="txt"><%= [r.transporte, r.chofer, r.campoCorto].filter(Boolean).join(' · ') %></span>
+      <span class="txt"><%= [r.transporte, r.chofer].filter(Boolean).join(' · ') %></span>
+
+      <div class="divisor"></div>
+      <div class="fila">
+        <div class="fila-col" style="min-width:0">
+          <span class="etiqueta">Campo</span>
+          <span class="cuerpo-fuerte" id="campo-actual" style="font-size:16px"><%= r.campo || '—' %></span>
+        </div>
+        <button type="button" class="chip-fijo" id="btn-cambiar-campo"
+                style="color:var(--tinta); border-color:var(--borde-fuerte); background:transparent; cursor:pointer">Cambiar</button>
+      </div>
+
+      <div class="campo oculto" id="bloque-campo">
+        <label class="etiqueta" for="campoSelect">Elegí el campo correcto</label>
+        <select id="campoSelect" name="campo">
+          <% campos.forEach(function (c) { %>
+            <option value="<%= c %>"<%= c === r.campo ? ' selected' : '' %>><%= c %></option>
+          <% }); %>
+        </select>
+        <span class="txt-chico">Si cambiás el campo hay que elegir de nuevo el grano y el lote.</span>
+      </div>
+
       <div class="divisor"></div>
       <div class="fila">
         <div class="fila-col">
@@ -36,15 +61,14 @@
         <label class="etiqueta" for="grano">Grano</label>
         <select id="grano" name="grano">
           <option value="">Elegí el grano</option>
-          <% Object.keys(granosDelCampo).forEach(function (g) { %>
-            <option value="<%= g %>"><%= g %></option>
-          <% }); %>
         </select>
-        <% if (!Object.keys(granosDelCampo).length) { %>
-          <span class="txt-chico">Este campo no tiene granos cargados en la planilla de siembra. Escribilo abajo.</span>
-          <input type="text" id="granoLibre" name="grano" autocapitalize="characters" maxlength="40"
-                 placeholder="SOJA" style="margin-top:8px">
-        <% } %>
+        <%# Los campos que no están en la planilla de siembra (hay 3) no tienen
+            granos ni lotes para elegir: se escriben a mano y no queda trabado. %>
+        <div class="oculto" id="bloque-grano-libre" style="display:flex; flex-direction:column; gap:7px; margin-top:8px">
+          <span class="txt-chico">Este campo no tiene granos en la planilla de siembra. Escribí el grano y el lote a mano.</span>
+          <input type="text" id="granoLibre" autocapitalize="characters" maxlength="40" placeholder="Grano, ej: SOJA">
+          <input type="text" id="loteLibre" maxlength="80" placeholder="Lote">
+        </div>
       </div>
 
       <div class="campo">
@@ -129,8 +153,11 @@
 (function () {
   'use strict';
 
-  var DATOS_LOTES = <%- JSON.stringify(granosDelCampo).replace(/</g, '\\u003c') %>;
+  // Toda la planilla de siembra viaja con la pantalla, así se puede corregir el
+  // campo y volver a elegir grano y lote incluso sin señal.
+  var SIEMBRA = <%- JSON.stringify(datosSiembra).replace(/</g, '\\u003c') %>;
   var DATOS_TRACTORES = <%- JSON.stringify(contratistas).replace(/</g, '\\u003c') %>;
+  var campoElegido = <%- JSON.stringify(r.campo || '') %>;
 
   var form = document.getElementById('form-reg');
   var error = document.getElementById('error-reg');
@@ -150,13 +177,62 @@
   var taraOriginal = <%= Number(r.tara) || 0 %>;
   var corrigiendoTara = false;
 
+  /* ── Campo: se ve siempre y se puede corregir ─────────────────────────── */
+  var bloqueCampo = document.getElementById('bloque-campo');
+  var selCampo = document.getElementById('campoSelect');
+  var textoCampo = document.getElementById('campo-actual');
+  var btnCampo = document.getElementById('btn-cambiar-campo');
+  var bloqueGranoLibre = document.getElementById('bloque-grano-libre');
+  var inputGranoLibre = document.getElementById('granoLibre');
+  var cambiandoCampo = false;
+
+  btnCampo.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    cambiandoCampo = !cambiandoCampo;
+    bloqueCampo.className = cambiandoCampo ? 'campo' : 'campo oculto';
+    btnCampo.innerHTML = cambiandoCampo ? 'Dejar el que estaba' : 'Cambiar';
+    if (!cambiandoCampo) {
+      selCampo.value = campoElegido;
+    }
+  });
+
+  selCampo.addEventListener('change', function () {
+    campoElegido = selCampo.value;
+    textoCampo.innerHTML = App.esc(campoElegido || '—');
+    // Al cambiar el campo, grano y lote se eligen de nuevo: los de antes ya no valen.
+    pintarGranos();
+    pintarLotes();
+  });
+
+  /* ── Granos del campo elegido ─────────────────────────────────────────── */
+  function granosDelCampo() {
+    return SIEMBRA[campoElegido] || {};
+  }
+
+  function pintarGranos() {
+    var granos = Object.keys(granosDelCampo());
+    var h = '<option value="">Elegí el grano</option>';
+    for (var i = 0; i < granos.length; i++) {
+      h += '<option value="' + App.esc(granos[i]) + '">' + App.esc(granos[i]) + '</option>';
+    }
+    selGrano.innerHTML = h;
+
+    // Campo sin siembra cargada: se escribe el grano a mano.
+    var sinSiembra = granos.length === 0;
+    bloqueGranoLibre.className = sinSiembra ? '' : 'oculto';
+    selGrano.disabled = sinSiembra;
+    if (!sinSiembra) inputGranoLibre.value = '';
+  }
+
   /* ── Lotes según el grano ─────────────────────────────────────────────── */
   function pintarLotes() {
     var g = selGrano ? selGrano.value : '';
-    var lotes = (g && DATOS_LOTES[g]) || [];
+    var lotes = (g && granosDelCampo()[g]) || [];
     if (!lotes.length) {
       listaLotes.innerHTML = '<div class="lista-vacia">' +
-        (g ? 'Este grano no tiene lotes cargados para el campo.' : 'Elegí primero el grano.') +
+        (Object.keys(granosDelCampo()).length === 0
+          ? 'Este campo no tiene lotes en la planilla. Se guarda solo el grano escrito a mano.'
+          : (g ? 'Este grano no tiene lotes cargados para el campo.' : 'Elegí primero el grano.')) +
         '</div>';
       return;
     }
@@ -167,7 +243,9 @@
     }
     listaLotes.innerHTML = h;
   }
+
   if (selGrano) selGrano.addEventListener('change', pintarLotes);
+  pintarGranos();
   pintarLotes();
 
   /* ── Silobolsa / contratista ──────────────────────────────────────────── */
@@ -245,8 +323,18 @@
     error.innerHTML = '';
     var datos = App.datosDe(form);
     datos.id = '<%= r.id %>';
+    datos.campo = campoElegido;
+
+    // Campo sin planilla de siembra: grano y lote escritos a mano.
+    var aMano = bloqueGranoLibre.className.indexOf('oculto') === -1;
+    if (aMano) {
+      datos.grano = (inputGranoLibre.value || '').trim().toUpperCase();
+      var lm = (document.getElementById('loteLibre').value || '').trim();
+      datos.lote = lm ? [lm] : [];
+    }
 
     var faltan = [];
+    if (!datos.campo) faltan.push('el campo');
     if (!datos.grano) faltan.push('el grano');
     if (!datos.lote || !datos.lote.length) faltan.push('el lote');
     if (!datos.cargoDe) faltan.push('si cargó de silobolsa o contratista');

@@ -2,7 +2,10 @@
 <div class="pantalla">
 
   <div class="enc" style="align-items:flex-start; flex-direction:column; gap:9px">
-    <a href="/app/general?fecha=<%= fecha %>" class="volver">‹ <%= diaBonito %></a>
+    <div class="fila" style="width:100%">
+      <a href="/app/general?fecha=<%= fecha %>" class="volver"><span class="flecha">‹</span><span class="texto"><%= diaBonito %></span></a>
+      <%- include('menu') %>
+    </div>
     <div class="fila" style="width:100%; align-items:flex-end">
       <div class="fila-col">
         <span class="t-pantalla-g"><%= balanza %></span>

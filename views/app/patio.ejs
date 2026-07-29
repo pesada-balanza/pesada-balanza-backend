@@ -8,7 +8,10 @@
         <%= datos.nombreDia %> · <span style="color:var(--punteado)">cambiar</span>
       </a>
     </div>
-    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+      <%- include('menu') %>
+    </div>
   </div>
 
   <div class="cuerpo con-barra">

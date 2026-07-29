@@ -1,0 +1,70 @@
+<%#
+  Menú de cuenta. Va en el encabezado de todas las pantallas principales.
+  Resuelve lo que no había: cerrar sesión y pasar de un código a otro
+  (por ejemplo, de GENERAL a una balanza) sin tener que borrar nada.
+%>
+<button type="button" class="menu-btn" data-abre-modal="modal-menu">Salir</button>
+
+<div class="velo centrado" id="modal-menu" hidden>
+  <div class="hoja">
+    <div class="hoja-texto">
+      <span class="etiqueta">Sesión</span>
+      <span class="t-modal"><%= balanzaNombre || 'GENERAL' %></span>
+      <span class="txt-chico">
+        El código queda abierto en este teléfono. Podés cambiarlo cuando quieras.
+      </span>
+    </div>
+
+    <div class="botonera">
+      <%# Lo que pidió: pasar de un usuario a otro %>
+      <button type="button" class="btn" id="menu-otro-codigo">Entrar con otro código</button>
+
+      <% if (puedeCargar) { %>
+        <a class="btn btn-borde-suave" href="/app/dia?cambio=1">Cambiar quién está en la balanza</a>
+      <% } %>
+
+      <a class="btn btn-borde-suave" href="/app/balanza">Balanza y turno</a>
+
+      <button type="button" class="btn btn-texto" id="menu-salir">Salir de la app</button>
+      <button type="button" class="btn btn-texto" data-cierra-modal="modal-menu">Cancelar</button>
+    </div>
+
+    <div class="hoja-nota">
+      <span class="txt-chico">
+        Salir no borra nada de lo cargado. Si quedaron pesadas sin subir, la app avisa
+        y no te deja salir hasta que se suban.
+      </span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  function cerrarSesion(mensaje) {
+    // Si hay pesadas sin subir, no se sale: se perderían al cambiar de código.
+    if (App.cola.cantidad() > 0) {
+      window.alert(
+        'Hay ' + App.cola.cantidad() + ' pesada(s) todavía guardadas en el teléfono. ' +
+        'Conectate a internet y esperá a que se suban antes de cambiar de código.'
+      );
+      return;
+    }
+    if (mensaje && !window.confirm(mensaje)) return;
+    App.pedir('POST', '/app/api/salir', {}, function () {
+      window.location.href = '/app/ingreso';
+    });
+  }
+
+  document.getElementById('menu-otro-codigo').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    cerrarSesion('Vas a volver a la pantalla del código. ¿Seguimos?');
+  });
+
+  document.getElementById('menu-salir').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    cerrarSesion('¿Salir de la app? Después hay que volver a poner el código.');
+  });
+})();
+</script>

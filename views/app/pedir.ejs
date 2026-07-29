@@ -4,10 +4,13 @@
 
   <div class="enc">
     <div class="enc-col">
-      <a href="/app/registro/<%= r.id %>" class="volver">‹ Ticket <%= r.nro %></a>
+      <a href="/app/registro/<%= r.id %>" class="volver"><span class="flecha">‹</span><span class="texto">Ticket <%= r.nro %></span></a>
       <span class="t-pantalla"><%= tipo === 'CORRECCION' ? 'Pedir corrección' : 'Pedir anulación' %></span>
     </div>
-    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+      <%- include('menu') %>
+    </div>
   </div>
 
   <div class="cuerpo con-barra">

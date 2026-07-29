@@ -3,10 +3,13 @@
 
   <div class="enc">
     <div class="enc-col">
-      <a href="/app/general" class="volver">‹ Resumen</a>
+      <a href="/app/general" class="volver"><span class="flecha">‹</span><span class="texto">Resumen</span></a>
       <span class="t-pantalla"><%= encabezado %></span>
     </div>
-    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+      <%- include('menu') %>
+    </div>
   </div>
 
   <div class="cuerpo">

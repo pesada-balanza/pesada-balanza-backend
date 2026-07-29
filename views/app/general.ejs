@@ -6,7 +6,10 @@
       <span class="etiqueta"><%= resumen.alcance %></span>
       <span class="t-pantalla-g"><%= resumen.esHoy ? 'Hoy, ' + resumen.diaBonito : resumen.diaBonito %></span>
     </div>
-    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+      <%- include('menu') %>
+    </div>
   </div>
 
   <div class="cuerpo">
@@ -107,9 +110,38 @@
 
     <div class="botonera">
       <% if (puedeCargar) { %>
-        <a class="btn btn-borde-suave" href="/app/patio">Ir al patio</a>
+        <a class="btn btn-grande" href="/app/patio">＋ Ir al patio a cargar</a>
+      <% } else { %>
+        <%# Este código solo mira. Para cargar hay que entrar con el de una balanza:
+            se lo decimos y le damos el camino en un toque. %>
+        <div class="tarjeta" style="gap:9px">
+          <span class="cuerpo-fuerte">¿Vas a cargar una pesada?</span>
+          <span class="txt">
+            Este código entra a mirar y a autorizar. Las pesadas se cargan con el código
+            de la balanza, que es el que define de quién es cada ticket.
+          </span>
+          <button type="button" class="btn" id="ir-a-cargar">Entrar con el código de una balanza</button>
+        </div>
       <% } %>
-      <a class="btn btn-texto" href="/app/balanza">Balanza y turno</a>
+      <a class="btn btn-borde-suave" href="/app/balanza">Balanza y turno</a>
     </div>
   </div>
 </div>
+
+<script>
+(function () {
+  'use strict';
+  var btn = document.getElementById('ir-a-cargar');
+  if (!btn) return;
+  btn.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    if (App.cola.cantidad() > 0) {
+      window.alert('Hay pesadas sin subir en este teléfono. Esperá a que se suban antes de cambiar de código.');
+      return;
+    }
+    App.pedir('POST', '/app/api/salir', {}, function () {
+      window.location.href = '/app/ingreso';
+    });
+  });
+})();
+</script>

@@ -484,6 +484,8 @@ module.exports = function crearAppMovil(deps) {
     const s = sesionApp(req);
     res.locals.puedeCargar = !!(s && s.codigoIngreso);
     res.locals.esGeneral = !!(s && s.esGeneral);
+    // Para el menú de cuenta del encabezado (sale de la sesión, sin ir a la base).
+    res.locals.balanzaNombre = (s && s.balanza) || '';
     return next();
   });
 
@@ -1094,12 +1096,14 @@ module.exports = function crearAppMovil(deps) {
         );
       }
 
-      const granosDelCampo = datosSiembra[r.campo] || {};
       return res.render('app/regulada', {
         layout: 'app/layout',
         titulo: 'Regulada',
         r: vistaRegistro(r),
-        granosDelCampo,
+        // La lista completa de campos y su siembra viaja con la pantalla (9,7 KB):
+        // así el campo se puede ver y corregir incluso sin señal.
+        campos,
+        datosSiembra,
         contratistas: getContratistas() || {},
         kg,
       });
@@ -1149,8 +1153,19 @@ module.exports = function crearAppMovil(deps) {
         if (!tractores.length) return fallar(res, 400, 'Falta el tractor.');
       }
 
-      // El grano y los lotes tienen que pertenecer al campo del ticket.
-      const delCampo = datosSiembra[r.campo] || {};
+      // El campo se puede corregir en la regulada (la web también lo permite:
+      // /guardar-regulada guarda `campo`). Si no viene, queda el del ticket.
+      let campoElegido = r.campo;
+      const campoRecibido = String(req.body.campo || '').trim();
+      if (campoRecibido && campoRecibido !== r.campo) {
+        if (!campos.includes(campoRecibido)) {
+          return fallar(res, 400, 'El campo elegido no está en la lista.');
+        }
+        campoElegido = campoRecibido;
+      }
+
+      // El grano y los lotes tienen que pertenecer al campo (al corregido, si se cambió).
+      const delCampo = datosSiembra[campoElegido] || {};
       const grano = String(req.body.grano).trim();
       if (Object.keys(delCampo).length) {
         if (!delCampo[grano]) return fallar(res, 400, 'Ese grano no corresponde al campo del ticket.');
@@ -1182,6 +1197,7 @@ module.exports = function crearAppMovil(deps) {
       const set = {
         fecha: hoy,
         pesadaPara: 'REGULADA',
+        campo: campoElegido,
         grano,
         lote: lotes,
         cargoDe,
@@ -1220,7 +1236,7 @@ module.exports = function crearAppMovil(deps) {
         tara: taraFinal,
         bruto,
         neto: bruto - taraFinal,
-        campo: r.campo || '',
+        campo: campoElegido || '',
         grano,
         lote: lotes.join(', '),
         codigoIngreso: r.codigoIngreso || '',

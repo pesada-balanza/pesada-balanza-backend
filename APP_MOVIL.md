@@ -45,12 +45,31 @@ Una vez agregada, abre como una app: sin barra del navegador.
 3. **Patio**: los camiones en curso, cada uno con un botón grande con el paso
    que falta. Abajo, "＋ Nueva pesada".
 4. Los tres pasos siguen siendo los mismos: **CAMIONES → TARA FINAL → REGULADA**.
+   El **campo** elegido en Camiones se ve en las tres pantallas, y en la
+   **regulada se puede corregir** con el botón "Cambiar" (la web también lo
+   permite). Al cambiarlo hay que elegir de nuevo el grano y el lote, porque los
+   del campo anterior ya no corresponden.
 5. Al guardar la **tara final** aparece el recordatorio para imprimir el ticket
    del chofer. Si se elige "Más tarde", queda avisado en el patio hasta que se
    imprima.
 
 **GENERAL** entra con el código `12341` y ve el resumen del día de todas las
-balanzas, autoriza las anulaciones y corrige. GENERAL no carga pesadas.
+balanzas, autoriza las anulaciones y corrige. Con ese código **no se cargan
+pesadas**: las pesadas se cargan con el código de la balanza, que es lo que
+define de quién es cada ticket. En el resumen hay un botón que lleva derecho a
+poner el código de una balanza.
+
+### Salir o cambiar de código
+
+Arriba a la derecha de todas las pantallas hay un botón **Salir**. Ahí adentro:
+
+- **Entrar con otro código** — para pasar de GENERAL a una balanza, o de una
+  balanza a otra.
+- **Cambiar quién está en la balanza** — si tomó el turno otra persona.
+- **Salir de la app**.
+
+Si quedaron pesadas sin subir, la app avisa y no deja cambiar de código hasta
+que se suban: si no, se perderían.
 
 ---
 

@@ -4,11 +4,14 @@
 
   <div class="enc">
     <div class="enc-col">
-      <a href="/app/patio" class="volver">‹ Patio</a>
+      <a href="/app/patio" class="volver"><span class="flecha">‹</span><span class="texto">Patio</span></a>
       <span class="etiqueta">Ticket <%= r.nro %> · <%= r.balanza %></span>
       <span class="t-pantalla mono"><%= r.patentes %></span>
     </div>
-    <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+      <%- include('menu') %>
+    </div>
   </div>
 
   <div class="cuerpo">
@@ -39,9 +42,32 @@
     <% } %>
 
     <div class="tarjeta">
-      <span class="txt"><%= [r.transporte, r.chofer, r.campoCorto].filter(Boolean).join(' · ') %></span>
+      <span class="txt"><%= [r.transporte, r.chofer].filter(Boolean).join(' · ') %></span>
+
+      <div class="divisor"></div>
+      <div class="fila-col">
+        <span class="etiqueta">Campo</span>
+        <span class="cuerpo-fuerte" style="font-size:16px"><%= r.campo || '—' %></span>
+      </div>
+
       <% if (r.grano || r.loteTexto) { %>
-        <span class="txt-aux"><%= [r.grano, r.loteTexto].filter(Boolean).join(' · ') %></span>
+        <div class="divisor"></div>
+        <div class="fila-col">
+          <span class="etiqueta">Grano y lote</span>
+          <span class="cuerpo-fuerte" style="font-size:16px"><%= [r.grano, r.loteTexto].filter(Boolean).join(' · ') %></span>
+        </div>
+      <% } %>
+
+      <% if (r.cargoDe) { %>
+        <div class="divisor"></div>
+        <div class="fila-col">
+          <span class="etiqueta">Cargó de</span>
+          <span class="txt" style="color:var(--tinta)">
+            <%= r.cargoDe === 'SILOBOLSA'
+                  ? 'Silobolsa ' + (r.silobolsa || '')
+                  : [r.contratista, r.tractor].filter(Boolean).join(' · ') %>
+          </span>
+        </div>
       <% } %>
     </div>
 
