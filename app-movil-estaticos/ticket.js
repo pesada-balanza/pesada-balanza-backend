@@ -203,8 +203,21 @@
     var raiz = porId('tk-visor');
     if (!raiz) return;
 
-    var ids = (raiz.getAttribute('data-ids') || '').split(',').filter(Boolean);
-    var locales = (raiz.getAttribute('data-locales') || '').split(',').filter(Boolean);
+    // Qué tickets hay que dibujar. Se mira primero la dirección y después lo
+    // que puso el servidor: sin señal la hoja sale de lo guardado y esa copia
+    // puede haber quedado con los datos de otro ticket, pero la dirección es
+    // siempre la que el balancero acaba de tocar.
+    function deLaDireccion(nombre) {
+      var m = new RegExp('[?&]' + nombre + '=([^&]*)').exec(window.location.search);
+      return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+    }
+    function lista(nombre, atributo) {
+      var v = deLaDireccion(nombre) || raiz.getAttribute(atributo) || '';
+      return v.split(',').filter(Boolean);
+    }
+
+    var ids = lista('ids', 'data-ids');
+    var locales = lista('locales', 'data-locales');
     var aviso = porId('tk-aviso');
     var btnImprimir = porId('tk-imprimir');
 

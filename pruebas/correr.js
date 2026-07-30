@@ -20,6 +20,7 @@ const SUITES = [
   ['probar-pdf.js', 'El PDF: estructura, medidas y contenido'],
   ['probar-arreglos.js', 'Navegación: volver, salir, y el campo en la regulada'],
   ['probar-liviana.js', 'Que sea liviana y que actualizar no borre lo pendiente'],
+  ['probar-sin-senal-real.js', 'Sin señal con el service worker de verdad (como en el teléfono)'],
 ];
 
 let totalOk = 0;

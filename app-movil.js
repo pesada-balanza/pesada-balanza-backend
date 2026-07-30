@@ -1716,19 +1716,23 @@ module.exports = function crearAppMovil(deps) {
   });
 
   /**
-   * Anulación en el momento, con GENERAL presente en el patio (ref. 6d):
-   * el balancero abre el modal y GENERAL tipea su código.
-   * Replica exactamente lo que hace `handleAnular` en app.js, con auditoría.
+   * Anulación en el momento. La hace GENERAL desde su propia sesión.
+   *
+   * Antes también se podía anular desde la balanza tipeando el código de
+   * GENERAL en un modal. Eso se sacó a pedido: el código de GENERAL no tiene
+   * que circular por las balanzas. El balancero pide la anulación
+   * (/app/api/pedido) y GENERAL la resuelve desde su pantalla.
    */
   router.post('/api/anular', exigirApp, limitarIngreso, async (req, res) => {
     try {
       const s = sesionApp(req);
-      const code = String(req.body.code || '').trim();
 
-      // Solo el código GENERAL de observación (12341) puede anular, igual que la web.
-      const autorizado = s.esGeneral || code === CODIGO_GENERAL_OBSERVACION;
-      if (!autorizado) {
-        return fallar(res, 403, 'Código incorrecto. Solo GENERAL puede anular.');
+      if (!s.esGeneral) {
+        return fallar(
+          res,
+          403,
+          'Solo GENERAL puede anular. Desde la balanza se pide la anulación y GENERAL la resuelve.'
+        );
       }
 
       if (!idValido(req.body.id)) return fallar(res, 400, 'Ticket inválido.');

@@ -16,11 +16,8 @@
 
   <div class="cuerpo con-barra">
 
-    <%# Franja de pesadas guardadas en el teléfono (ref. 7a) %>
-    <div class="aviso apilado" data-pendientes hidden>
-      <span class="aviso-titulo" data-pendientes-titulo>Pesadas guardadas en el teléfono</span>
-      <span class="aviso-detalle">Seguí cargando normal. Se suben solas cuando vuelva internet.</span>
-    </div>
+    <%# El aviso de pesadas guardadas en el teléfono ya no va acá: está en el
+        layout, arriba de todas las pantallas y con cualquier código. %>
 
     <%# Tickets sin imprimir (ref. 5f) %>
     <% if (datos.sinImprimir.length) { %>
@@ -106,8 +103,13 @@
                data-sin-senal="/app/local?paso=regulada&id=<%= c.id %>">Cargar regulada</a>
           <% } %>
 
+          <%# Sin señal el detalle del servidor no existe, pero la hoja del
+              ticket sí se puede dibujar con lo que el teléfono tiene guardado. %>
           <div class="botonera-fila">
-            <a class="btn btn-borde-suave" style="min-height:48px; font-size:14px" href="/app/registro/<%= c.id %>">Ver ticket</a>
+            <a class="btn btn-borde-suave" style="min-height:48px; font-size:14px"
+               href="/app/registro/<%= c.id %>"
+               data-con-senal="/app/registro/<%= c.id %>"
+               data-sin-senal="/app/imprimir?locales=<%= c.id %>&volver=/app/patio">Ver ticket</a>
             <% if (!c.pedido) { %>
               <button type="button" class="btn btn-borde-suave" style="min-height:48px; font-size:14px"
                       data-necesita-internet data-clase-normal="btn btn-borde-suave"

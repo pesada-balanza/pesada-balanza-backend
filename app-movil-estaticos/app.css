@@ -577,6 +577,39 @@ a { color: inherit; text-decoration: none; }
   text-align: center;
 }
 
+/* ---------------------------------------------------------------------------
+   Franja de pesadas sin subir. Va ARRIBA DE TODO y en TODAS las pantallas, con
+   cualquier código: es lo único que se puede perder si el teléfono se rompe o
+   se cambia de código, así que tiene que estar a la vista siempre. A los dos
+   días se pone roja.
+   ------------------------------------------------------------------------- */
+.franja-pendientes {
+  display: block;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--aviso-borde);
+  background: var(--aviso-fondo);
+  color: var(--aviso-texto);
+  text-decoration: none;
+}
+.franja-pendientes[hidden] { display: none; }
+.franja-pendientes .fp-titulo {
+  display: block;
+  font: 600 14px/1.25 var(--sans);
+  color: var(--aviso-texto-fuerte);
+}
+.franja-pendientes .fp-detalle {
+  display: block;
+  margin-top: 3px;
+  font: 400 12px/1.4 var(--sans);
+  color: var(--aviso-texto);
+}
+.franja-pendientes.urgente {
+  background: #f7e9e6;
+  border-bottom-color: #e0c2bb;
+}
+.franja-pendientes.urgente .fp-titulo { color: var(--destructivo); }
+.franja-pendientes.urgente .fp-detalle { color: #7c3a2e; }
+
 /* Cartelito de confirmación (verde) que aparece y se va */
 .brindis {
   position: fixed;

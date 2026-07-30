@@ -232,8 +232,11 @@ async function main() {
       const t = fs.readFileSync(path.join(PROY, 'app-movil-estaticos', f), 'utf8');
       return t.indexOf('localStorage.clear') === -1;
     }));
-  ok('solo borra su propia copia de pantallas (caches.delete)',
-    /caches\.delete/.test(fuenteSw) && /k === VERSION \? null/.test(fuenteSw));
+  ok('solo borra copias suyas (caches.delete de versiones viejas)',
+    /caches\.delete/.test(fuenteSw) &&
+    /k === CACHE_FIJOS \|\| k === CACHE_PANTALLAS/.test(fuenteSw));
+  ok('separa los archivos fijos de las pantallas, para poder tirar solo las pantallas',
+    /CACHE_FIJOS/.test(fuenteSw) && /CACHE_PANTALLAS/.test(fuenteSw));
   ok('antes de borrar la copia vieja comprueba que la nueva esté completa',
     /cache\.match\('\/app\/estatico\/app\.js'\)/.test(fuenteSw) && /if \(!estaCompleta\) return null/.test(fuenteSw));
   ok('si la descarga queda a medias NO toma el relevo (addAll + skipWaiting juntos)',
@@ -364,15 +367,15 @@ async function main() {
     for (let i = 0; i < 3; i++) {
       tickets['viejo-' + i] = { id: 'viejo-' + i, nro: '9-000' + i, guardadoEn: ahora - 20 * unDia };
     }
-    // Y 90 de ayer: más de los que tiene sentido guardar.
-    for (let i = 0; i < 90; i++) {
+    // Y 50 de ayer: más de los que tiene sentido guardar.
+    for (let i = 0; i < 50; i++) {
       tickets['ayer-' + i] = { id: 'ayer-' + i, nro: '8-00' + i, guardadoEn: ahora - unDia };
     }
     localStorage.setItem('pesada.tickets', JSON.stringify(tickets));
   });
   const antesDeLimpiar = await pg.evaluate(() =>
     Object.keys(JSON.parse(localStorage.getItem('pesada.tickets') || '{}')).length);
-  ok('se plantaron 93 tickets de prueba (3 viejos + 90 de ayer)', antesDeLimpiar >= 93, antesDeLimpiar);
+  ok('se plantaron 53 tickets de prueba (3 viejos + 50 de ayer)', antesDeLimpiar >= 53, antesDeLimpiar);
 
   await pg.goto(BASE + '/app/patio', { waitUntil: 'networkidle' });
   await pg.waitForTimeout(400);
@@ -380,7 +383,7 @@ async function main() {
   const claves = Object.keys(despuesDeLimpiar);
   ok('al abrir la app se tiran los de más de 7 días',
     claves.every((k) => k.indexOf('viejo-') === -1), claves.filter((k) => k.indexOf('viejo-') === 0).join(', '));
-  ok('y no se guardan más de 60', claves.length <= 60, claves.length);
+  ok('y no se guardan más de 30', claves.length <= 30, claves.length);
   ok('el más nuevo se conserva', claves.length > 0);
 
   ok('sin errores de JavaScript en toda la corrida', erroresJs.length === 0, erroresJs.join(' | '));

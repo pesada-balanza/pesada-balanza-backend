@@ -169,11 +169,15 @@
 
         <button type="button" class="btn btn-borde-suave"
                 data-necesita-internet data-clase-normal="btn btn-borde-suave"
-                data-texto="Pedir anulación"
-                onclick="location.href='/app/pedir/<%= r.id %>?tipo=anulacion'">Pedir anulación</button>
+                data-texto="Pedir anulación a GENERAL"
+                onclick="location.href='/app/pedir/<%= r.id %>?tipo=anulacion'">Pedir anulación a GENERAL</button>
 
-        <%# Si GENERAL está en el patio, anula en el momento con su código %>
-        <button type="button" class="btn btn-texto" data-abre-modal="modal-anular">Anular con código GENERAL</button>
+        <%# Anular en el momento SOLO lo ve GENERAL, entrado con su propio código.
+            El balancero no tiene esta opción: pide la anulación y GENERAL la
+            resuelve. Así el código de GENERAL no circula por las balanzas. %>
+        <% if (esGeneral) { %>
+          <button type="button" class="btn btn-texto" data-abre-modal="modal-anular">Anular ahora (GENERAL)</button>
+        <% } %>
       <% } %>
     </div>
 
@@ -203,37 +207,20 @@
 </div>
 <% } %>
 
-<%# Anular con código GENERAL — ref. 6d %>
+<%# Anular en el momento. Solo se dibuja para GENERAL: el balancero no tiene
+    esta opción y tampoco este modal, así que su código no aparece en ninguna
+    balanza. Ya entró con su código, así que acá no se vuelve a pedir: alcanza
+    con confirmar. %>
+<% if (esGeneral) { %>
 <div class="velo centrado" id="modal-anular" hidden>
-  <div class="hoja" id="zona-anular" tabindex="0" style="outline:none">
+  <div class="hoja">
     <div class="hoja-texto">
-      <span class="etiqueta-ambar">Requiere GENERAL</span>
+      <span class="etiqueta-ambar">GENERAL</span>
       <span class="t-modal">Anular el ticket <%= r.nro %></span>
       <span class="txt" style="font-size:14px; line-height:1.5">
         <%= [r.patentes, r.chofer, r.balanza].filter(Boolean).join(' · ') %>.
-        El balancero no puede anular; que lo haga GENERAL con su código.
+        Esto no se puede deshacer.
       </span>
-    </div>
-
-    <div class="casilleros claro">
-      <% for (var i = 0; i < 6; i++) { %>
-        <div class="casillero" data-casillero data-clase="casillero"></div>
-      <% } %>
-    </div>
-
-    <div class="teclado claro">
-      <button type="button" class="tecla" data-tecla="1">1</button>
-      <button type="button" class="tecla" data-tecla="2">2</button>
-      <button type="button" class="tecla" data-tecla="3">3</button>
-      <button type="button" class="tecla" data-tecla="4">4</button>
-      <button type="button" class="tecla" data-tecla="5">5</button>
-      <button type="button" class="tecla" data-tecla="6">6</button>
-      <button type="button" class="tecla" data-tecla="7">7</button>
-      <button type="button" class="tecla" data-tecla="8">8</button>
-      <button type="button" class="tecla" data-tecla="9">9</button>
-      <span class="tecla vacia"></span>
-      <button type="button" class="tecla" data-tecla="0">0</button>
-      <button type="button" class="tecla borrar" data-tecla="borrar" aria-label="Borrar">⌫</button>
     </div>
 
     <div id="error-anular" class="campo-error" style="min-height:16px"></div>
@@ -251,6 +238,7 @@
     </div>
   </div>
 </div>
+<% } %>
 
 <script>
 (function () {
@@ -291,35 +279,23 @@
   });
   <% } %>
 
+  <% if (esGeneral) { %>
   var errorAnular = document.getElementById('error-anular');
-  var teclado = App.teclado({
-    raiz: document.getElementById('zona-anular'),
-    largo: 6,
-    oculto: true,
-    alCambiar: function () { errorAnular.innerHTML = ''; }
-  });
 
   document.getElementById('confirmar-anular').addEventListener('click', function (ev) {
     ev.preventDefault();
-    var code = teclado.valor();
-    if (code.length < 4) {
-      errorAnular.innerHTML = 'Falta el código de GENERAL.';
-      return;
-    }
     if (!App.hayConexion()) {
       errorAnular.innerHTML = 'Anular necesita internet.';
       return;
     }
     App.enviar({
       url: '/app/api/anular',
-      datos: { id: idReg, code: code },
+      datos: { id: idReg },
       boton: this,
       alListo: function (res) { window.location.href = res.destino || '/app/patio'; },
-      alFallar: function (msg) {
-        errorAnular.innerHTML = App.esc(msg);
-        teclado.limpiar();
-      }
+      alFallar: function (msg) { errorAnular.innerHTML = App.esc(msg); }
     });
   });
+  <% } %>
 })();
 </script>

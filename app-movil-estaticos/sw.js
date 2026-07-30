@@ -11,9 +11,19 @@
  * ========================================================================== */
 'use strict';
 
-// Al subir cambios hay que subir este número: así el teléfono descarta lo
-// guardado y toma la versión nueva sin que nadie borre nada a mano.
-var VERSION = 'pesada-app-v3';
+// Al subir cambios hay que subir este número: así el teléfono descarta las
+// pantallas guardadas y toma las nuevas. Las pesadas sin subir NO se tocan:
+// viven en localStorage y este archivo no lo mira nunca.
+var VERSION = 'pesada-app-v4';
+
+// Dos copias separadas a propósito:
+//  - FIJOS: css, js, ícono. No dependen de quién esté usando la app.
+//  - PANTALLAS: el HTML, que SÍ depende del código con el que se entró (el
+//    patio de una balanza no es el de otra). Se borra al cambiar de código,
+//    así sin señal nunca aparece la pantalla del código anterior.
+var CACHE_FIJOS = VERSION + '-fijos';
+var CACHE_PANTALLAS = VERSION + '-pantallas';
+
 var ESENCIALES = [
   '/app/estatico/app.css',
   '/app/estatico/app.js',
@@ -25,6 +35,34 @@ var ESENCIALES = [
   // porque justamente hace falta cuando ya no hay conexión para pedirla.
   '/app/local',
 ];
+
+/**
+ * Pantallas que el propio teléfono llena con lo que tiene guardado. La
+ * dirección lleva datos atrás del "?" (qué ticket, qué paso), pero el HTML es
+ * siempre el mismo, así que se busca en lo guardado SIN mirar el "?".
+ *
+ * Sin esto, "Cargar tara final" sin señal no hacía nada: pedía
+ * /app/local?paso=tara-final&id=… , eso no estaba guardado con ese "?" exacto,
+ * y terminaba mostrando el patio de vuelta. Se veía como un botón muerto.
+ */
+var CASCARAS = ['/app/local', '/app/imprimir'];
+
+function esCascara(pathname) {
+  for (var i = 0; i < CASCARAS.length; i++) {
+    if (pathname === CASCARAS[i]) return true;
+  }
+  return false;
+}
+
+/** Busca en lo guardado, y para las cáscaras ignora lo que va atrás del "?". */
+function buscarGuardado(req, url) {
+  if (esCascara(url.pathname)) {
+    return caches.match(url.origin + url.pathname).then(function (r) {
+      return r || caches.match(req);
+    });
+  }
+  return caches.match(req);
+}
 
 /**
  * IMPORTANTE: si alguno de los esenciales no se puede bajar, la instalación
@@ -39,7 +77,7 @@ var ESENCIALES = [
  */
 self.addEventListener('install', function (ev) {
   ev.waitUntil(
-    caches.open(VERSION).then(function (cache) {
+    caches.open(CACHE_FIJOS).then(function (cache) {
       return cache.addAll(
         ESENCIALES.map(function (url) {
           return new Request(url, { cache: 'reload' });
@@ -60,7 +98,7 @@ self.addEventListener('install', function (ev) {
 self.addEventListener('activate', function (ev) {
   ev.waitUntil(
     caches
-      .open(VERSION)
+      .open(CACHE_FIJOS)
       .then(function (cache) {
         return cache.match('/app/estatico/app.js');
       })
@@ -69,7 +107,8 @@ self.addEventListener('activate', function (ev) {
         return caches.keys().then(function (claves) {
           return Promise.all(
             claves.map(function (k) {
-              return k === VERSION ? null : caches.delete(k);
+              if (k === CACHE_FIJOS || k === CACHE_PANTALLAS) return null;
+              return caches.delete(k);
             })
           );
         });
@@ -80,8 +119,46 @@ self.addEventListener('activate', function (ev) {
   );
 });
 
+/**
+ * La app avisa cuando se cambió de código (o se salió) para que las pantallas
+ * guardadas se tiren: son del código anterior y sin señal mostrarían datos de
+ * otra balanza. Los archivos fijos (css, js) se quedan, que no dependen de eso.
+ */
+self.addEventListener('message', function (ev) {
+  var msj = ev.data || {};
+  if (msj.tipo !== 'olvidar-pantallas') return;
+  ev.waitUntil(
+    caches.delete(CACHE_PANTALLAS).then(function () {
+      if (ev.ports && ev.ports[0]) ev.ports[0].postMessage({ listo: true });
+    })
+  );
+});
+
 function esDeLaApp(url) {
   return url.pathname === '/app' || url.pathname.indexOf('/app/') === 0;
+}
+
+/** Pantalla de "necesita internet", para que un botón nunca parezca muerto. */
+function pantallaNoGuardada(pathname) {
+  var esElCodigo = pathname === '/app/ingreso';
+  var titulo = esElCodigo ? 'Para entrar con un código hace falta internet' : 'Esta pantalla necesita internet';
+  var detalle = esElCodigo
+    ? 'El código se revisa en el servidor, así que hace falta conexión una vez. Después la app ' +
+      'sigue funcionando sin señal con el código que ya está abierto.'
+    : 'Desde el patio se puede seguir cargando sin señal: el camión, la tara final y la regulada.';
+
+  return new Response(
+    '<!doctype html><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<body style="margin:0;background:#f8f7f4;font:400 16px/1.5 \'Helvetica Neue\',Helvetica,Arial,sans-serif;color:#1b1a17">' +
+      '<div style="padding:28px 20px;max-width:480px;margin:0 auto">' +
+      '<div style="font:500 9px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;color:#8f5514">SIN SEÑAL</div>' +
+      '<h1 style="font:600 25px/1.2 \'Helvetica Neue\',Helvetica,Arial,sans-serif;margin:8px 0 10px">' + titulo + '</h1>' +
+      '<p style="color:#5f5c55;margin:0 0 18px">' + detalle + '</p>' +
+      '<a href="/app/patio" style="display:flex;align-items:center;justify-content:center;min-height:54px;background:#1b1a17;color:#f8f7f4;border-radius:15px;font-weight:600;text-decoration:none">Ir al patio</a>' +
+      '</div></body>',
+    { headers: { 'Content-Type': 'text/html; charset=utf-8' }, status: 503 }
+  );
 }
 
 self.addEventListener('fetch', function (ev) {
@@ -112,7 +189,7 @@ self.addEventListener('fetch', function (ev) {
         return fetch(req).then(function (resp) {
           if (resp && resp.ok) {
             var copia = resp.clone();
-            caches.open(VERSION).then(function (c) { c.put(req, copia); });
+            caches.open(CACHE_FIJOS).then(function (c) { c.put(req, copia); });
           }
           return resp;
         });
@@ -126,32 +203,29 @@ self.addEventListener('fetch', function (ev) {
   ev.respondWith(
     fetch(req)
       .then(function (resp) {
-        if (resp && resp.ok && resp.type !== 'opaque') {
+        // Las respuestas que son un desvío (por ejemplo /app, que manda al
+        // patio o a la pantalla de GENERAL según el código) NO se guardan: si
+        // se guardaran, sin señal el teléfono mostraría la pantalla del código
+        // con el que se entró la última vez, que puede no ser el de ahora.
+        if (resp && resp.ok && resp.type !== 'opaque' && !resp.redirected) {
           var copia = resp.clone();
-          caches.open(VERSION).then(function (c) { c.put(req, copia); });
+          caches.open(CACHE_PANTALLAS).then(function (c) { c.put(req, copia); });
         }
         return resp;
       })
       .catch(function () {
-        return caches.match(req).then(function (guardado) {
+        return buscarGuardado(req, url).then(function (guardado) {
           if (guardado) return guardado;
-          // Sin nada guardado para esa pantalla: se ofrece el patio, que es la
-          // raíz de la app y lo que el balancero necesita.
-          return caches.match('/app/patio').then(function (patio) {
-            if (patio) return patio;
-            return new Response(
-              '<!doctype html><meta charset="utf-8">' +
-                '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-                '<body style="margin:0;background:#f8f7f4;font:400 16px/1.5 \'Helvetica Neue\',Helvetica,Arial,sans-serif;color:#1b1a17">' +
-                '<div style="padding:28px 20px;max-width:480px;margin:0 auto">' +
-                '<div style="font:500 9px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;color:#8f5514">SIN SEÑAL</div>' +
-                '<h1 style="font:600 25px/1.2 \'Helvetica Neue\',Helvetica,Arial,sans-serif;margin:8px 0 10px">Esta pantalla todavía no está guardada</h1>' +
-                '<p style="color:#5f5c55;margin:0 0 18px">Abrila una vez con internet y después queda disponible sin señal.</p>' +
-                '<a href="/app/patio" style="display:flex;align-items:center;justify-content:center;min-height:54px;background:#1b1a17;color:#f8f7f4;border-radius:15px;font-weight:600;text-decoration:none">Ir al patio</a>' +
-                '</div></body>',
-              { headers: { 'Content-Type': 'text/html; charset=utf-8' }, status: 503 }
-            );
-          });
+          // La raíz de la app: se ofrece el patio, que es donde el balancero
+          // trabaja y lo único que se puede dibujar sin datos del servidor.
+          if (url.pathname === '/app' || url.pathname === '/app/patio') {
+            return caches.match('/app/patio').then(function (patio) {
+              return patio || pantallaNoGuardada(url.pathname);
+            });
+          }
+          // Cualquier otra pantalla: se dice que necesita internet. Antes se
+          // mostraba el patio y parecía que el botón no hacía nada.
+          return pantallaNoGuardada(url.pathname);
         });
       })
   );

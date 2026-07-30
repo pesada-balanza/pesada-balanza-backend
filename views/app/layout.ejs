@@ -21,6 +21,16 @@
   <%# El cartelito de avisos va arriba (es position:fixed) para que ya exista
       cuando una pantalla quiera usarlo al abrirse. %>
   <div id="brindis" class="brindis" hidden></div>
+
+  <%# Pesadas guardadas en el teléfono sin subir. Va en TODAS las pantallas y
+      con CUALQUIER código (el de una balanza o el de mirar), coincida o no el
+      nombre del balancero: si el teléfono se rompe o se cambia de código, eso
+      se pierde. Es lo único que la app no puede recuperar sola. %>
+  <a href="/app/patio" class="franja-pendientes" data-pendientes-global hidden>
+    <span class="fp-titulo" data-pendientes-titulo></span>
+    <span class="fp-detalle" data-pendientes-detalle></span>
+  </a>
+
   <%- body %>
 </body>
 </html>

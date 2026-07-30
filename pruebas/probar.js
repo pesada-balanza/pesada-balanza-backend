@@ -669,6 +669,9 @@ async function main() {
   cookies = {};
   r = await ir('POST', '/app/api/ingreso', { code: '12341' });
   ok('GENERAL entra con 12341 al resumen', r.estado === 200 && r.json.destino === '/app/general', r.texto.slice(0, 150));
+  // Se guardan para reusarlas: el servidor limita a 10 intentos de ingreso cada
+  // 15 minutos por IP, y la prueba entra y sale varias veces.
+  const cookiesGeneral = Object.assign({}, cookies);
 
   r = await ir('GET', '/app/general');
   ok('el resumen del día abre', r.estado === 200 && /NETO DEL DÍA|Neto del día/i.test(r.texto), r.estado);
@@ -724,9 +727,13 @@ async function main() {
   ok('el bloque "Para revisar" ya no muestra pedidos', !/pedido de anulación/.test(r.texto));
 
   /* ═════════════════════════════════════════════════════════════════════
-   * ANULAR EN EL MOMENTO CON CÓDIGO GENERAL (6d)
+   * ANULAR EN EL MOMENTO — SOLO GENERAL, DESDE SU PROPIA SESIÓN
+   * ---------------------------------------------------------------------
+   * Antes se podía anular desde la balanza tipeando el código de GENERAL en un
+   * modal. Se sacó a pedido: el código de GENERAL no tiene que circular por las
+   * balanzas. El balancero pide la anulación y GENERAL la resuelve.
    * ═══════════════════════════════════════════════════════════════════ */
-  seccion('Anular en el patio con el código de GENERAL (6d)');
+  seccion('Anular: solo GENERAL, y desde su propio código');
   cookies = cookiesMataco;
   r = await ir('POST', '/app/api/pesada', {
     cargaPara: 'SOCIO', socio: 'Pérez', transporte: 'Avelleira', patentes: 'AF 902 LK',
@@ -736,12 +743,32 @@ async function main() {
   const idParaAnular = r.json.id;
 
   r = await ir('POST', '/app/api/anular', { id: idParaAnular, code: '9999' });
-  ok('código GENERAL equivocado no anula', r.estado === 403);
+  ok('desde la balanza, un código cualquiera no anula', r.estado === 403);
 
+  // Lo importante: NI SIQUIERA con el código de GENERAL bien puesto. Desde una
+  // balanza no se anula, punto.
   r = await ir('POST', '/app/api/anular', { id: idParaAnular, code: '12341' });
-  ok('con el código GENERAL sí anula', r.estado === 200, r.texto.slice(0, 150));
+  ok('desde la balanza NO se anula ni con el código de GENERAL',
+    r.estado === 403 && /Solo GENERAL puede anular/.test(r.json.error), r.texto.slice(0, 180));
+
+  // Y la pantalla del ticket no muestra la opción ni el modal, así el código
+  // de GENERAL no se ve nunca desde una balanza.
+  r = await ir('GET', '/app/registro/' + idParaAnular);
+  ok('el ticket ofrece "Pedir anulación a GENERAL"', /Pedir anulación a GENERAL/.test(r.texto));
+  ok('y NO ofrece anular en el momento', !/id="modal-anular"/.test(r.texto));
+  ok('ni nombra el código de GENERAL', r.texto.indexOf('12341') === -1);
+
+  // Con la sesión de GENERAL sí, y sin tener que tipear ningún código.
+  const cookiesBalanza = cookies;
+  cookies = Object.assign({}, cookiesGeneral);
+  r = await ir('GET', '/app/registro/' + idParaAnular);
+  ok('GENERAL sí ve la opción de anular ahora', /id="modal-anular"/.test(r.texto));
+
+  r = await ir('POST', '/app/api/anular', { id: idParaAnular });
+  ok('GENERAL anula sin tipear ningún código', r.estado === 200, r.texto.slice(0, 180));
   const anulado2 = baseFalsa.collection('registros').docs.find((d) => String(d._id) === idParaAnular);
   ok('el número queda quemado (el ticket no desaparece)', anulado2.anulado === true && !!anulado2.nroApp);
+  cookies = cookiesBalanza;
 
   /* ═════════════════════════════════════════════════════════════════════
    * PERMISOS Y VARIOS

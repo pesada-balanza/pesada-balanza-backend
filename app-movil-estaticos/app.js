@@ -93,6 +93,12 @@
         cuerpo = null;
       }
       if (xhr.status >= 200 && xhr.status < 300 && cuerpo && cuerpo.ok) {
+        // Al entrar con un código o al salir, las pantallas guardadas quedan
+        // viejas: son de la sesión anterior. Se tiran acá, en un solo lugar,
+        // para que ninguna pantalla se olvide de hacerlo.
+        if (url === '/app/api/ingreso' || url === '/app/api/salir') {
+          return App.olvidarPantallas(function () { cb(null, cuerpo); });
+        }
         return cb(null, cuerpo);
       }
       if (xhr.status === 401) {
@@ -201,22 +207,65 @@
     todo: cola,
   };
 
+  /** Hace cuántos días está esperando lo más viejo de la cola (0 si es de hoy). */
+  function diasEsperando() {
+    var pendientes = cola();
+    var masViejo = 0;
+    var ahora = new Date().getTime();
+    for (var i = 0; i < pendientes.length; i++) {
+      var t = Date.parse(pendientes[i].creadoEn || '');
+      if (!isFinite(t)) continue;
+      var dias = Math.floor((ahora - t) / (24 * 60 * 60 * 1000));
+      if (dias > masViejo) masViejo = dias;
+    }
+    return masViejo;
+  }
+  App.diasEsperando = diasEsperando;
+
+  // A partir de acá el aviso se pone rojo: la idea es que no pasen dos días sin
+  // subir lo que se registró.
+  var DIAS_PARA_ALARMA = 2;
+
   function pintarPendientes() {
     var n = cola().length;
+    var dias = n ? diasEsperando() : 0;
+    var urgente = dias >= DIAS_PARA_ALARMA;
+
+    var cuantas = n + (n === 1 ? ' pesada guardada' : ' pesadas guardadas') + ' en el teléfono';
+    var detalle;
+    if (urgente) {
+      detalle = 'Hace ' + dias + ' días que están esperando. Buscá señal hoy: si el teléfono se ' +
+        'rompe o se cambia de código, esto se pierde.';
+    } else if (dias >= 1) {
+      detalle = 'Quedaron de ' + (dias === 1 ? 'ayer' : 'hace ' + dias + ' días') +
+        '. Se suben solas en cuanto haya internet.';
+    } else {
+      detalle = 'Seguí cargando normal. Se suben solas cuando vuelva internet.';
+    }
+
+    // La franja de arriba, que está en todas las pantallas.
+    var globales = document.querySelectorAll('[data-pendientes-global]');
+    for (var g = 0; g < globales.length; g++) {
+      var fg = globales[g];
+      fg.hidden = n === 0;
+      fg.className = 'franja-pendientes' + (urgente ? ' urgente' : '');
+      var tg = fg.querySelector('[data-pendientes-titulo]');
+      var dg = fg.querySelector('[data-pendientes-detalle]');
+      if (tg) tg.innerHTML = (urgente ? '⚠ ' : '') + esc(cuantas) + ' sin subir';
+      if (dg) dg.innerHTML = esc(detalle);
+    }
+
+    // Franjas que alguna pantalla ponga por su cuenta.
     var franjas = document.querySelectorAll('[data-pendientes]');
     for (var i = 0; i < franjas.length; i++) {
       var f = franjas[i];
-      if (n > 0) {
-        f.hidden = false;
-        var t = f.querySelector('[data-pendientes-titulo]');
-        if (t) {
-          t.innerHTML =
-            n + (n === 1 ? ' pesada guardada' : ' pesadas guardadas') + ' en el teléfono';
-        }
-      } else {
-        f.hidden = true;
-      }
+      f.hidden = n === 0;
+      var t = f.querySelector('[data-pendientes-titulo]');
+      if (t) t.innerHTML = esc(cuantas);
+      var d = f.querySelector('[data-pendientes-detalle]');
+      if (d) d.innerHTML = esc(detalle);
     }
+
     var chips = document.querySelectorAll('[data-chip-sin-subir]');
     for (var j = 0; j < chips.length; j++) {
       chips[j].hidden = n === 0;
@@ -643,7 +692,11 @@
 
   function prepararPantallas() {
     if (!hayConexion() || !window.fetch) return;
-    var pantallas = ['/app/patio', '/app/nueva-pesada', '/app/local', '/app/balanza'];
+    var pantallas = [
+      '/app/patio', '/app/nueva-pesada', '/app/local', '/app/balanza',
+      // La hoja del ticket, para poder imprimir y ver el ticket sin señal.
+      '/app/imprimir',
+    ];
     for (var i = 0; i < pantallas.length; i++) {
       try {
         window.fetch(pantallas[i], { credentials: 'same-origin' });
@@ -834,7 +887,7 @@
   // no sirve: el ticket vence a los 5, y si hace falta se pide al servidor. Sin
   // esta limpieza el teléfono iría juntando tickets para siempre.
   var DIAS_QUE_SE_GUARDA_UN_TICKET = 7;
-  var MAXIMO_TICKETS_GUARDADOS = 60;
+  var MAXIMO_TICKETS_GUARDADOS = 30;
 
   App.guardarTicketLocal = function (ticket) {
     var tickets = leer(CLAVE_TICKETS, {});
@@ -893,14 +946,55 @@
   function registrarServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     // Solo sobre HTTPS (o localhost). En Render ya hay HTTPS.
+    //
+    // El alcance es '/app' y NO '/app/'. La diferencia es una barra y era el
+    // motivo por el que la app no abría sin señal: el ícono del teléfono entra
+    // por /app (sin barra), que queda AFUERA del alcance '/app/', así que el
+    // service worker no lo atendía y el navegador mostraba su pantalla de error.
     try {
-      navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' }).catch(function (e) {
+      navigator.serviceWorker.register('/app/sw.js', { scope: '/app' }).catch(function (e) {
         if (window.console) console.warn('[app] service worker no registrado:', e && e.message);
       });
     } catch (e) {
       /* navegador viejo: la app anda igual, solo no queda offline */
     }
   }
+
+  /**
+   * Tira las pantallas guardadas. Se llama al entrar con otro código y al salir:
+   * el patio de una balanza no es el de otra, y sin señal se mostraría el de
+   * antes. Los archivos fijos (css, js) y las pesadas sin subir no se tocan.
+   */
+  App.olvidarPantallas = function (cb) {
+    var listo = false;
+    function terminar() {
+      if (listo) return;
+      listo = true;
+      if (cb) cb();
+    }
+    // Si algo se cuelga, no se deja al usuario esperando.
+    window.setTimeout(terminar, 1200);
+    try {
+      if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+        return terminar();
+      }
+      navigator.serviceWorker.controller.postMessage({ tipo: 'olvidar-pantallas' });
+      // El borrado también se puede hacer desde acá: es la misma copia.
+      if (window.caches && caches.keys) {
+        caches.keys().then(function (claves) {
+          var borrar = [];
+          for (var i = 0; i < claves.length; i++) {
+            if (claves[i].indexOf('-pantallas') !== -1) borrar.push(caches.delete(claves[i]));
+          }
+          return Promise.all(borrar);
+        }).then(terminar, terminar);
+      } else {
+        terminar();
+      }
+    } catch (e) {
+      terminar();
+    }
+  };
 
   /* ═══════════════════════════════════════════════════════════════════════
    * Arranque

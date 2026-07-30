@@ -68,6 +68,13 @@ con dos opciones, y nada más:
   el código de la otra) y cambiar quién está en la balanza hoy.
 - **Salir de la app** — cierra la sesión y vuelve a pedir el código.
 
+Al cambiar de código o al salir, la app **tira las pantallas que tenía
+guardadas**: son de la sesión anterior y sin señal mostrarían el patio de otra
+balanza. Las pesadas sin subir no se tocan.
+
+Poner un código **necesita internet una vez**: el código se revisa en el
+servidor. Si no hay señal la pantalla lo dice, y el número escrito no se pierde.
+
 Si quedaron pesadas sin subir, la app avisa y no deja cambiar de código hasta
 que se suban: si no, se perderían.
 
@@ -131,13 +138,36 @@ Para que esto ande, la app deja preparado en el teléfono (cuando hay señal):
 números de ticket reservados, la lista de campos con su siembra y contratistas,
 y las pantallas que va a necesitar. Se hace de fondo, sin que nadie lo pida.
 
-No se puede: pedir una anulación o una corrección (hay que avisarle a GENERAL).
-El botón se muestra apagado con el motivo "necesita internet" debajo.
+No se puede: pedir una anulación o una corrección (hay que avisarle a GENERAL),
+ni entrar con otro código. Los botones se muestran apagados con el motivo
+"necesita internet" debajo.
+
+Y si se llega a una pantalla que **sí** necesita servidor (el detalle de un
+ticket viejo, la bandeja de GENERAL), la app lo dice con un cartel. Nunca deja un
+botón que parece no hacer nada.
 
 **Numeración**: el número lo da siempre la base de datos, nunca el teléfono.
 Para poder trabajar sin señal, el teléfono pide de antemano unos números
 reservados y los va usando. Un número reservado que no se usa queda quemado: no
 se reasigna. Igual que un ticket anulado.
+
+### El aviso de pesadas sin subir
+
+Va **arriba de todas las pantallas** y con **cualquier código** — el de una
+balanza o el de mirar —, coincida o no el nombre del balancero. Dice cuántas hay
+y de cuándo son:
+
+| Cuándo | Cómo se ve |
+| --- | --- |
+| del día | franja ámbar: "se suben solas cuando vuelva internet" |
+| de ayer | franja ámbar, diciendo de cuándo quedaron |
+| **2 días o más** | **franja roja**: "buscá señal hoy" |
+
+Es lo único que la app no puede recuperar sola: si el teléfono se rompe o se
+cambia de código, eso se pierde. Por eso el aviso no se puede pasar por alto y no
+depende de quién esté mirando el teléfono.
+
+---
 
 ### Actualizar la app NO borra lo que quedó pendiente
 
@@ -172,7 +202,7 @@ Lo que se borra es lo que ya no hace falta, no la actualización:
   estaba guardada con el identificador local se reemplaza por una sola con el id
   de la base. Antes quedaban las dos.
 - **Los tickets viejos**: al abrir la app se tiran los de más de 7 días (el ticket
-  vence a los 5) y se guardan como máximo 60. Los de pesadas que todavía no se
+  vence a los 5) y se guardan como máximo 30. Los de pesadas que todavía no se
   subieron **nunca** se tocan, pasen los días que pasen.
 
 O sea que el teléfono no va juntando cosas para siempre.
@@ -218,7 +248,7 @@ alguna se agranda de más, la prueba lo avisa antes de subirlo.
 - No agrega ninguna librería nueva: `package.json` no cambió.
 
 **Al subir cambios de la app**, hay que subir el número de versión que está
-arriba de `app-movil-estaticos/sw.js` (`pesada-app-v3`, `v4`, …). Eso hace que
+arriba de `app-movil-estaticos/sw.js` (`pesada-app-v4`, `v5`, …). Eso hace que
 los teléfonos descarten las **pantallas** que tenían guardadas y tomen las
 nuevas. Las pesadas pendientes y los números reservados no se tocan (ver
 "Actualizar la app NO borra lo que quedó pendiente", más arriba).
@@ -255,7 +285,11 @@ Las anulaciones y las ediciones de observaciones se registran en
 
 ### Reglas del sistema actual que se respetan tal cual
 
-- Solo **GENERAL** (`12341`) puede anular. El balancero pide, con motivo escrito.
+- Solo **GENERAL** (`12341`) puede anular, y **desde su propia sesión**. El
+  balancero toca "Pedir anulación a GENERAL" y escribe el motivo; GENERAL la
+  resuelve desde su pantalla. En la balanza no hay ningún botón para anular ni
+  ningún lugar donde tipear el código de GENERAL: ese código no tiene que
+  circular por las balanzas.
 - Un ticket anulado **no se borra**: se marca `anulado` y su número no se reusa.
 - Las observaciones se editan hasta **2 veces** y hasta **1 día** después de la
   regulada.

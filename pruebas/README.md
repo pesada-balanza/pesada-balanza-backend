@@ -18,7 +18,7 @@ node pruebas/correr.js
 Tarda un par de minutos y termina con un resumen. Si todo está bien:
 
 ```
-  TODO BIEN — 467 comprobaciones
+  TODO BIEN — 512 comprobaciones
 ```
 
 Si algo se rompió, lista exactamente qué comprobación falló y en qué archivo.
@@ -31,7 +31,7 @@ node pruebas/probar.js
 
 ### Para las que usan un navegador
 
-Cinco de las ocho abren un navegador real (para probar el modo sin señal, el
+Seis de las nueve abren un navegador real (para probar el modo sin señal, el
 compartir del PDF, las medidas de los botones y qué pasa al actualizar la app).
 Necesitan Playwright, que **no** está en `package.json` a propósito: en el
 servidor no hace falta y no queremos sumarle peso al deploy.
@@ -41,7 +41,7 @@ npm install --no-save playwright
 npx playwright install chromium
 ```
 
-Sin eso, esas cinco se saltean y las otras tres corren igual.
+Sin eso, esas seis se saltean y las otras tres corren igual.
 
 Si el navegador ya está instalado en otra carpeta, `buscar-chromium.js` lo
 encuentra solo. También se puede indicar a mano:
@@ -63,6 +63,7 @@ CHROMIUM_PATH=/ruta/al/chrome node pruebas/correr.js
 | `probar-compartir.js` | El botón de compartir entrega un PDF al sistema, en el mismo toque del dedo (que es lo que exige el Safari del iPhone), y descarga el archivo cuando el teléfono no sabe compartir. |
 | `probar-pdf.js` | El PDF: que sea válido byte a byte, que mida 19 × 4,5 cm exactos, que los acentos salgan bien, que los textos largos se recorten y que **no aparezca el código de la balanza**. |
 | `probar-arreglos.js` | La navegación: el alto real de los botones, que el menú abra, y el cambio de campo en la regulada rehaciendo granos y lotes hasta guardar. |
+| `probar-sin-senal-real.js` | Sin señal **con el service worker de verdad**, que es lo que corre en el teléfono: abrir la app desde el ícono, seguir un ticket que ya está en el servidor, ver el ticket, cargar de cero, el aviso de pesadas sin subir en todas las pantallas y con cualquier código, y que al cambiar de código no queden pantallas de la sesión anterior. |
 | `probar-liviana.js` | Que todo viaje comprimido y que ninguna pantalla se pase de peso, que la web siga sin comprimir (o sea, sin tocar), que **actualizar la app no borre las pesadas pendientes** (borra a propósito todo lo guardado y comprueba que la cola siga entera y se suba al volver internet), y que una vez subido el teléfono se limpie: no quedan copias duplicadas ni tickets de hace semanas. |
 
 `capturas.js` no comprueba nada: saca fotos de las 19 pantallas a 390 px para

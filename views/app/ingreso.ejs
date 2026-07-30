@@ -61,13 +61,25 @@
       error.innerHTML = 'El código tiene 4 o 5 números.';
       return;
     }
+    // El código lo valida el servidor, así que sin señal no se puede entrar. Se
+    // dice claro en vez de dejar la pantalla como si no hubiera pasado nada.
+    if (!App.hayConexion()) {
+      error.innerHTML = 'Sin internet no se puede entrar con un código nuevo. ' +
+        'Se necesita conexión una vez; después la app funciona sin señal.';
+      return;
+    }
     App.enviar({
       url: '/app/api/ingreso',
       datos: { code: codigo },
       boton: btn,
       textoGuardando: 'Entrando…',
       alListo: function (res) { window.location.href = res.destino || '/app'; },
-      alFallar: function (msg) {
+      alFallar: function (msg, err) {
+        if (err && err.deRed) {
+          error.innerHTML = 'Se cortó internet. El código se valida en el servidor: ' +
+            'probá de nuevo cuando vuelva la señal.';
+          return; // el número queda escrito, no se pierde
+        }
         error.innerHTML = App.esc(msg);
         teclado.limpiar();
       }
