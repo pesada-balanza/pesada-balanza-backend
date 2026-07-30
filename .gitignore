@@ -3,3 +3,5 @@ node_modules/
 .DS_Store
 public/.DS_Store
 views/.DS_Store
+# Capturas que generan las pruebas (no se versionan)
+pruebas/capturas/
