@@ -794,22 +794,24 @@ module.exports = function crearAppMovil(deps) {
       if (cacheSugerencias.datos && Date.now() < cacheSugerencias.hasta) {
         return res.json({ ok: true, datos: cacheSugerencias.datos });
       }
-      // Se miran los últimos tickets, no todos: es un autocompletado, no un
-      // padrón. Y cada lista se acota, porque esto lo baja el teléfono y se
-      // guarda: de 38 KB pasa a menos de 10.
+      // Los ÚLTIMOS 300 TICKETS, que son más o menos los últimos 10 a 12 días de
+      // trabajo. Es un autocompletado, no un padrón: lo que sirve es lo que está
+      // entrando estos días. Un camión que no vino en dos semanas se escribe a
+      // mano una vez y vuelve a la lista.
+      const ULTIMOS_TICKETS = 300;
       const docs = await colRegistros()
         .find(
           {},
           {
             projection: { patentes: 1, chofer: 1, transporte: 1 },
             sort: { idTicket: -1 },
-            limit: 1500,
+            limit: ULTIMOS_TICKETS,
           }
         )
         .toArray();
 
       // Del más reciente al más viejo: si hay que cortar, se cortan los viejos.
-      const unicos = (clave, tope) => {
+      const unicos = (clave) => {
         const vistos = new Set();
         const out = [];
         for (const d of docs) {
@@ -817,15 +819,14 @@ module.exports = function crearAppMovil(deps) {
           if (!v || vistos.has(v)) continue;
           vistos.add(v);
           out.push(v);
-          if (out.length >= tope) break;
         }
         return out.sort();
       };
 
       const datos = {
-        patentes: unicos('patentes', 500),      // la que más se usa
-        choferes: unicos('chofer', 300),
-        transportes: unicos('transporte', 150),
+        patentes: unicos('patentes'),
+        choferes: unicos('chofer'),
+        transportes: unicos('transporte'),
         contratistas: Object.keys(getContratistas() || {}),
       };
       cacheSugerencias = { hasta: Date.now() + 10 * 60 * 1000, datos };

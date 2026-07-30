@@ -18,7 +18,7 @@ node pruebas/correr.js
 Tarda un par de minutos y termina con un resumen. Si todo está bien:
 
 ```
-  TODO BIEN — 456 comprobaciones
+  TODO BIEN — 467 comprobaciones
 ```
 
 Si algo se rompió, lista exactamente qué comprobación falló y en qué archivo.
@@ -63,7 +63,7 @@ CHROMIUM_PATH=/ruta/al/chrome node pruebas/correr.js
 | `probar-compartir.js` | El botón de compartir entrega un PDF al sistema, en el mismo toque del dedo (que es lo que exige el Safari del iPhone), y descarga el archivo cuando el teléfono no sabe compartir. |
 | `probar-pdf.js` | El PDF: que sea válido byte a byte, que mida 19 × 4,5 cm exactos, que los acentos salgan bien, que los textos largos se recorten y que **no aparezca el código de la balanza**. |
 | `probar-arreglos.js` | La navegación: el alto real de los botones, que el menú abra, y el cambio de campo en la regulada rehaciendo granos y lotes hasta guardar. |
-| `probar-liviana.js` | Que todo viaje comprimido y que ninguna pantalla se pase de peso, que la web siga sin comprimir (o sea, sin tocar), y que **actualizar la app no borre las pesadas pendientes**: borra a propósito todo lo guardado y comprueba que la cola siga entera y se suba al volver internet. |
+| `probar-liviana.js` | Que todo viaje comprimido y que ninguna pantalla se pase de peso, que la web siga sin comprimir (o sea, sin tocar), que **actualizar la app no borre las pesadas pendientes** (borra a propósito todo lo guardado y comprueba que la cola siga entera y se suba al volver internet), y que una vez subido el teléfono se limpie: no quedan copias duplicadas ni tickets de hace semanas. |
 
 `capturas.js` no comprueba nada: saca fotos de las 19 pantallas a 390 px para
 poder compararlas con el diseño. Quedan en `pruebas/capturas/`.

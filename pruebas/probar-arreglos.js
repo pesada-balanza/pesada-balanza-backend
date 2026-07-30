@@ -132,11 +132,16 @@ async function main() {
   ok('el menú se abre', menuVisible);
   const textoMenu = await pg.textContent('#modal-menu');
   ok('lleva a Balanza y turno', /Balanza y turno/.test(textoMenu));
-  ok('ofrece cambiar quién está en la balanza', /Cambiar quién está en la balanza/.test(textoMenu));
   ok('ofrece salir de la app', /Salir de la app/.test(textoMenu));
   ok('muestra de qué balanza es la sesión', /El Mataco/.test(textoMenu), textoMenu.slice(0, 120));
-  ok('NO repite lo que ya hace Balanza y turno',
+  // Solo esas dos opciones: nada de lo que ya está adentro de Balanza y turno.
+  ok('NO repite "Entrar con otro código"',
     textoMenu.indexOf('Entrar con otro código') === -1, 'sigue el botón repetido');
+  ok('NO repite "Cambiar quién está en la balanza"',
+    textoMenu.indexOf('Cambiar quién está en la balanza') === -1, 'sigue el botón repetido');
+  const botonesMenu = await pg.$$eval('#modal-menu .botonera > *', (b) => b.map((x) => x.textContent.trim()));
+  ok('el menú tiene solo Balanza y turno, Salir de la app y Cancelar',
+    botonesMenu.length === 3, botonesMenu.join(' | '));
 
   pg.on('dialog', (d) => d.accept());
   await pg.click('#modal-menu a[href="/app/balanza"]');

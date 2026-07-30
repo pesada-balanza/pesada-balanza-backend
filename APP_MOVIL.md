@@ -61,9 +61,12 @@ poner el código de una balanza.
 
 ### Salir o cambiar de código
 
-Arriba a la derecha de todas las pantallas hay un botón **Salir**, que lleva a
-**Balanza y turno**. Ahí está todo junto: cambiar de balanza (poniendo el código
-de la otra), cambiar quién está en la balanza hoy, y salir de la app.
+Arriba a la derecha de todas las pantallas hay un botón **Salir**. Abre un menú
+con dos opciones, y nada más:
+
+- **Balanza y turno** — ahí adentro está todo junto: cambiar de balanza (poniendo
+  el código de la otra) y cambiar quién está en la balanza hoy.
+- **Salir de la app** — cierra la sesión y vuelve a pedir el código.
 
 Si quedaron pesadas sin subir, la app avisa y no deja cambiar de código hasta
 que se suban: si no, se perderían.
@@ -158,6 +161,22 @@ sin señal, se borra **todo** lo guardado de pantallas (el peor caso posible) y 
 comprueba que la pesada siga entera, con su número, y que se suba al volver
 internet.
 
+### Y cuando vuelve la señal, sí se limpia
+
+Lo que se borra es lo que ya no hace falta, no la actualización:
+
+- **La pesada de la cola**: se borra en el momento en que el servidor la acepta.
+  Si el servidor la rechaza por un motivo real (dato inválido, ticket vencido)
+  también sale de la cola y la app avisa que hay que cargarla de nuevo.
+- **La copia del ticket para imprimir**: cuando la pesada se sube, la copia que
+  estaba guardada con el identificador local se reemplaza por una sola con el id
+  de la base. Antes quedaban las dos.
+- **Los tickets viejos**: al abrir la app se tiran los de más de 7 días (el ticket
+  vence a los 5) y se guardan como máximo 60. Los de pesadas que todavía no se
+  subieron **nunca** se tocan, pasen los días que pasen.
+
+O sea que el teléfono no va juntando cosas para siempre.
+
 ---
 
 ## Cuánto pesa
@@ -169,10 +188,16 @@ comprimido (con el `zlib` que ya trae Node, sin agregar ninguna librería):
 | --- | --- |
 | Primera vez (todo: pantallas + CSS + JS + tablas) | **~48 KB** |
 | Después, abrir una pantalla | 2 a 6 KB |
-| La pantalla más pesada (regulada) | 5,7 KB |
+| La pantalla más pesada (regulada) | 5,6 KB |
 | Sin señal | 0 KB (se dibuja con lo guardado) |
 
 Para comparar: una sola foto de celular pesa 20 veces más que la app entera.
+
+Las **sugerencias** para autocompletar (patentes, choferes, transportes) salen de
+los **últimos 300 tickets**, que son más o menos los últimos 10 a 12 días de
+trabajo. Es un autocompletado, no un padrón: lo que sirve es lo que está entrando
+estos días. Un camión que no vino en dos semanas se escribe a mano una vez y
+vuelve solo a la lista.
 
 La compresión aplica **solo a `/app`**: la web sigue exactamente como estaba.
 `pruebas/probar-liviana.js` le pone un tope de peso a cada pantalla, así que si

@@ -15,15 +15,11 @@
       </span>
     </div>
 
-    <%# "Balanza y turno" ya tiene todo lo de cambiar de código y de persona, así
-        que acá no se repite: se entra ahí y se resuelve en un solo lugar. %>
+    <%# Dos opciones y nada más. "Balanza y turno" ya tiene adentro el cambio de
+        código Y el cambio de quién está en la balanza, así que acá no se repite:
+        se entra ahí y se resuelve todo en un solo lugar. %>
     <div class="botonera">
       <a class="btn" href="/app/balanza">Balanza y turno</a>
-
-      <% if (puedeCargar) { %>
-        <a class="btn btn-borde-suave" href="/app/dia?cambio=1">Cambiar quién está en la balanza</a>
-      <% } %>
-
       <button type="button" class="btn btn-borde-suave" id="menu-salir">Salir de la app</button>
       <button type="button" class="btn btn-texto" data-cierra-modal="modal-menu">Cancelar</button>
     </div>

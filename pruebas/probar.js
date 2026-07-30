@@ -466,9 +466,14 @@ async function main() {
   ok('el botón de volver es un botón, no un texto chico', /class="volver"><span class="flecha">/.test(r.texto));
 
   r = await ir('GET', '/app/balanza');
-  ok('el menú ofrece cambiar quién está en la balanza', /Cambiar quién está en la balanza/.test(r.texto));
-  ok('el menú NO repite lo que ya hace Balanza y turno',
+  // El menú tiene DOS opciones y nada más. Todo lo de cambiar de código o de
+  // persona está adentro de "Balanza y turno", en un solo lugar.
+  ok('el menú lleva a Balanza y turno', /Balanza y turno/.test(r.texto));
+  ok('el menú ofrece salir de la app', /Salir de la app/.test(r.texto));
+  ok('el menú NO repite "Entrar con otro código"',
     r.texto.indexOf('Entrar con otro código') === -1, 'sigue estando el botón repetido');
+  ok('el menú NO repite "Cambiar quién está en la balanza"',
+    r.texto.indexOf('Cambiar quién está en la balanza') === -1, 'sigue estando el botón repetido');
 
   /* ═════════════════════════════════════════════════════════════════════
    * CERRAR EL TICKET SIN SEÑAL (tara final y regulada sobre una pesada

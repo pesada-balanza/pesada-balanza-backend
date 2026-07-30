@@ -156,7 +156,7 @@ async function main() {
     ['/app/local', 'pantalla sin señal', 8],
     ['/app/balanza', 'balanza y turno', 4],
     ['/app/api/tablas', 'tablas (campos, siembra, contratistas)', 5],
-    ['/app/api/sugerencias', 'sugerencias', 4],
+    ['/app/api/sugerencias', 'sugerencias', 3],
     ['/app/estatico/app.js', 'app.js', 11],
     ['/app/estatico/app.css', 'app.css', 7],
     ['/app/estatico/ticket.js', 'ticket.js', 5],
@@ -334,6 +334,54 @@ async function main() {
     (subida || {}).nroApp + ' vs ' + guardadoAntes.cola[0].datos.nro);
   const colaFinal = await pg.evaluate(() => JSON.parse(localStorage.getItem('pesada.cola') || '[]'));
   ok('la cola quedó vacía', colaFinal.length === 0, JSON.stringify(colaFinal));
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * 5. UNA VEZ SUBIDO, EL TELÉFONO SE LIMPIA
+   * -----------------------------------------------------------------------
+   * Que la cola se vacíe no alcanza: el ticket también quedaba guardado para
+   * poder imprimirlo, y eso se iba juntando sin parar.
+   * ═════════════════════════════════════════════════════════════════════ */
+  console.log('\n── Una vez subido, el teléfono no se queda con copias de más');
+  const localIdSubido = guardadoAntes.cola[0].localId;
+  const idServidor = String(subida._id);
+
+  const ticketsFinal = await pg.evaluate(() => JSON.parse(localStorage.getItem('pesada.tickets') || '{}'));
+  ok('la copia con el id local se borró al subirse',
+    !ticketsFinal[localIdSubido], 'sigue estando: ' + localIdSubido);
+  ok('y quedó una sola, con el id de la base', !!ticketsFinal[idServidor], Object.keys(ticketsFinal).join(', '));
+  ok('con su número de ticket', ticketsFinal[idServidor] && ticketsFinal[idServidor].nro === subida.nroApp,
+    (ticketsFinal[idServidor] || {}).nro + ' vs ' + subida.nroApp);
+  ok('cada ticket guardado sabe cuándo se guardó (para poder limpiarlo)',
+    Object.keys(ticketsFinal).every((k) => !!ticketsFinal[k].guardadoEn),
+    JSON.stringify(ticketsFinal).slice(0, 200));
+
+  // Se plantan tickets viejos y de más, y se comprueba que al abrir se limpien.
+  await pg.evaluate(() => {
+    const tickets = JSON.parse(localStorage.getItem('pesada.tickets') || '{}');
+    const ahora = new Date().getTime();
+    const unDia = 24 * 60 * 60 * 1000;
+    // Tres de hace 20 días: no sirven más (el ticket vence a los 5).
+    for (let i = 0; i < 3; i++) {
+      tickets['viejo-' + i] = { id: 'viejo-' + i, nro: '9-000' + i, guardadoEn: ahora - 20 * unDia };
+    }
+    // Y 90 de ayer: más de los que tiene sentido guardar.
+    for (let i = 0; i < 90; i++) {
+      tickets['ayer-' + i] = { id: 'ayer-' + i, nro: '8-00' + i, guardadoEn: ahora - unDia };
+    }
+    localStorage.setItem('pesada.tickets', JSON.stringify(tickets));
+  });
+  const antesDeLimpiar = await pg.evaluate(() =>
+    Object.keys(JSON.parse(localStorage.getItem('pesada.tickets') || '{}')).length);
+  ok('se plantaron 93 tickets de prueba (3 viejos + 90 de ayer)', antesDeLimpiar >= 93, antesDeLimpiar);
+
+  await pg.goto(BASE + '/app/patio', { waitUntil: 'networkidle' });
+  await pg.waitForTimeout(400);
+  const despuesDeLimpiar = await pg.evaluate(() => JSON.parse(localStorage.getItem('pesada.tickets') || '{}'));
+  const claves = Object.keys(despuesDeLimpiar);
+  ok('al abrir la app se tiran los de más de 7 días',
+    claves.every((k) => k.indexOf('viejo-') === -1), claves.filter((k) => k.indexOf('viejo-') === 0).join(', '));
+  ok('y no se guardan más de 60', claves.length <= 60, claves.length);
+  ok('el más nuevo se conserva', claves.length > 0);
 
   ok('sin errores de JavaScript en toda la corrida', erroresJs.length === 0, erroresJs.join(' | '));
 

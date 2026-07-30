@@ -313,7 +313,11 @@
   }
   App.sincronizar = sincronizar;
 
-  /** Cuando una pesada local se sube, se le pega el id real del servidor. */
+  /**
+   * Cuando una pesada local se sube, se le pega el id real del servidor y se
+   * borra la copia que estaba guardada con el id local: es la misma cosa, y
+   * dejar las dos hacía que el teléfono guardara todo por duplicado.
+   */
   function enlazarLocalConServidor(localId, res) {
     var tickets = leer(CLAVE_TICKETS, {});
     if (tickets && tickets[localId]) {
@@ -321,6 +325,7 @@
       t.id = res.id;
       if (res.nro) t.nro = res.nro;
       tickets[res.id] = t;
+      delete tickets[localId];
       escribir(CLAVE_TICKETS, tickets);
     }
   }
@@ -825,15 +830,61 @@
    * Tickets guardados en el teléfono (para imprimirlos sin señal)
    * ═════════════════════════════════════════════════════════════════════ */
 
+  // Un ticket se guarda para poder imprimirlo sin señal. Después de unos días ya
+  // no sirve: el ticket vence a los 5, y si hace falta se pide al servidor. Sin
+  // esta limpieza el teléfono iría juntando tickets para siempre.
+  var DIAS_QUE_SE_GUARDA_UN_TICKET = 7;
+  var MAXIMO_TICKETS_GUARDADOS = 60;
+
   App.guardarTicketLocal = function (ticket) {
     var tickets = leer(CLAVE_TICKETS, {});
     if (!tickets) tickets = {};
     var clave = ticket.id || ticket.localId;
-    if (clave) {
-      tickets[clave] = ticket;
-      escribir(CLAVE_TICKETS, tickets);
-    }
+    if (!clave) return;
+    ticket.guardadoEn = new Date().getTime();
+    tickets[clave] = ticket;
+    escribir(CLAVE_TICKETS, limpiarTickets(tickets));
   };
+
+  /**
+   * Saca los tickets viejos y, si quedaron muchos, deja solo los más nuevos.
+   * Los de la cola (pesadas todavía sin subir) NUNCA se tocan: esos hacen falta
+   * hasta que se suban, aunque pasen los días.
+   */
+  function limpiarTickets(tickets) {
+    var enLaCola = {};
+    var pendientes = cola();
+    for (var i = 0; i < pendientes.length; i++) {
+      if (pendientes[i].localId) enLaCola[pendientes[i].localId] = true;
+      if (pendientes[i].datos && pendientes[i].datos.id) enLaCola[pendientes[i].datos.id] = true;
+      if (pendientes[i].datos && pendientes[i].datos.refLocal) enLaCola[pendientes[i].datos.refLocal] = true;
+    }
+
+    var ahora = new Date().getTime();
+    var limite = DIAS_QUE_SE_GUARDA_UN_TICKET * 24 * 60 * 60 * 1000;
+    var claves = Object.keys(tickets);
+    var quedan = {};
+    var candidatos = [];
+
+    for (var j = 0; j < claves.length; j++) {
+      var k = claves[j];
+      var t = tickets[k];
+      if (!t) continue;
+      if (enLaCola[k]) { quedan[k] = t; continue; }
+      // Sin fecha es de una versión anterior: se le pone la de ahora y se
+      // limpiará más adelante, cuando le toque.
+      if (!t.guardadoEn) t.guardadoEn = ahora;
+      if (ahora - t.guardadoEn > limite) continue;
+      candidatos.push(k);
+    }
+
+    // Del más nuevo al más viejo, y se cortan los que sobran.
+    candidatos.sort(function (a, b) { return tickets[b].guardadoEn - tickets[a].guardadoEn; });
+    for (var m = 0; m < candidatos.length && m < MAXIMO_TICKETS_GUARDADOS; m++) {
+      quedan[candidatos[m]] = tickets[candidatos[m]];
+    }
+    return quedan;
+  }
 
   /* ═══════════════════════════════════════════════════════════════════════
    * Service worker (para que la app abra sin señal)
@@ -860,6 +911,17 @@
     conectarModales();
     conectarOpciones();
     registrarServiceWorker();
+
+    // Al abrir se tiran los tickets guardados que ya no sirven, así el teléfono
+    // no va juntando cosas para siempre.
+    try {
+      var guardados = leer(CLAVE_TICKETS, {});
+      if (guardados && Object.keys(guardados).length) {
+        escribir(CLAVE_TICKETS, limpiarTickets(guardados));
+      }
+    } catch (e) {
+      /* si algo falla, se deja como está: no vale romper la app por esto */
+    }
 
     if (window.addEventListener) {
       window.addEventListener('online', function () {
