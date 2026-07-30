@@ -4,6 +4,7 @@
  * 390 × 844 (el teléfono del handoff) para compararlas con el diseño.
  */
 const path = require('path');
+const { buscarChromium } = require('./buscar-chromium');
 const fs = require('fs');
 const PROY = path.join(__dirname, '..');
 // Las vistas se buscan a partir del directorio de trabajo, así que la prueba
@@ -149,7 +150,7 @@ async function main() {
 
   const chromium = navegador();
   if (!chromium) return;
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+  const browser = await chromium.launch({ executablePath: buscarChromium() || undefined });
 
   async function sesion(code) {
     const ctx = await browser.newContext({

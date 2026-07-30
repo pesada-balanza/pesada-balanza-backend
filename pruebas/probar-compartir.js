@@ -5,6 +5,7 @@
  * no sabe compartir archivos lo descargue.
  */
 const path = require('path');
+const { buscarChromium } = require('./buscar-chromium');
 const PROY = path.join(__dirname, '..');
 // Las vistas se buscan a partir del directorio de trabajo, así que la prueba
 // se puede llamar desde donde sea.
@@ -83,7 +84,7 @@ async function main() {
 
   const chromium = navegador();
   if (!chromium) return;
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+  const browser = await chromium.launch({ executablePath: buscarChromium() || undefined });
   const ctx = await browser.newContext({
     viewport: { width: 390, height: 844 },
     extraHTTPHeaders: { 'X-Forwarded-Proto': 'https' },

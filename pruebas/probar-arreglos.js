@@ -7,6 +7,7 @@
  *  4. El campo se ve en la regulada y se puede corregir (grano y lote se rehacen).
  */
 const path = require('path');
+const { buscarChromium } = require('./buscar-chromium');
 const fs = require('fs');
 const PROY = path.join(__dirname, '..');
 // Las vistas se buscan a partir del directorio de trabajo, así que la prueba
@@ -75,7 +76,7 @@ async function main() {
 
   const chromium = navegador();
   if (!chromium) return;
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+  const browser = await chromium.launch({ executablePath: buscarChromium() || undefined });
 
   async function abrir(code) {
     const ctx = await browser.newContext({
@@ -177,6 +178,12 @@ async function main() {
     document.getElementById('bloque-campo').className.indexOf('oculto') === -1);
   ok('el selector de campos se abre al tocar Cambiar', selectorVisible);
 
+  // La lista de campos la pone el teléfono con las tablas guardadas: se espera
+  // a que llegue en vez de contar antes de tiempo.
+  await pg.waitForFunction(
+    () => document.querySelectorAll('#campoSelect option').length > 1,
+    null, { timeout: 5000 }
+  );
   const cuantosCampos = await pg.$$eval('#campoSelect option', (o) => o.length);
   ok('están todos los campos para elegir (43)', cuantosCampos === 43, cuantosCampos);
 

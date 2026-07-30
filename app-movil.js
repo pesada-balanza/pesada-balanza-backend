@@ -474,6 +474,52 @@ module.exports = function crearAppMovil(deps) {
    * ESTÁTICOS Y PWA  (todo detrás del flag, junto con el resto)
    * ======================================================================= */
 
+  /* =========================================================================
+   * COMPRIMIR LO QUE VIAJA
+   * -------------------------------------------------------------------------
+   * La app se usa en el campo, con señal mala y teléfonos de gama media. Todo
+   * lo que manda la app es texto (HTML, CSS, JS, JSON), que comprime muy bien:
+   * baja a la cuarta parte. Se usa el zlib que ya trae Node, así que no se
+   * agrega ninguna librería, y solo aplica a /app: la web no se toca.
+   * ======================================================================= */
+  const zlib = require('zlib');
+  const MINIMO_PARA_COMPRIMIR = 1024; // por debajo de 1 KB no vale la pena
+  const COMPRIMIBLE = /^(text\/|application\/(json|javascript|manifest))/;
+
+  router.use((req, res, next) => {
+    const enviarOriginal = res.send.bind(res);
+    res.send = function (cuerpo) {
+      try {
+        const acepta = String(req.headers['accept-encoding'] || '');
+        // Cuando se manda una pantalla, res.render llama a send SIN haber puesto
+        // todavía el Content-Type: lo pone Express después, y siempre es HTML.
+        // Por eso, si no hay tipo, se asume HTML (que es lo que va a ser).
+        const tipo = String(res.get('Content-Type') || 'text/html; charset=utf-8');
+        if (
+          typeof cuerpo === 'string' &&
+          acepta.indexOf('gzip') !== -1 &&
+          !res.get('Content-Encoding') &&
+          COMPRIMIBLE.test(tipo) &&
+          Buffer.byteLength(cuerpo) > MINIMO_PARA_COMPRIMIR
+        ) {
+          const comprimido = zlib.gzipSync(cuerpo);
+          // El tipo se deja explícito: al mandar bytes en vez de texto, Express
+          // lo pondría como "archivo para descargar" y el teléfono no la abriría.
+          res.set('Content-Type', tipo);
+          res.set('Content-Encoding', 'gzip');
+          res.set('Vary', 'Accept-Encoding');
+          res.removeHeader('Content-Length');
+          return enviarOriginal(comprimido);
+        }
+      } catch (err) {
+        // Si algo falla comprimiendo, se manda tal cual: nunca se cae por esto.
+        console.warn('[app-movil] no se pudo comprimir:', err.message);
+      }
+      return enviarOriginal(cuerpo);
+    };
+    return next();
+  });
+
   /**
    * Datos que TODAS las pantallas necesitan. Sobre todo `puedeCargar`: el
    * teléfono lo mira para reservar números de ticket de antemano, que es lo que
@@ -493,13 +539,25 @@ module.exports = function crearAppMovil(deps) {
   // sirve el express.static de la web y todo queda detrás del flag APP_MOVIL.
   const DIR_ESTATICOS = path.join(__dirname, 'app-movil-estaticos');
 
-  router.use(
-    '/estatico',
-    express.static(DIR_ESTATICOS, {
-      maxAge: '1h',
-      fallthrough: false,
-    })
-  );
+  // Se sirven a mano (y no con express.static) para que pasen por el comprimido
+  // de arriba: los 73 KB de css y js bajan a menos de 20 KB en la primera vez.
+  const TIPOS_ESTATICOS = {
+    'app.css': 'text/css; charset=utf-8',
+    'ticket.css': 'text/css; charset=utf-8',
+    'app.js': 'application/javascript; charset=utf-8',
+    'ticket.js': 'application/javascript; charset=utf-8',
+  };
+
+  router.get('/estatico/:archivo', (req, res) => {
+    const tipo = TIPOS_ESTATICOS[req.params.archivo];
+    if (!tipo) return res.status(404).send('no existe');
+    fs.readFile(path.join(DIR_ESTATICOS, req.params.archivo), 'utf8', (err, contenido) => {
+      if (err) return res.status(404).send('no existe');
+      res.set('Content-Type', tipo);
+      res.set('Cache-Control', 'public, max-age=3600');
+      return res.send(contenido);
+    });
+  });
 
   // El service worker se sirve desde /app/sw.js para que su alcance sea /app.
   router.get('/sw.js', (req, res) => {
@@ -736,30 +794,38 @@ module.exports = function crearAppMovil(deps) {
       if (cacheSugerencias.datos && Date.now() < cacheSugerencias.hasta) {
         return res.json({ ok: true, datos: cacheSugerencias.datos });
       }
+      // Se miran los últimos tickets, no todos: es un autocompletado, no un
+      // padrón. Y cada lista se acota, porque esto lo baja el teléfono y se
+      // guarda: de 38 KB pasa a menos de 10.
       const docs = await colRegistros()
         .find(
           {},
           {
             projection: { patentes: 1, chofer: 1, transporte: 1 },
             sort: { idTicket: -1 },
-            limit: 4000,
+            limit: 1500,
           }
         )
         .toArray();
 
-      const unicos = (clave) => {
-        const set = new Set();
+      // Del más reciente al más viejo: si hay que cortar, se cortan los viejos.
+      const unicos = (clave, tope) => {
+        const vistos = new Set();
+        const out = [];
         for (const d of docs) {
           const v = String(d[clave] || '').trim();
-          if (v) set.add(v);
+          if (!v || vistos.has(v)) continue;
+          vistos.add(v);
+          out.push(v);
+          if (out.length >= tope) break;
         }
-        return Array.from(set).sort();
+        return out.sort();
       };
 
       const datos = {
-        patentes: unicos('patentes'),
-        choferes: unicos('chofer'),
-        transportes: unicos('transporte'),
+        patentes: unicos('patentes', 500),      // la que más se usa
+        choferes: unicos('chofer', 300),
+        transportes: unicos('transporte', 150),
         contratistas: Object.keys(getContratistas() || {}),
       };
       cacheSugerencias = { hasta: Date.now() + 10 * 60 * 1000, datos };
@@ -1157,15 +1223,15 @@ module.exports = function crearAppMovil(deps) {
         );
       }
 
+      // Solo lo del campo del ticket, que es lo que se necesita para dibujar la
+      // pantalla al toque. La lista completa de campos y la planilla entera las
+      // trae el teléfono de lo que ya tiene guardado (/app/api/tablas), así no
+      // se manda dos veces lo mismo: la pantalla baja de 34 KB a menos de 10.
       return res.render('app/regulada', {
         layout: 'app/layout',
         titulo: 'Regulada',
         r: vistaRegistro(r),
-        // La lista completa de campos y su siembra viaja con la pantalla (9,7 KB):
-        // así el campo se puede ver y corregir incluso sin señal.
-        campos,
-        datosSiembra,
-        contratistas: getContratistas() || {},
+        siembraDelCampo: datosSiembra[r.campo] || {},
         kg,
       });
     } catch (err) {

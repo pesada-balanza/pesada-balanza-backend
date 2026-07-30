@@ -336,16 +336,27 @@ async function main() {
     htmlReg.indexOf('El Mataco - SACHAYOJ - SE') !== -1, '');
   ok('la regulada tiene el botón para cambiar el campo',
     /id="btn-cambiar-campo"/.test(htmlReg));
-  ok('la regulada trae la lista completa de campos para elegir',
-    /id="campoSelect"/.test(htmlReg) && htmlReg.indexOf('La Pradera - ARBOL BLANCO - SE') !== -1);
+  ok('la regulada tiene el selector de campos', /id="campoSelect"/.test(htmlReg));
 
-  const mDatos = htmlReg.match(/var SIEMBRA = (\{[\s\S]*?\});/);
-  ok('la vista manda la planilla de siembra al teléfono', !!mDatos);
-  const siembra = JSON.parse(mDatos[1]);
-  ok('la planilla trae los 40 campos (se puede cambiar sin señal)',
-    Object.keys(siembra).length === 40, Object.keys(siembra).length);
+  // Para que la pantalla sea liviana, la planilla ENTERA no viaja con ella: solo
+  // el campo de este ticket. La lista completa la trae el teléfono de
+  // /app/api/tablas, que se guarda una vez y sirve también sin señal.
+  ok('la pantalla NO arrastra la planilla entera (es liviana)',
+    htmlReg.indexOf('La Pradera - ARBOL BLANCO - SE') === -1);
+  ok('la pantalla pesa menos de 25 KB', Buffer.byteLength(htmlReg) < 25 * 1024,
+    (Buffer.byteLength(htmlReg) / 1024).toFixed(1) + ' KB');
 
-  const lotesCampo = siembra['El Mataco - SACHAYOJ - SE'] || {};
+  const mDatos = htmlReg.match(/SIEMBRA\[campoElegido\] = (\{[\s\S]*?\});/);
+  ok('la vista manda la planilla del campo del ticket', !!mDatos);
+  const lotesCampo = JSON.parse(mDatos[1]);
+
+  const tablas = (await ir('GET', '/app/api/tablas')).json.datos;
+  ok('las tablas traen los 43 campos para elegir', tablas.campos.length === 43, tablas.campos.length);
+  ok('las tablas traen la planilla de los 40 campos sembrados',
+    Object.keys(tablas.siembra).length === 40, Object.keys(tablas.siembra).length);
+  ok('las tablas traen los contratistas con sus tractores',
+    Object.keys(tablas.contratistas).length > 0, Object.keys(tablas.contratistas).length);
+
   const granoReal = Object.keys(lotesCampo)[0];
   const loteReal = lotesCampo[granoReal][0];
   ok('trae los granos y lotes del campo del ticket', !!granoReal && !!loteReal, granoReal + '/' + loteReal);
@@ -408,7 +419,7 @@ async function main() {
     r.estado === 400 && /no corresponde al campo|no corresponde/.test(r.json.error), r.texto.slice(0, 180));
 
   // Ahora con el grano y lote correctos del campo nuevo
-  const pradera = siembra['La Pradera - ARBOL BLANCO - SE'] || {};
+  const pradera = tablas.siembra['La Pradera - ARBOL BLANCO - SE'] || {};
   const granoPradera = Object.keys(pradera)[0];
   const lotePradera = granoPradera ? pradera[granoPradera][0] : null;
   ok('La Pradera tiene siembra cargada', !!granoPradera && !!lotePradera, granoPradera + '/' + lotePradera);

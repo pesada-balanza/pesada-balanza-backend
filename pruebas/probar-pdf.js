@@ -5,6 +5,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { buscarChromium } = require('./buscar-chromium');
 const PROY = path.join(__dirname, '..');
 // Las vistas se buscan a partir del directorio de trabajo, así que la prueba
 // se puede llamar desde donde sea.
@@ -183,7 +184,7 @@ async function verEnChromium(archivos) {
   const chromium = navegador();
   if (!chromium) return;
   const browser = await chromium.launch({
-    executablePath: process.env.CHROMIUM_PATH || undefined,
+    executablePath: buscarChromium() || undefined,
   });
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 500 } });
   const pg = await ctx.newPage();

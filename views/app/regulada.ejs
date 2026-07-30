@@ -31,10 +31,10 @@
 
       <div class="campo oculto" id="bloque-campo">
         <label class="etiqueta" for="campoSelect">Elegí el campo correcto</label>
+        <%# La lista completa de campos la pone el teléfono con lo que tiene
+            guardado (App.cargarTablas), para no mandarla dos veces. %>
         <select id="campoSelect" name="campo">
-          <% campos.forEach(function (c) { %>
-            <option value="<%= c %>"<%= c === r.campo ? ' selected' : '' %>><%= c %></option>
-          <% }); %>
+          <option value="<%= r.campo %>" selected><%= r.campo || '—' %></option>
         </select>
         <span class="txt-chico">Si cambiás el campo hay que elegir de nuevo el grano y el lote.</span>
       </div>
@@ -94,16 +94,10 @@
 
       <div class="campo oculto" id="campo-contratista">
         <span class="etiqueta">Contratista <span style="text-transform:none; letter-spacing:0">(uno o más)</span></span>
+        <%# Los contratistas y sus tractores los pone el teléfono con lo que
+            tiene guardado, igual que los campos. %>
         <div class="lista-casillas" id="lista-contratistas">
-          <% Object.keys(contratistas).forEach(function (n, i) { %>
-            <label class="casilla">
-              <input type="checkbox" name="contratista" value="<%= n %>" data-contratista="<%= n %>">
-              <span><%= n %></span>
-            </label>
-          <% }); %>
-          <% if (!Object.keys(contratistas).length) { %>
-            <div class="lista-vacia">No hay contratistas cargados.</div>
-          <% } %>
+          <div class="lista-vacia">Buscando los contratistas…</div>
         </div>
       </div>
 
@@ -153,11 +147,15 @@
 (function () {
   'use strict';
 
-  // Toda la planilla de siembra viaja con la pantalla, así se puede corregir el
-  // campo y volver a elegir grano y lote incluso sin señal.
-  var SIEMBRA = <%- JSON.stringify(datosSiembra).replace(/</g, '\\u003c') %>;
-  var DATOS_TRACTORES = <%- JSON.stringify(contratistas).replace(/</g, '\\u003c') %>;
+  // De la planilla de siembra viaja SOLO el campo de este ticket: es lo único
+  // que hace falta para elegir grano y lote. La lista completa de campos, la
+  // planilla entera y los contratistas los tiene el teléfono guardados
+  // (App.cargarTablas), así no se manda dos veces lo mismo y la pantalla pesa
+  // menos de la mitad.
   var campoElegido = <%- JSON.stringify(r.campo || '') %>;
+  var SIEMBRA = {};
+  SIEMBRA[campoElegido] = <%- JSON.stringify(siembraDelCampo || {}).replace(/</g, '\\u003c') %>;
+  var DATOS_TRACTORES = {};
 
   var form = document.getElementById('form-reg');
   var error = document.getElementById('error-reg');
@@ -168,6 +166,7 @@
   var campoSilo = document.getElementById('campo-silobolsa');
   var campoContr = document.getElementById('campo-contratista');
   var campoTractor = document.getElementById('campo-tractor');
+  var listaContr = document.getElementById('lista-contratistas');
   var listaTractores = document.getElementById('lista-tractores');
   var inputBruto = document.getElementById('bruto');
   var inputTaraNueva = document.getElementById('taraNuevaReg');
@@ -283,10 +282,74 @@
     }
     listaTractores.innerHTML = h;
   }
-  var chksContr = document.querySelectorAll('[data-contratista]');
-  for (var i = 0; i < chksContr.length; i++) {
-    chksContr[i].addEventListener('change', pintarTractores);
+  // Las casillas se pintan después (con las tablas guardadas), así que se
+  // escucha en la lista y no en cada casilla.
+  listaContr.addEventListener('change', pintarTractores);
+
+  /* ── Contratistas ─────────────────────────────────────────────────────── */
+  var contrPintados = '';
+
+  function pintarContratistas() {
+    var nombres = Object.keys(DATOS_TRACTORES);
+    if (!nombres.length) {
+      listaContr.innerHTML = '<div class="lista-vacia">No hay contratistas guardados en este teléfono. ' +
+        'Abrí la app una vez con internet y quedan disponibles.</div>';
+      return;
+    }
+    // Si la lista es la misma no se rehace, para no borrar lo que ya se tildó
+    // (las tablas se refrescan al abrir la pantalla).
+    if (nombres.join('|') === contrPintados) return;
+    contrPintados = nombres.join('|');
+
+    var h = '';
+    for (var i = 0; i < nombres.length; i++) {
+      h += '<label class="casilla"><input type="checkbox" name="contratista" value="' +
+        App.esc(nombres[i]) + '" data-contratista="' + App.esc(nombres[i]) + '"><span>' +
+        App.esc(nombres[i]) + '</span></label>';
+    }
+    listaContr.innerHTML = h;
   }
+
+  /* ── Tablas guardadas en el teléfono ──────────────────────────────────────
+   * Traen la lista completa de campos, la planilla de siembra entera y los
+   * contratistas con sus tractores. Sin ellas la pantalla igual funciona para
+   * el campo del ticket, que es lo que viene embebido.
+   * ─────────────────────────────────────────────────────────────────────── */
+  function aplicarTablas(t) {
+    if (!t) { pintarContratistas(); return; }
+
+    if (t.contratistas) {
+      DATOS_TRACTORES = t.contratistas;
+      pintarTractores();
+    }
+    pintarContratistas();
+
+    // La planilla del campo del ticket ya vino con la pantalla: se deja esa,
+    // que es la del servidor en este momento.
+    if (t.siembra) {
+      var propia = SIEMBRA[campoElegido];
+      SIEMBRA = t.siembra;
+      SIEMBRA[campoElegido] = propia;
+    }
+
+    if (t.campos && t.campos.length) {
+      var h = '';
+      for (var i = 0; i < t.campos.length; i++) {
+        h += '<option value="' + App.esc(t.campos[i]) + '"' +
+          (t.campos[i] === campoElegido ? ' selected' : '') + '>' + App.esc(t.campos[i]) + '</option>';
+      }
+      // Si el campo del ticket no está en la lista, se agrega para no perderlo.
+      if (t.campos.indexOf(campoElegido) === -1) {
+        h = '<option value="' + App.esc(campoElegido) + '" selected>' +
+          App.esc(campoElegido || '—') + '</option>' + h;
+      }
+      selCampo.innerHTML = h;
+    }
+  }
+
+  // Lo guardado se aplica ya; si hay señal se refresca y se vuelve a aplicar.
+  aplicarTablas(App.tablasGuardadas());
+  App.cargarTablas(function (t) { if (t) aplicarTablas(t); });
 
   /* ── Corregir la tara (queda registrado en el ticket) ─────────────────── */
   document.getElementById('btn-corregir-tara').addEventListener('click', function (ev) {

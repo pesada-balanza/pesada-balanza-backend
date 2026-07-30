@@ -136,6 +136,48 @@ Para poder trabajar sin señal, el teléfono pide de antemano unos números
 reservados y los va usando. Un número reservado que no se usa queda quemado: no
 se reasigna. Igual que un ticket anulado.
 
+### Actualizar la app NO borra lo que quedó pendiente
+
+Son dos cosas distintas y se guardan en dos lugares distintos:
+
+| | Dónde vive | Qué pasa al actualizar |
+| --- | --- | --- |
+| Las pesadas sin subir, los números reservados, los datos para imprimir y las tablas de campos | en la memoria del teléfono (`localStorage`) | **no se toca nada** |
+| Las pantallas, el CSS y el JS | en la copia del service worker | se reemplazan por los nuevos |
+
+O sea: si el balancero cargó tres pesadas sin señal y mientras tanto se subió una
+versión nueva de la app, las tres siguen ahí con su mismo número y se suben igual
+cuando vuelve internet. La actualización cambia la app, no los datos.
+
+Además, si la actualización se baja a medias (media señal en el campo), **falla a
+propósito** y el teléfono se queda con la versión anterior, que funciona. Nunca
+se borra la copia vieja antes de comprobar que la nueva está completa.
+
+Esto está probado a propósito en `pruebas/probar-liviana.js`: se carga una pesada
+sin señal, se borra **todo** lo guardado de pantallas (el peor caso posible) y se
+comprueba que la pesada siga entera, con su número, y que se suba al volver
+internet.
+
+---
+
+## Cuánto pesa
+
+Pensada para teléfonos de gama media y señal mala. Todo lo que manda la app viaja
+comprimido (con el `zlib` que ya trae Node, sin agregar ninguna librería):
+
+| | Por la red |
+| --- | --- |
+| Primera vez (todo: pantallas + CSS + JS + tablas) | **~48 KB** |
+| Después, abrir una pantalla | 2 a 6 KB |
+| La pantalla más pesada (regulada) | 5,7 KB |
+| Sin señal | 0 KB (se dibuja con lo guardado) |
+
+Para comparar: una sola foto de celular pesa 20 veces más que la app entera.
+
+La compresión aplica **solo a `/app`**: la web sigue exactamente como estaba.
+`pruebas/probar-liviana.js` le pone un tope de peso a cada pantalla, así que si
+alguna se agranda de más, la prueba lo avisa antes de subirlo.
+
 ---
 
 ## Cómo está aislada de la web
@@ -151,9 +193,10 @@ se reasigna. Igual que un ticket anulado.
 - No agrega ninguna librería nueva: `package.json` no cambió.
 
 **Al subir cambios de la app**, hay que subir el número de versión que está
-arriba de `app-movil-estaticos/sw.js` (`pesada-app-v2`, `v3`, …). Eso hace que
-los teléfonos descarten lo que tenían guardado y tomen la versión nueva sin que
-nadie borre nada a mano.
+arriba de `app-movil-estaticos/sw.js` (`pesada-app-v3`, `v4`, …). Eso hace que
+los teléfonos descarten las **pantallas** que tenían guardadas y tomen las
+nuevas. Las pesadas pendientes y los números reservados no se tocan (ver
+"Actualizar la app NO borra lo que quedó pendiente", más arriba).
 
 ### Los datos
 

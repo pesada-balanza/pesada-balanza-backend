@@ -13,7 +13,7 @@
 
 // Al subir cambios hay que subir este número: así el teléfono descarta lo
 // guardado y toma la versión nueva sin que nadie borre nada a mano.
-var VERSION = 'pesada-app-v2';
+var VERSION = 'pesada-app-v3';
 var ESENCIALES = [
   '/app/estatico/app.css',
   '/app/estatico/app.js',
@@ -26,31 +26,53 @@ var ESENCIALES = [
   '/app/local',
 ];
 
+/**
+ * IMPORTANTE: si alguno de los esenciales no se puede bajar, la instalación
+ * FALLA a propósito. Así el teléfono se queda con la copia vieja, que funciona,
+ * en vez de quedarse sin ninguna.
+ *
+ * Esto pasa de verdad: la app se actualiza en el campo, con media señal. Si se
+ * aceptara una instalación a medias y después se borrara la copia anterior, el
+ * balancero se quedaba sin poder abrir la app justo sin conexión. Con esto,
+ * mientras no se pueda bajar todo, sigue andando la versión que ya tenía y se
+ * vuelve a intentar la próxima vez que abra.
+ */
 self.addEventListener('install', function (ev) {
   ev.waitUntil(
     caches.open(VERSION).then(function (cache) {
-      // Si alguno falla no se aborta la instalación: la app tiene que poder
-      // instalarse igual.
-      return Promise.all(
+      return cache.addAll(
         ESENCIALES.map(function (url) {
-          return cache.add(new Request(url, { cache: 'reload' })).catch(function () {});
+          return new Request(url, { cache: 'reload' });
         })
-      );
+      ).then(function () {
+        // Recién cuando está TODO guardado se toma el relevo.
+        return self.skipWaiting();
+      });
     })
   );
-  self.skipWaiting();
 });
 
+/**
+ * Borra las versiones anteriores, pero solo después de comprobar que la nueva
+ * está completa. Doble red: si por lo que sea quedó a medias, no se toca la
+ * copia vieja.
+ */
 self.addEventListener('activate', function (ev) {
   ev.waitUntil(
     caches
-      .keys()
-      .then(function (claves) {
-        return Promise.all(
-          claves.map(function (k) {
-            return k === VERSION ? null : caches.delete(k);
-          })
-        );
+      .open(VERSION)
+      .then(function (cache) {
+        return cache.match('/app/estatico/app.js');
+      })
+      .then(function (estaCompleta) {
+        if (!estaCompleta) return null; // la nueva no sirve: se deja lo de antes
+        return caches.keys().then(function (claves) {
+          return Promise.all(
+            claves.map(function (k) {
+              return k === VERSION ? null : caches.delete(k);
+            })
+          );
+        });
       })
       .then(function () {
         return self.clients.claim();

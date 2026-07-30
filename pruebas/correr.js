@@ -19,6 +19,7 @@ const SUITES = [
   ['probar-compartir.js', 'Compartir el PDF del ticket'],
   ['probar-pdf.js', 'El PDF: estructura, medidas y contenido'],
   ['probar-arreglos.js', 'Navegación: volver, salir, y el campo en la regulada'],
+  ['probar-liviana.js', 'Que sea liviana y que actualizar no borre lo pendiente'],
 ];
 
 let totalOk = 0;

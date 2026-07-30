@@ -4,6 +4,7 @@
  * al volver la conexión se suba solo sin duplicar. Además, ancho de 360 px.
  */
 const path = require('path');
+const { buscarChromium } = require('./buscar-chromium');
 const PROY = path.join(__dirname, '..');
 // Las vistas se buscan a partir del directorio de trabajo, así que la prueba
 // se puede llamar desde donde sea.
@@ -57,7 +58,7 @@ async function main() {
   await esperar(1200);
   const chromium = navegador();
   if (!chromium) return;
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+  const browser = await chromium.launch({ executablePath: buscarChromium() || undefined });
 
   // 360 px: el mínimo que tiene que andar según el handoff
   const ctx = await browser.newContext({
