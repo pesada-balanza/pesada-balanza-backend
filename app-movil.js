@@ -935,9 +935,27 @@ module.exports = function crearAppMovil(deps) {
   });
 
   /**
+   * De qué balanza es un ticket nuevo de CAMIONES.
+   *
+   *  - Con el código GENERAL de carga (56781), que no es de ninguna balanza en
+   *    particular, el ticket se deriva a la balanza que le corresponde al campo
+   *    (planilla de siembra, `campoUsuario`). Si el campo no tiene balanza fija,
+   *    queda en el general.
+   *  - Con el código de una balanza, el ticket es de ESA balanza, sin importar
+   *    qué campo se eligió. Un campo mal elegido se corrige en la regulada; lo
+   *    que no puede pasar es que el ticket salte a otra tabla y el balancero que
+   *    lo cargó lo pierda de vista.
+   */
+  function balanzaDelTicket(codigoSesion, campo) {
+    if (codigoSesion === CODIGO_GENERAL_INGRESO) {
+      return campoUsuario[campo] || codigoSesion;
+    }
+    return codigoSesion || '';
+  }
+
+  /**
    * Alta de CAMIONES. Repite las mismas validaciones que /guardar-tara de la web
-   * (campo de la lista oficial, bruto 1000–60000, tara opcional 0–30000) y la
-   * misma asignación de balanza por campo (`campoUsuario`).
+   * (campo de la lista oficial, bruto 1000–60000, tara opcional 0–30000).
    */
   router.post('/api/pesada', exigirApp, exigirBalancero, exigirNombreDia, async (req, res) => {
     try {
@@ -1011,8 +1029,15 @@ module.exports = function crearAppMovil(deps) {
         anulado: false,
         modificaciones: 0,
         confirmada: false,
-        // El campo elegido manda, igual que en la web.
-        codigoIngreso: campoUsuario[req.body.campo] || s.codigoIngreso || '',
+        // De quién es el ticket. Solo el código GENERAL de carga (56781) deriva
+        // el ticket a la balanza que le corresponde al campo. Si carga una
+        // balanza en particular, el ticket queda en SU tabla, aunque el campo
+        // sea de otra: si eligió mal el campo, se corrige en la regulada y el
+        // ticket no se le desaparece del patio.
+        //
+        // (La web hace que el campo mande siempre, para cualquier código. Acá se
+        // hizo distinto a pedido: ver APP_MOVIL.md, "De quién es cada ticket".)
+        codigoIngreso: balanzaDelTicket(s.codigoIngreso, req.body.campo),
 
         // ── Campos propios de la app (opcionales, la web los ignora)
         origen: 'app',

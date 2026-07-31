@@ -253,6 +253,26 @@ los teléfonos descarten las **pantallas** que tenían guardadas y tomen las
 nuevas. Las pesadas pendientes y los números reservados no se tocan (ver
 "Actualizar la app NO borra lo que quedó pendiente", más arriba).
 
+### De quién es cada ticket
+
+El `codigoIngreso` del registro es lo que define en qué tabla aparece el ticket y
+en qué balanza se puede seguir cargando. La app lo asigna así:
+
+| Con qué código se carga CAMIONES | De quién queda el ticket |
+| --- | --- |
+| el de una **balanza** (5679, 5680, …) | de **esa balanza**, sin importar qué campo se eligió |
+| el **general de carga** (56781) | de la balanza que le corresponde al campo (planilla de siembra) |
+
+Un campo mal elegido se corrige en la regulada, y el ticket **no cambia de
+dueño**. Lo que no puede pasar es que el ticket salte a otra tabla y el balancero
+que lo cargó lo pierda de vista.
+
+> **Ojo, acá la app es distinta de la web.** En la web (`app.js`, `/guardar-tara`)
+> el campo manda siempre: un ticket tipeado en 5683 con un campo de 5679 queda de
+> 5679. Y la lista "Patentes con TARA pendiente" de la web **no filtra por
+> código**, así que cualquier balanza ve y puede cerrar la tara final de otra.
+> En la app cada balanza ve y cierra **solo lo suyo**, en los tres pasos.
+
 ### Los datos
 
 Los tickets se guardan en la **misma colección `registros`**, con los mismos

@@ -69,6 +69,10 @@ async function ir(metodo, url, cuerpo, opciones = {}) {
     'X-Forwarded-Proto': 'https',
     Accept: cuerpo || /\/api\//.test(url) ? 'application/json' : 'text/html',
   };
+  // El servidor limita los intentos de ingreso por IP (10 cada 15 minutos).
+  // `opciones.desde` permite simular otro dispositivo, que es lo que pasa de
+  // verdad cuando la oficina y una balanza usan la app al mismo tiempo.
+  if (opciones.desde) headers['X-Forwarded-For'] = opciones.desde;
   const ck = cabeceraCookie();
   if (ck && !opciones.sinCookies) headers.Cookie = ck;
   if (cuerpo) headers['Content-Type'] = 'application/json';
@@ -171,6 +175,9 @@ async function main() {
 
   r = await ir('POST', '/app/api/ingreso', { code: '5679' });
   ok('código de balanza 5679 entra', r.estado === 200 && r.json.destino === '/app/patio', r.texto.slice(0, 150));
+  // Se guardan para reusarlas al final: el servidor limita los intentos de
+  // ingreso (10 cada 15 minutos por IP).
+  const cookies5679 = Object.assign({}, cookies);
 
   r = await ir('GET', '/app/patio');
   ok('sin nombre del día, el patio manda a /app/dia', r.estado === 302 && r.ubicacion === '/app/dia', r.ubicacion);
@@ -241,7 +248,7 @@ async function main() {
   ok('la patente se guarda en mayúsculas', doc.patentes === 'AC 884 TF', doc.patentes);
   ok('usuario = nombre del día (aparece en Ver Registros)', doc.usuario === 'Juan Sosa', doc.usuario);
   ok('pesadaPara = CAMIONES (mismo nombre que la web)', doc.pesadaPara === 'CAMIONES');
-  ok('codigoIngreso se asigna por campo (campoUsuario)', doc.codigoIngreso === '5679', doc.codigoIngreso);
+  ok('el ticket queda en la balanza que lo cargó', doc.codigoIngreso === '5679', doc.codigoIngreso);
   ok('queda marcado origen: app', doc.origen === 'app' && doc.nroApp === '1-0001');
   ok('netoEstimado calculado', doc.netoEstimado === 52500);
 
@@ -804,6 +811,75 @@ async function main() {
   ok('salir cierra la sesión de la app', r.estado === 200);
   r = await ir('GET', '/app/patio');
   ok('después de salir, pide el código otra vez', r.estado === 302 && r.ubicacion === '/app/ingreso');
+
+  /* ═════════════════════════════════════════════════════════════════════
+   * DE QUIÉN ES CADA TICKET
+   * ---------------------------------------------------------------------
+   * Regla de la app (distinta de la web, a pedido):
+   *  - el código GENERAL de carga (56781) deriva el ticket a la balanza del
+   *    campo elegido;
+   *  - el código de una balanza se queda el ticket, aunque el campo sea de
+   *    otra. Un campo mal elegido se corrige en la regulada; lo que no puede
+   *    pasar es que el ticket salte a otra tabla y el balancero lo pierda.
+   * ═══════════════════════════════════════════════════════════════════ */
+  seccion('De quién es cada ticket (campo vs. código)');
+
+  // Una balanza carga un camión con un campo que es de OTRA balanza (Martina es
+  // de 5683). El ticket tiene que quedar igual en 5679.
+  cookies = Object.assign({}, cookies5679);
+  r = await ir('POST', '/app/api/pesada', {
+    cargaPara: 'AMH', transporte: 'Ciriaci', patentes: 'CA MPO 01', chofer: 'Campo Ajeno',
+    brutoEstimado: '45000', campo: 'Martina - ALHUAMPA - SE',
+  });
+  ok('se carga con un campo de otra balanza', r.estado === 200, r.texto.slice(0, 200));
+  const idAjeno = r.json.id;
+  let docAjeno = baseFalsa.collection('registros').docs.find((d) => String(d._id) === idAjeno);
+  ok('el ticket NO se va a la balanza del campo: queda en la que lo cargó',
+    docAjeno.codigoIngreso === '5679', docAjeno.codigoIngreso);
+  ok('y el campo elegido se guarda tal cual',
+    docAjeno.campo === 'Martina - ALHUAMPA - SE', docAjeno.campo);
+
+  // Lo importante en la práctica: sigue estando en SU patio.
+  r = await ir('GET', '/app/patio');
+  ok('sigue en el patio del que lo cargó (no se le desaparece)',
+    r.texto.indexOf('CA MPO 01') !== -1);
+
+  // Y el campo se puede corregir en la regulada sin que el ticket cambie de dueño.
+  r = await ir('POST', '/app/api/tara-final', { id: idAjeno, taraNueva: 14000 });
+  ok('la tara final se carga normal', r.estado === 200, r.texto.slice(0, 200));
+  r = await ir('POST', '/app/api/regulada', {
+    id: idAjeno, campo: 'El Mataco - SACHAYOJ - SE', grano: 'SOJA',
+    lote: ['Lote 1'], cargoDe: 'SILOBOLSA', silobolsa: '3',
+    brutoLote: '44000', bruto: '45000', confirmarTara: 'SI',
+  });
+  const seGuardo = r.estado === 200;
+  docAjeno = baseFalsa.collection('registros').docs.find((d) => String(d._id) === idAjeno);
+  ok('corregir el campo en la regulada no cambia de dueño al ticket',
+    docAjeno.codigoIngreso === '5679', docAjeno.codigoIngreso + (seGuardo ? '' : ' (la regulada no se guardó: ' + r.texto.slice(0, 120) + ')'));
+
+  // Con el código GENERAL de carga (56781) sí se deriva por campo.
+  cookies = {};
+  const OFICINA = '10.20.30.40'; // otro dispositivo: cuenta aparte de intentos
+  r = await ir('POST', '/app/api/ingreso', { code: '56781' }, { desde: OFICINA });
+  ok('el código general de carga entra', r.estado === 200, r.texto.slice(0, 150));
+  await ir('POST', '/app/api/dia', { nombre: 'Oficina' }, { desde: OFICINA });
+
+  r = await ir('POST', '/app/api/pesada', {
+    cargaPara: 'AMH', transporte: 'Ciriaci', patentes: 'GE NER 01', chofer: 'Desde Oficina',
+    brutoEstimado: '45000', campo: 'Panuncio - ARBOL BLANCO - SE',
+  }, { desde: OFICINA });
+  ok('el general carga una pesada', r.estado === 200, r.texto.slice(0, 200));
+  const docGeneral = baseFalsa.collection('registros').docs.find((d) => String(d._id) === r.json.id);
+  ok('el general SÍ deriva el ticket a la balanza del campo (Panuncio → 5679)',
+    docGeneral.codigoIngreso === '5679', docGeneral.codigoIngreso);
+
+  r = await ir('POST', '/app/api/pesada', {
+    cargaPara: 'AMH', transporte: 'Ciriaci', patentes: 'GE NER 02', chofer: 'Desde Oficina',
+    brutoEstimado: '45000', campo: 'AVELLEIRA',
+  }, { desde: OFICINA });
+  const docSinFija = baseFalsa.collection('registros').docs.find((d) => String(d._id) === r.json.id);
+  ok('AVELLEIRA tiene balanza fija en la planilla (5684)',
+    docSinFija.codigoIngreso === '5684', docSinFija.codigoIngreso);
 
   /* ═════════════════════════════════════════════════════════════════════
    * RESUMEN
