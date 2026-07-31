@@ -273,6 +273,21 @@ que lo cargó lo pierda de vista.
 > código**, así que cualquier balanza ve y puede cerrar la tara final de otra.
 > En la app cada balanza ve y cierra **solo lo suyo**, en los tres pasos.
 
+### Cuando el balancero pide una anulación o una corrección
+
+El balancero escribe el motivo (obligatorio) y GENERAL lo ve por **dos caminos
+distintos**, que existen los dos:
+
+1. **En la app** — le aparece en **"Para revisar"**, arriba de la pantalla de
+   inicio de GENERAL, y desde ahí entra a la bandeja de pedidos, lee el motivo y
+   decide. Es el camino principal: no depende del email.
+2. **Por email** — a la misma casilla que ya recibe los avisos de TARA FINAL y
+   REGULADA (`EMAIL_TO`). Sirve para enterarse sin tener la app abierta.
+
+El aviso dice si es una **anulación** o una **corrección** (antes cualquier
+pedido se anunciaba como "de anulación"), y el email lleva el **motivo escrito**,
+quién lo pidió y de qué balanza es. Sin eso GENERAL no tiene con qué decidir.
+
 ### Los datos
 
 Los tickets se guardan en la **misma colección `registros`**, con los mismos
@@ -365,10 +380,8 @@ verifica que el Excel llegue completo sin esa hoja.
   balancero toca "Pedir anulación a GENERAL" y escribe el motivo; GENERAL la
   resuelve desde su pantalla. En la balanza no hay ningún botón para anular ni
   ningún lugar donde tipear el código de GENERAL: ese código no tiene que
-  circular por las balanzas. Al enviarse el pedido, GENERAL recibe un
-  email con el **motivo escrito**, quién lo pidió y de qué balanza es, y le
-  aparece en **"Para revisar"** en su pantalla de inicio. Los pedidos necesitan
-  internet: sin señal el botón se muestra apagado con el motivo debajo.
+  circular por las balanzas. Los pedidos necesitan internet: sin señal el
+  botón se muestra apagado con el motivo debajo.
 - Un ticket anulado **no se borra**: se marca `anulado` y su número no se reusa.
 - Las observaciones se editan hasta **2 veces** y hasta **1 día** después de la
   regulada.

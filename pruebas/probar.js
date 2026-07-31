@@ -707,7 +707,8 @@ async function main() {
   ok('el neto del día suma solo lo regulado',
     r.texto.indexOf(netoEsperado.toLocaleString('es-AR')) !== -1,
     'esperaba ' + netoEsperado.toLocaleString('es-AR'));
-  ok('bloque "Para revisar" con el pedido', /Para revisar/.test(r.texto) && /pedido de anulación/.test(r.texto));
+  ok('bloque "Para revisar" con el pedido', /Para revisar/.test(r.texto) && /1 pedido de anulación/.test(r.texto));
+  ok('y NO lo llama corrección (es una anulación)', !/pedido de corrección/.test(r.texto));
   ok('avisa el camión repetido en dos balanzas', /repetido/.test(r.texto));
   ok('lista por balanza', /El Mataco/.test(r.texto) && /La Pradera/.test(r.texto));
   ok('lista por grano', new RegExp(granoReal, 'i').test(r.texto), granoReal);
@@ -742,6 +743,34 @@ async function main() {
 
   r = await ir('GET', '/app/general');
   ok('el bloque "Para revisar" ya no muestra pedidos', !/pedido de anulación/.test(r.texto));
+
+  // Un pedido de CORRECCIÓN se anuncia como corrección, no como anulación.
+  // El ticket anterior quedó anulado, así que se carga uno nuevo.
+  cookies = {};
+  const OTRA_BALANZA = '10.9.9.9'; // otro dispositivo: cuenta aparte de intentos
+  await ir('POST', '/app/api/ingreso', { code: '5680' }, { desde: OTRA_BALANZA });
+  r = await ir('POST', '/app/api/pesada', {
+    cargaPara: 'AMH', transporte: 'Sonzogni', patentes: 'CO RRE 01', chofer: 'A Corregir',
+    brutoEstimado: '45000', campo: 'La Pradera - ARBOL BLANCO - SE',
+  }, { desde: OTRA_BALANZA });
+  ok('se carga un ticket para pedir corrección', r.estado === 200, r.texto.slice(0, 180));
+  const idParaCorregir = r.json.id;
+
+  r = await ir('POST', '/app/api/pedido', {
+    id: idParaCorregir, tipo: 'CORRECCION',
+    motivo: 'El bruto regulado quedó mal, hay que corregirlo.',
+  }, { desde: OTRA_BALANZA });
+  ok('se puede pedir una corrección', r.estado === 200, r.texto.slice(0, 180));
+
+  cookies = Object.assign({}, cookiesGeneral);
+  r = await ir('GET', '/app/general');
+  ok('"Para revisar" lo anuncia como pedido de CORRECCIÓN',
+    /1 pedido de corrección/.test(r.texto), (r.texto.match(/Para revisar[\s\S]{0,200}/) || [''])[0].replace(/\s+/g, ' '));
+  ok('y no lo llama anulación', !/pedido de anulación/.test(r.texto));
+
+  r = await ir('GET', '/app/general/pedidos');
+  ok('la bandeja de GENERAL dice "Pide corregir"', /Pide corregir/.test(r.texto));
+  ok('y muestra el motivo escrito', /quedó mal, hay que corregirlo/.test(r.texto));
 
   /* ═════════════════════════════════════════════════════════════════════
    * ANULAR EN EL MOMENTO — SOLO GENERAL, DESDE SU PROPIA SESIÓN

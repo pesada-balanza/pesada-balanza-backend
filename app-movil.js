@@ -1912,14 +1912,18 @@ module.exports = function crearAppMovil(deps) {
 
     const revisar = [];
     if (pedidosPendientes.length) {
-      revisar.push({
-        texto:
-          pedidosPendientes.length +
-          ' pedido' +
-          (pedidosPendientes.length === 1 ? '' : 's') +
-          ' de anulación',
-        url: '/app/general/pedidos',
-      });
+      // Se distingue anulación de corrección: antes cualquier pedido se
+      // anunciaba como "de anulación", y una corrección no es lo mismo.
+      const anulaciones = pedidosPendientes.filter((p) => p.tipo === 'ANULACION').length;
+      const correcciones = pedidosPendientes.length - anulaciones;
+      const partes = [];
+      if (anulaciones) {
+        partes.push(anulaciones + ' pedido' + (anulaciones === 1 ? '' : 's') + ' de anulación');
+      }
+      if (correcciones) {
+        partes.push(correcciones + ' pedido' + (correcciones === 1 ? '' : 's') + ' de corrección');
+      }
+      revisar.push({ texto: partes.join(' · '), url: '/app/general/pedidos' });
     }
     if (repetidos.length) {
       revisar.push({
