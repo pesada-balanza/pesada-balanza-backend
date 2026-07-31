@@ -328,6 +328,88 @@ async function main() {
   ok('pero los archivos fijos (css, js) se quedan', fijosSiguen > 0, fijosSiguen);
 
   /* ═══════════════════════════════════════════════════════════════════════
+   * PEDIR CORRECCIÓN / ANULACIÓN
+   * -----------------------------------------------------------------------
+   * Con señal tiene que abrir la pantalla del pedido. Y SIN señal tiene que
+   * decir que necesita internet, NO mostrar el patio: mostrar el patio hacía
+   * que el botón pareciera roto ("aprieto y vuelve al inicio").
+   * ═════════════════════════════════════════════════════════════════════ */
+  console.log('\n── Pedir corrección / anulación a GENERAL');
+  await ctx.setOffline(false);
+  await pg.goto('about:blank');
+  await esperar(300);
+  await pg.goto(BASE + '/app/patio', { waitUntil: 'networkidle' }).catch(() => {});
+  await pg.evaluate(async () => {
+    await fetch('/app/api/ingreso', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: '5679' }),
+    });
+  });
+
+  // Un ticket completo, como el que se mira cuando se quiere pedir una corrección
+  const cerrado = await baseFalsa.collection('registros').insertOne({
+    idTicket: 90, fecha: hoy(), usuario: 'Juan Sosa', cargaPara: 'AMH', socio: '',
+    pesadaPara: 'REGULADA', transporte: 'Ciriaci', patentes: 'PE DIR 01', chofer: 'Pedido',
+    campo: 'El Mataco - SACHAYOJ - SE', grano: 'SOJA', lote: ['Lote 1'],
+    cargoDe: 'SILOBOLSA', silobolsa: '1',
+    brutoEstimado: 52500, tara: 15000, netoEstimado: 37500,
+    brutoLote: 51000, bruto: 52500, neto: 37500,
+    fechaTaraFinal: hoy(), fechaRegulada: hoy(), confirmada: true, anulado: false,
+    modificaciones: 0, codigoIngreso: '5679', origen: 'app', nroApp: '1-0090',
+    cargadoPor: 'Juan Sosa', appImpreso: true, creadoEn: new Date(),
+  });
+  const idCerrado = String(cerrado.insertedId);
+
+  await pg.goto(BASE + '/app/registro/' + idCerrado, { waitUntil: 'networkidle' });
+  await esperar(500);
+  const botonesPedido = await pg.$$eval('button[onclick*="/app/pedir/"]', (bs) => bs.map((b) => ({
+    texto: (b.textContent || '').trim(), apagado: !!b.disabled,
+  })));
+  ok('el ticket tiene los dos botones de pedido', botonesPedido.length === 2, JSON.stringify(botonesPedido));
+  ok('y con señal están habilitados', botonesPedido.every((b) => !b.apagado), JSON.stringify(botonesPedido));
+
+  for (const [texto, titulo] of [
+    ['Pedir corrección a GENERAL', 'Pedir corrección'],
+    ['Pedir anulación a GENERAL', 'Pedir anulación'],
+  ]) {
+    await pg.goto(BASE + '/app/registro/' + idCerrado, { waitUntil: 'networkidle' });
+    await esperar(400);
+    await pg.click('text=' + texto);
+    await esperar(1200);
+    const c = await pg.content();
+    ok('"' + texto + '" abre la pantalla del pedido',
+      pg.url().indexOf('/app/pedir/') !== -1 && /id="motivo"/.test(c),
+      pg.url() + ' → ' + c.replace(/\s+/g, ' ').slice(0, 200));
+    ok('con el título "' + titulo + '"', c.indexOf(titulo) !== -1);
+    ok('y NO es el patio', !/Nueva pesada/.test(c));
+  }
+
+  // Se envía uno de verdad, para ver que llegue el pedido y su motivo
+  await pg.fill('#motivo', 'El bruto regulado quedó mal cargado, hay que corregirlo.');
+  await pg.click('#enviar-pedido');
+  await esperar(1800);
+  const pedidos = baseFalsa.collection('app_pedidos').docs;
+  ok('el pedido llegó al servidor', pedidos.length >= 1, pedidos.length);
+  const ult = pedidos[pedidos.length - 1];
+  ok('con el motivo escrito', ult && /quedó mal cargado/.test(ult.motivo || ''), (ult || {}).motivo);
+  ok('con quién lo pidió', ult && !!ult.pedidoPor, (ult || {}).pedidoPor);
+  ok('y en estado PENDIENTE', ult && ult.estado === 'PENDIENTE', (ult || {}).estado);
+  ok('el balancero volvió al patio con el aviso',
+    pg.url().indexOf('aviso=pedido-enviado') !== -1, pg.url());
+
+  console.log('\n── Y sin señal, la pantalla del pedido lo dice (no muestra el patio)');
+  await ctx.setOffline(true);
+  await pg.goto('about:blank');
+  await esperar(300);
+  await pg.goto(BASE + '/app/pedir/' + idCerrado + '?tipo=correccion', { waitUntil: 'domcontentloaded' })
+    .catch(() => {});
+  await esperar(700);
+  const sinSenal = (await pg.content()).replace(/\s+/g, ' ');
+  ok('NO aparece el patio disfrazado de "no pasó nada"',
+    !/Nueva pesada/.test(sinSenal), sinSenal.slice(0, 200));
+  ok('dice que necesita internet', /necesita internet/i.test(sinSenal), sinSenal.slice(0, 250));
+
+  /* ═══════════════════════════════════════════════════════════════════════
    * EL AVISO DE PESADAS SIN SUBIR, EN TODAS LAS PANTALLAS Y CON CUALQUIER CÓDIGO
    * -----------------------------------------------------------------------
    * Es lo único que la app no puede recuperar sola: si el teléfono se rompe o se

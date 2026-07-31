@@ -80,12 +80,23 @@ async function enviarEmail(asunto, cuerpoHtml) {
  * @param {string}  [opts.campo]                      Campo (solo REGULADA)
  * @param {string}  [opts.grano]                      Grano (solo REGULADA)
  * @param {string}  [opts.lote]                       Lote (solo REGULADA)
+ * @param {string}  [opts.motivo]                     Motivo escrito (solo pedidos)
+ * @param {string}  [opts.pedidoPor]                  Quién lo pidió (solo pedidos)
  */
 async function notificar(opts) {
   try {
-    const { tipo, patentes, idTicket, fecha, codigoIngreso, tara, bruto, neto, campo, grano, lote } = opts;
+    const {
+      tipo, patentes, idTicket, fecha, codigoIngreso,
+      tara, bruto, neto, campo, grano, lote,
+      motivo, pedidoPor,
+    } = opts;
 
     const origen = resolverNombreCodigo(codigoIngreso);
+
+    // Un pedido de anulación o corrección no es "un registro grabado": es algo
+    // que GENERAL tiene que leer y decidir. Se redacta distinto y se suma el
+    // motivo, que es lo único que le sirve para resolverlo.
+    const esPedido = /^PEDIDO/.test(String(tipo || ''));
 
     // ── Filas de la tabla HTML
     const filas = [
@@ -94,6 +105,8 @@ async function notificar(opts) {
       ['Patente',  patentes],
       ['Fecha',    fecha],
       origen ? ['Origen', origen] : null,
+      pedidoPor ? ['Lo pidió', pedidoPor] : null,
+      motivo ? ['Motivo', motivo] : null,
       tara  != null ? ['Tara',  `${tara} kg`]  : null,
       bruto != null ? ['Bruto', `${bruto} kg`] : null,
       neto  != null ? ['Neto',  `${neto} kg`]  : null,
@@ -108,14 +121,24 @@ async function notificar(opts) {
         <td style="padding:6px 12px">${v}</td>
       </tr>`).join('');
 
+    const encabezado = esPedido
+      ? `<p style="color:#8f5514;margin-top:0;font-weight:600">Pedido para revisar — lo resuelve GENERAL</p>`
+      : `<p style="color:#888;margin-top:0">Nuevo registro grabado</p>`;
+
+    const pie = esPedido
+      ? `<p style="color:#888;font-size:13px">Se resuelve en la app, con el código de GENERAL:
+           <strong>Para revisar</strong> en la pantalla de inicio.</p>`
+      : '';
+
     const cuerpoHtml = `
       <div style="font-family:Arial,sans-serif;max-width:480px">
         <h2 style="color:#2c7be5;margin-bottom:4px">Pesada Balanza</h2>
-        <p style="color:#888;margin-top:0">Nuevo registro grabado</p>
+        ${encabezado}
         <table cellpadding="0" cellspacing="0"
                style="border-collapse:collapse;width:100%;font-size:15px;border:1px solid #e0e0e0;border-radius:6px">
           ${filasHtml}
         </table>
+        ${pie}
       </div>
     `;
 

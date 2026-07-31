@@ -665,6 +665,16 @@ async function main() {
   r = await ir('POST', '/app/api/pedido', { id: idOtro, tipo: 'ANULACION', motivo: 'otra vez lo mismo' });
   ok('no se puede pedir dos veces lo mismo', r.estado === 409);
 
+  // El aviso a GENERAL tiene que traer el MOTIVO: sin eso no sirve para decidir.
+  const avisoPedido = emails.filter((e) => /^PEDIDO/.test(String(e.tipo || ''))).pop();
+  ok('se mandó el aviso del pedido', !!avisoPedido, JSON.stringify(emails.map((e) => e.tipo)));
+  ok('el aviso dice que es un PEDIDO DE ANULACIÓN',
+    avisoPedido && avisoPedido.tipo === 'PEDIDO DE ANULACIÓN', (avisoPedido || {}).tipo);
+  ok('y lleva el motivo escrito por el balancero',
+    avisoPedido && /acoplado equivocado/.test(avisoPedido.motivo || ''), (avisoPedido || {}).motivo);
+  ok('y quién lo pidió', avisoPedido && !!avisoPedido.pedidoPor, (avisoPedido || {}).pedidoPor);
+  ok('y de qué balanza es', avisoPedido && avisoPedido.codigoIngreso === '5680', (avisoPedido || {}).codigoIngreso);
+
   // El balancero NO puede anular
   r = await ir('POST', '/app/api/anular', { id: idOtro, code: '5680' });
   ok('el balancero NO puede anular (regla del sistema actual)', r.estado === 403 && /GENERAL/.test(r.json.error), r.texto.slice(0, 150));

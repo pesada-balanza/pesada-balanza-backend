@@ -39,12 +39,10 @@ mongoose.connect = async () => mongoose;
 Object.defineProperty(mongoose.connection, 'readyState', { get: () => 1, configurable: true });
 Object.defineProperty(mongoose.connection, 'db', { get: () => baseFalsa, configurable: true });
 
-const rutaNotif = require.resolve(path.join(PROY, 'notificaciones.js'));
-const notifReal = require(rutaNotif);
-require.cache[rutaNotif].exports = { resolverNombreCodigo: notifReal.resolverNombreCodigo, notificar: () => {} };
-
 // nodemailer: nunca se manda un mail de verdad. Se guarda lo que se hubiera
-// mandado, para poder revisarlo.
+// mandado, para poder revisarlo. Se reemplaza ANTES de cargar notificaciones.js,
+// que toma su nodemailer al cargarse: así también se puede revisar el cuerpo de
+// los avisos que manda ese módulo.
 const rutaMailer = require.resolve(path.join(PROY, 'node_modules', 'nodemailer'));
 const enviados = [];
 require.cache[rutaMailer] = {
@@ -54,6 +52,16 @@ require.cache[rutaMailer] = {
       sendMail: async (msj) => { enviados.push(msj); return { messageId: 'de-prueba' }; },
     }),
   },
+};
+
+// notificaciones.js se carga de verdad (para poder probar cómo arma los avisos),
+// pero app.js recibe una versión que no manda nada, así que los tickets de las
+// otras pruebas no ensucian la lista.
+const rutaNotif = require.resolve(path.join(PROY, 'notificaciones.js'));
+const notificaciones = require(rutaNotif);
+require.cache[rutaNotif].exports = {
+  resolverNombreCodigo: notificaciones.resolverNombreCodigo,
+  notificar: () => {},
 };
 
 const app = require(path.join(PROY, 'app.js'));
@@ -247,6 +255,54 @@ async function main() {
   process.env.CAMPANA_DESDE = '2024-09-01';
   ok('CAMPANA_DESDE manda si está puesta',
     app.rangoCampana('2026-07-31').desde === '2024-09-01', app.rangoCampana('2026-07-31').desde);
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * EL AVISO A GENERAL DE UN PEDIDO
+   * -----------------------------------------------------------------------
+   * Antes el mail de un pedido de anulación/corrección decía "Nuevo registro
+   * grabado" y NO traía el motivo, que es lo único que GENERAL necesita leer
+   * para decidir.
+   * ═════════════════════════════════════════════════════════════════════ */
+  console.log('\n── El aviso a GENERAL de un pedido de anulación');
+  enviados.length = 0;
+  await notificaciones.notificar({
+    tipo: 'PEDIDO DE ANULACIÓN',
+    patentes: 'AD 602 RB',
+    idTicket: '1-0003',
+    fecha: '2026-07-31',
+    codigoIngreso: '5682',
+    pedidoPor: 'Juan Sosa',
+    motivo: 'Cargué la tara del acoplado equivocado, el camión ya salió.',
+  });
+  await esperar(300);
+
+  ok('se manda un mail del pedido', enviados.length === 1, enviados.length);
+  const av = enviados[0] || { subject: '', html: '' };
+  ok('el asunto dice que es un pedido de anulación',
+    /PEDIDO DE ANULACIÓN/.test(av.subject), av.subject);
+  ok('y de qué balanza viene (5682 = EL WICHI)', /EL WICHI/.test(av.subject), av.subject);
+  ok('el cuerpo trae el MOTIVO escrito',
+    /acoplado equivocado/.test(av.html), (av.html.match(/Motivo[\s\S]{0,160}/) || [''])[0]);
+  ok('trae quién lo pidió', /Juan Sosa/.test(av.html));
+  ok('trae el número del ticket', /1-0003/.test(av.html));
+  ok('NO dice "Nuevo registro grabado" (no es un registro, es un pedido)',
+    !/Nuevo registro grabado/.test(av.html));
+  ok('dice que lo resuelve GENERAL', /lo resuelve GENERAL/.test(av.html));
+  ok('y dónde resolverlo en la app', /Para revisar/.test(av.html));
+
+  console.log('\n── Los avisos de siempre no cambian');
+  enviados.length = 0;
+  await notificaciones.notificar({
+    tipo: 'REGULADA', patentes: 'AC 884 TF', idTicket: '1-0001',
+    fecha: '2026-07-31', codigoIngreso: '5679', neto: 36900,
+    campo: 'El Mataco - SACHAYOJ - SE', grano: 'SOJA', lote: 'Lote 1',
+  });
+  await esperar(300);
+  const avReg = enviados[0] || { subject: '', html: '' };
+  ok('el aviso de REGULADA sigue diciendo "Nuevo registro grabado"',
+    /Nuevo registro grabado/.test(avReg.html));
+  ok('y no le aparecen filas de pedido', !/Motivo|Lo pidió/.test(avReg.html));
+  ok('con su asunto de siempre', /REGULADA/.test(avReg.subject) && /EL MATACO/.test(avReg.subject), avReg.subject);
 
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);

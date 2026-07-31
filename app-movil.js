@@ -1725,13 +1725,16 @@ module.exports = function crearAppMovil(deps) {
         creadoEn: new Date(),
       });
 
-      // Aviso a GENERAL por el mismo canal de email que ya usa el sistema.
+      // Aviso a GENERAL por el mismo canal de email que ya usa el sistema. Va el
+      // MOTIVO y quién lo pidió: sin eso el aviso no sirve para decidir nada.
       notificar({
         tipo: tipo === 'CORRECCION' ? 'PEDIDO DE CORRECCIÓN' : 'PEDIDO DE ANULACIÓN',
         patentes: r.patentes || '',
         idTicket: String(r.nroApp || r.idTicket || r._id),
         fecha: hoyStr(),
         codigoIngreso: r.codigoIngreso || '',
+        pedidoPor: req.nombreDia || '',
+        motivo,
       });
 
       return res.json({ ok: true, destino: '/app/patio?aviso=pedido-enviado' });
