@@ -29,6 +29,10 @@ function coincide(doc, filtro) {
           if (existe !== !!esperado) return false;
         } else if (op === '$gte') {
           if (!(valor >= esperado)) return false;
+        } else if (op === '$lte') {
+          if (!(valor <= esperado)) return false;
+        } else if (op === '$gt') {
+          if (!(valor > esperado)) return false;
         } else if (op === '$lt') {
           if (!(valor < esperado)) return false;
         } else {

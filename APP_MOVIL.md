@@ -303,6 +303,62 @@ Colecciones **nuevas**, propias de la app (la web no las mira):
 Las anulaciones y las ediciones de observaciones se registran en
 `registros_auditoria`, la misma colección que ya usa la web.
 
+---
+
+## El acumulado de campaña en el mail de las 19 hs
+
+El Excel que llega todos los días a las 19 hs tiene una **hoja más**:
+**"Acumulado campaña"**. Las hojas de siempre (Registros, IMPRIMIR, Cargas SOCIO)
+no se tocaron.
+
+Muestra cuántos kilos salieron de cada lote **desde que arrancó la campaña**:
+
+```
+ACUMULADO DE CAMPAÑA 25/26
+Del 2025-09-01 al 2026-07-31
+9 tickets con regulada cerrada          TOTAL (toneladas)   296,660
+
+Campo                          Lote             Grano  Tickets  Neto (kg)  Neto (t)
+Charata - CHARATA - CH         Lote 3 Charata   MAIZ         2      62.320    62,320
+El Mataco - SACHAYOJ - SE      Lote 1           SOJA         2      62.040    62,040
+El Mataco - SACHAYOJ - SE      Lote 2           SOJA         1      36.800    36,800
+Panuncio - ARBOL BLANCO - SE   Lote 3 + Lote 4  SOJA         1      37.720    37,720
+TOTAL                                                        9     296.660   296,660
+
+Por grano                                    Tickets  Neto (kg)  Neto (t)
+SOJA                                               6     203.560   203,560
+MAIZ                                               3      93.100    93,100
+```
+
+El total también va en el **cuerpo del mail**, para verlo sin abrir el adjunto.
+
+### Qué cuenta y qué no
+
+- **Solo tickets con la regulada cerrada.** Son los únicos que tienen el neto real
+  pesado. Un camión que todavía está en CAMIONES o TARA FINAL no suma: sumaría un
+  estimado, no un peso.
+- **Los anulados quedan afuera.**
+- **Una carga de varios lotes NO se reparte.** Si un ticket trae "Lote 3" y
+  "Lote 4", el neto no se divide entre los dos (sería inventar un número): figura
+  junto como `Lote 3 + Lote 4`, y así se ve que fue una carga mezclada.
+
+### Desde cuándo cuenta
+
+La campaña agrícola no coincide con el año calendario, así que el corte es el
+**1 de septiembre**: la campaña 25/26 va del 1-9-2025 al 31-8-2026. Se puede fijar
+a mano con la variable de entorno `CAMPANA_DESDE` (formato `2025-09-01`), por
+ejemplo si se quiere arrancar el acumulado en otra fecha.
+
+### Si el acumulado falla, el reporte sale igual
+
+La hoja se arma al final y dentro de su propio `try/catch`. Si algo fallara
+(una consulta, un dato raro), se anota el motivo en el log del servidor y **el
+mail se manda igual con las hojas de siempre**. El reporte diario es lo que no se
+puede perder; el acumulado es información agregada.
+
+Está probado a propósito: `pruebas/probar-reporte-email.js` rompe el acumulado y
+verifica que el Excel llegue completo sin esa hoja.
+
 ### Reglas del sistema actual que se respetan tal cual
 
 - Solo **GENERAL** (`12341`) puede anular, y **desde su propia sesión**. El

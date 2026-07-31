@@ -2342,6 +2342,167 @@ app.post('/anular/:id', verificarCodeObservacion, handleAnular);
  * REPORTE DIARIO POR EMAIL (19:00 hora Argentina)
  * -------------------------------------------*/
 
+/* ---------------------------------------------
+ * ACUMULADO DE CAMPAÑA (hoja extra del reporte diario)
+ * -------------------------------------------*/
+
+// La campaña agrícola no coincide con el año calendario: arranca después de la
+// cosecha anterior. Se toma el 1 de septiembre como corte, así la campaña 25/26
+// va del 1-9-2025 al 31-8-2026. Se puede fijar a mano con CAMPANA_DESDE.
+const MES_CORTE_CAMPANA = 9;
+
+function rangoCampana(hoyISO) {
+  const anio = Number(hoyISO.slice(0, 4));
+  const mes = Number(hoyISO.slice(5, 7));
+  const anioInicio = mes >= MES_CORTE_CAMPANA ? anio : anio - 1;
+
+  const desde = (process.env.CAMPANA_DESDE || '').trim() ||
+    `${anioInicio}-0${MES_CORTE_CAMPANA}-01`;
+
+  const anioDesde = Number(desde.slice(0, 4));
+  const etiqueta = `${String(anioDesde).slice(2)}/${String(anioDesde + 1).slice(2)}`;
+  return { desde, hasta: hoyISO, etiqueta };
+}
+
+/**
+ * Agrega al Excel del reporte diario una hoja con el ACUMULADO DE LA CAMPAÑA:
+ * cuántos kilos salieron de cada lote desde que arrancó, y el total por grano.
+ *
+ * Qué se cuenta y qué no:
+ *  - Solo tickets con la REGULADA cerrada: son los únicos que tienen el neto
+ *    real pesado. Un camión que todavía está en CAMIONES o TARA FINAL no suma.
+ *  - Los anulados quedan afuera.
+ *  - Si un ticket tiene varios lotes, el neto NO se reparte entre ellos (sería
+ *    inventar un número): se suma a la combinación "Lote 1 + Lote 2" tal cual se
+ *    cargó, y así queda a la vista que fue una carga mezclada.
+ */
+async function agregarHojaAcumuladoCampana(workbook) {
+  const hoy = ymd(new Date());
+  const { desde, hasta, etiqueta } = rangoCampana(hoy);
+
+  const registros = await mongoose.connection.db
+    .collection('registros')
+    .find(
+      {
+        fecha: { $gte: desde, $lte: hasta },
+        pesadaPara: 'REGULADA',
+        anulado: { $ne: true },
+      },
+      {
+        projection: {
+          fecha: 1, campo: 1, grano: 1, lote: 1, neto: 1,
+          cargaPara: 1, socio: 1,
+        },
+      }
+    )
+    .toArray();
+
+  const kg = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const texto = (v) => (Array.isArray(v) ? v.filter(Boolean).join(' + ') : String(v || ''));
+
+  // Acumulado por campo + lote + grano
+  const porLote = new Map();
+  const porGrano = new Map();
+  let totalKg = 0;
+
+  for (const r of registros) {
+    const campo = String(r.campo || '(sin campo)');
+    const lote = texto(r.lote) || '(sin lote)';
+    const grano = String(r.grano || '(sin grano)');
+    const neto = kg(r.neto);
+    totalKg += neto;
+
+    const clave = campo + ' ' + lote + ' ' + grano;
+    const fila = porLote.get(clave) || { campo, lote, grano, tickets: 0, netoKg: 0 };
+    fila.tickets++;
+    fila.netoKg += neto;
+    porLote.set(clave, fila);
+
+    const g = porGrano.get(grano) || { grano, tickets: 0, netoKg: 0 };
+    g.tickets++;
+    g.netoKg += neto;
+    porGrano.set(grano, g);
+  }
+
+  const filas = Array.from(porLote.values()).sort((a, b) =>
+    a.campo.localeCompare(b.campo) ||
+    a.lote.localeCompare(b.lote) ||
+    a.grano.localeCompare(b.grano)
+  );
+  const granos = Array.from(porGrano.values()).sort((a, b) => b.netoKg - a.netoKg);
+
+  const ws = workbook.addWorksheet('Acumulado campaña');
+
+  // Encabezado con el alcance, para que quede claro qué se está mirando
+  const tit = ws.addRow([`ACUMULADO DE CAMPAÑA ${etiqueta}`]);
+  tit.font = { bold: true, size: 14 };
+  ws.addRow([`Del ${desde} al ${hasta}`]);
+  ws.addRow([
+    `${registros.length} ticket${registros.length === 1 ? '' : 's'} con regulada cerrada`,
+    null, null,
+    'TOTAL (toneladas)',
+    Number((totalKg / 1000).toFixed(3)),
+  ]);
+  ws.getRow(3).getCell(4).font = { bold: true };
+  const celdaTotal = ws.getRow(3).getCell(5);
+  celdaTotal.font = { bold: true };
+  celdaTotal.numFmt = '#,##0.000';
+  ws.addRow([]);
+
+  // ── Detalle por campo / lote / grano ──
+  const filaEnc = ws.addRow(['Campo', 'Lote', 'Grano', 'Tickets', 'Neto (kg)', 'Neto (t)']);
+  filaEnc.font = { bold: true };
+  const primeraDeDatos = filaEnc.number + 1;
+
+  for (const f of filas) {
+    const fila = ws.addRow([f.campo, f.lote, f.grano, f.tickets, f.netoKg, Number((f.netoKg / 1000).toFixed(3))]);
+    fila.getCell(5).numFmt = '#,##0';
+    fila.getCell(6).numFmt = '#,##0.000';
+  }
+
+  if (filas.length) {
+    const ultima = ws.rowCount;
+    const total = ws.addRow(['TOTAL', null, null, registros.length, null, null]);
+    total.font = { bold: true };
+    total.getCell(5).value = {
+      formula: `SUM(E${primeraDeDatos}:E${ultima})`,
+      result: totalKg,
+    };
+    total.getCell(5).numFmt = '#,##0';
+    total.getCell(6).value = {
+      formula: `SUM(F${primeraDeDatos}:F${ultima})`,
+      result: Number((totalKg / 1000).toFixed(3)),
+    };
+    total.getCell(6).numFmt = '#,##0.000';
+  } else {
+    ws.addRow(['Todavía no hay reguladas cerradas en esta campaña.']);
+  }
+
+  // ── Resumen por grano ──
+  ws.addRow([]);
+  const encGrano = ws.addRow(['Por grano', null, null, 'Tickets', 'Neto (kg)', 'Neto (t)']);
+  encGrano.font = { bold: true };
+  for (const g of granos) {
+    const fila = ws.addRow([g.grano, null, null, g.tickets, g.netoKg, Number((g.netoKg / 1000).toFixed(3))]);
+    fila.getCell(5).numFmt = '#,##0';
+    fila.getCell(6).numFmt = '#,##0.000';
+  }
+
+  ws.columns.forEach((c, i) => {
+    c.width = [30, 26, 14, 10, 14, 14][i] || 14;
+  });
+
+  // A4 como las demás, repitiendo la fila de encabezados del detalle
+  configurarA4(ws);
+  ws.pageSetup.printTitlesRow = `${filaEnc.number}:${filaEnc.number}`;
+  ws.getRow(1).alignment = { vertical: 'middle', horizontal: 'left' };
+
+  return { tickets: registros.length, totalKg, etiqueta, desde, hasta };
+}
+
 /**
  * Genera un buffer Excel con los registros de las últimas 24 horas.
  * Reutiliza las mismas columnas que el botón "Exportar a Excel".
@@ -2469,8 +2630,19 @@ async function generarExcelReporteDiario() {
   // Configurar TODAS las hojas para impresión en A4
   workbook.worksheets.forEach(configurarA4);
 
+  // ── Hoja extra: acumulado de la campaña ──────────────────────────────────
+  // Va al final y en su propio try/catch a propósito: es información agregada,
+  // y si algo fallara al armarla el reporte de todos los días tiene que salir
+  // igual. Se agrega DESPUÉS de las pasadas de total y A4 para no tocarlas.
+  let campana = null;
+  try {
+    campana = await agregarHojaAcumuladoCampana(workbook);
+  } catch (err) {
+    console.error('[Reporte Diario] No se pudo armar el acumulado de campaña:', err.message);
+  }
+
   const buffer = await workbook.xlsx.writeBuffer();
-  return { buffer, total: registros.length, fecha: hoy };
+  return { buffer, total: registros.length, fecha: hoy, campana };
 }
 
 /**
@@ -2487,7 +2659,7 @@ async function enviarReporteDiario() {
       return;
     }
 
-    const { buffer, total, fecha } = await generarExcelReporteDiario();
+    const { buffer, total, fecha, campana } = await generarExcelReporteDiario();
 
     const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
@@ -2497,12 +2669,24 @@ async function enviarReporteDiario() {
 
     const asunto = `[Pesada Balanza] Reporte diario – ${fecha} (${total} ticket${total !== 1 ? 's' : ''})`;
 
+    // Si el acumulado se pudo armar, se adelanta en el cuerpo del mail: es el
+    // número que se quiere ver sin abrir el adjunto.
+    const bloqueCampana = campana
+      ? `<p>Acumulado de la campaña <strong>${campana.etiqueta}</strong>
+           (desde el ${campana.desde}):
+           <strong>${(campana.totalKg / 1000).toLocaleString('es-AR', {
+             minimumFractionDigits: 3, maximumFractionDigits: 3,
+           })} toneladas</strong>
+           en ${campana.tickets} ticket${campana.tickets === 1 ? '' : 's'} con regulada cerrada.</p>`
+      : '';
+
     const cuerpoHtml = `
       <div style="font-family:Arial,sans-serif">
         <h2 style="color:#2c7be5">Pesada Balanza</h2>
         <p>Reporte diario de registros correspondientes al <strong>${fecha}</strong>.</p>
         <p>Total de tickets en las últimas 24 hs: <strong>${total}</strong></p>
-        <p style="color:#888;font-size:13px">El archivo Excel adjunto incluye todos los tipos de ticket (CAMIONES, TARA FINAL y REGULADA).</p>
+        ${bloqueCampana}
+        <p style="color:#888;font-size:13px">El archivo Excel adjunto incluye todos los tipos de ticket (CAMIONES, TARA FINAL y REGULADA)${campana ? ', más la hoja <strong>Acumulado campaña</strong> con los kilos de cada lote desde que arrancó' : ''}.</p>
       </div>
     `;
 
@@ -2542,3 +2726,10 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor corriendo en http://0.0.0.0:${PORT}`);
 });
+
+// Se exponen algunas funciones para poder probarlas (pruebas/probar-reporte-email.js).
+// No cambia nada de cómo funciona la web: el servidor arranca igual que siempre.
+module.exports = app;
+module.exports.enviarReporteDiario = enviarReporteDiario;
+module.exports.generarExcelReporteDiario = generarExcelReporteDiario;
+module.exports.rangoCampana = rangoCampana;
