@@ -103,6 +103,19 @@ let numeroConectado = null;        // número de la línea con la que se vincul�
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// Marca de tiempo del último estado "sano" (listo o esperando QR). El watchdog
+// la usa para detectar si la conexión quedó trabada en "conectando".
+let ultimoOk = Date.now();
+
+/** Rechaza si la promesa no se resuelve dentro de `ms` (evita que se cuelgue). */
+function conTimeout(promesa, ms, etiqueta) {
+  let t;
+  const limite = new Promise((_, rej) => {
+    t = setTimeout(() => rej(new Error(`Se agotó el tiempo de ${etiqueta} (${ms} ms)`)), ms);
+  });
+  return Promise.race([promesa, limite]).finally(() => clearTimeout(t));
+}
+
 /* ---------------------------------------------
  * WHATSAPP CLIENT (con recuperación automática)
  * -------------------------------------------*/
@@ -132,6 +145,7 @@ function crearClient() {
 
   c.on('qr', async (qr) => {
     estado = 'esperando_qr';
+    ultimoOk = Date.now();
     try { ultimoQrDataUrl = await qrcode.toDataURL(qr); } catch (_) { ultimoQrDataUrl = null; }
     console.log('\n[WhatsApp] Escaneá este QR con la línea de la empresa');
     console.log('           (WhatsApp › Dispositivos vinculados › Vincular dispositivo).');
@@ -144,6 +158,7 @@ function crearClient() {
 
   c.on('ready', () => {
     estado = 'listo';
+    ultimoOk = Date.now();
     ultimoQrDataUrl = null;
     try { numeroConectado = (c.info && c.info.wid) ? c.info.wid.user : null; } catch (_) { numeroConectado = null; }
     console.log(`[WhatsApp] Conectado y listo. ENVÍA desde la línea: ${numeroConectado || 'desconocida'}.`);
@@ -180,7 +195,8 @@ async function reiniciarWhatsApp(borrar = false) {
     if (client) { try { await client.destroy(); } catch (_) {} }
     if (borrar) borrarSesion();
     client = crearClient();
-    await client.initialize();
+    // Tope de 2 minutos: si la conexión se cuelga, no queda trabado para siempre.
+    await conTimeout(client.initialize(), 120000, 'conexión a WhatsApp');
     reiniciando = false;
   } catch (err) {
     reiniciando = false;
@@ -464,6 +480,19 @@ async function main() {
   // 4) WhatsApp: arranca con recuperación automática (no bloquea ni cierra)
   console.log('[WhatsApp] Inicializando cliente...');
   reiniciarWhatsApp(false);
+
+  // 4b) Watchdog (vigilante): si WhatsApp queda trabado sin llegar a "listo"
+  // (ni esperando QR) por más de 4 minutos, fuerza una reconexión. Cubre el
+  // caso en que la sesión se "cuelga" en "conectando" y deja de enviar solo.
+  const WATCHDOG_MS = 4 * 60 * 1000;
+  setInterval(() => {
+    if (estado === 'listo' || estado === 'esperando_qr') { ultimoOk = Date.now(); return; }
+    if (!reiniciando && (Date.now() - ultimoOk) > WATCHDOG_MS) {
+      console.warn(`[Watchdog] WhatsApp lleva rato sin conectar (estado: ${estado}). Forzando reconexión...`);
+      ultimoOk = Date.now();
+      reiniciarWhatsApp(false);
+    }
+  }, 30000);
 
   // 5) Envío inmediato opcional para probar (--enviar-ahora)
   if (process.argv.includes('--enviar-ahora')) {
