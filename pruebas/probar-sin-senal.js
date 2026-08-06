@@ -162,20 +162,18 @@ async function main() {
   const colaFinal = await pg.evaluate(() => JSON.parse(localStorage.getItem('pesada.cola') || '[]'));
   ok('y la cola se limpia igual', colaFinal.length === 0, JSON.stringify(colaFinal));
 
-  console.log('\n── Pedir anulación sin señal queda apagado');
+  console.log('\n── Pedir anulación sin señal');
   await pg.goto(BASE + '/app/patio', { waitUntil: 'networkidle' });
   await ctx.setOffline(true);
   await pg.evaluate(() => window.dispatchEvent(new Event('offline')));
   await pg.waitForTimeout(300);
-  const botones = await pg.$$('[data-necesita-internet]');
-  if (botones.length) {
-    const clase = await botones[0].getAttribute('class');
-    const texto = await botones[0].textContent();
-    const apagado = await botones[0].isDisabled();
-    ok('el botón se ve apagado, no se esconde', /btn-apagado/.test(clase || '') && apagado, clase);
-    ok('con el motivo "necesita internet" debajo', /necesita internet/.test(texto || ''), texto);
-  } else {
-    ok('hay botones que necesitan internet', false, 'no se encontró ninguno');
+  // "Pedir anulación" es un enlace común, así el toque siempre lleva a algún
+  // lado; quien avisa que hace falta internet es la pantalla del pedido.
+  const enlacePedir = await pg.$('a[href*="/app/pedir/"]');
+  ok('el patio ofrece pedir anulación con un enlace', !!enlacePedir);
+  if (enlacePedir) {
+    const destino = await enlacePedir.getAttribute('href');
+    ok('el enlace apunta al pedido', /tipo=anulacion/.test(destino || ''), destino);
   }
   await ctx.setOffline(false);
 

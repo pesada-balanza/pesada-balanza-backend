@@ -111,10 +111,10 @@
                data-con-senal="/app/registro/<%= c.id %>"
                data-sin-senal="/app/imprimir?locales=<%= c.id %>&volver=/app/patio">Ver ticket</a>
             <% if (!c.pedido) { %>
-              <button type="button" class="btn btn-borde-suave" style="min-height:48px; font-size:14px"
-                      data-necesita-internet data-clase-normal="btn btn-borde-suave"
-                      data-texto="Pedir anulación"
-                      onclick="location.href='/app/pedir/<%= c.id %>?tipo=anulacion'">Pedir anulación</button>
+              <%# Enlace común, no un botón con JavaScript: así el toque navega
+                  siempre. La pantalla del pedido avisa si no hay señal. %>
+              <a class="btn btn-borde-suave" style="min-height:48px; font-size:14px"
+                 href="/app/pedir/<%= c.id %>?tipo=anulacion">Pedir anulación</a>
             <% } %>
           </div>
         </div>

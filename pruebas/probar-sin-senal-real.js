@@ -362,11 +362,17 @@ async function main() {
 
   await pg.goto(BASE + '/app/registro/' + idCerrado, { waitUntil: 'networkidle' });
   await esperar(500);
-  const botonesPedido = await pg.$$eval('button[onclick*="/app/pedir/"]', (bs) => bs.map((b) => ({
-    texto: (b.textContent || '').trim(), apagado: !!b.disabled,
+  // Son ENLACES, no botones con JavaScript: es lo que hace que el toque
+  // funcione siempre, sin depender de que corra un script.
+  const botonesPedido = await pg.$$eval('a[href*="/app/pedir/"]', (as) => as.map((a) => ({
+    texto: (a.textContent || '').trim(), destino: a.getAttribute('href'),
   })));
-  ok('el ticket tiene los dos botones de pedido', botonesPedido.length === 2, JSON.stringify(botonesPedido));
-  ok('y con señal están habilitados', botonesPedido.every((b) => !b.apagado), JSON.stringify(botonesPedido));
+  ok('el ticket tiene los dos accesos al pedido', botonesPedido.length === 2, JSON.stringify(botonesPedido));
+  ok('y son enlaces de verdad (con href), no botones con onclick',
+    botonesPedido.every((b) => /\/app\/pedir\//.test(b.destino || '')), JSON.stringify(botonesPedido));
+  const conOnclick = await pg.$$eval('[onclick]', (es) => es.length);
+  ok('en la pantalla del ticket no queda ningún onclick escrito en el HTML',
+    conOnclick === 0, conOnclick);
 
   for (const [texto, titulo] of [
     ['Pedir corrección a GENERAL', 'Pedir corrección'],

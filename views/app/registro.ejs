@@ -162,15 +162,16 @@
       <% } %>
 
       <% if (!r.anulado && (!pedido || pedido.estado !== 'PENDIENTE')) { %>
-        <button type="button" class="btn btn-borde"
-                data-necesita-internet data-clase-normal="btn btn-borde"
-                data-texto="Pedir corrección a GENERAL"
-                onclick="location.href='/app/pedir/<%= r.id %>?tipo=correccion'">Pedir corrección a GENERAL</button>
-
-        <button type="button" class="btn btn-borde-suave"
-                data-necesita-internet data-clase-normal="btn btn-borde-suave"
-                data-texto="Pedir anulación a GENERAL"
-                onclick="location.href='/app/pedir/<%= r.id %>?tipo=anulacion'">Pedir anulación a GENERAL</button>
+        <%# Enlaces comunes, NO botones con JavaScript.
+            Antes eran <button onclick="location.href=…"> y en algunos teléfonos
+            el toque no hacía nada: eran los únicos tres lugares de la app que
+            dependían de un onclick escrito en el HTML. Ahora son enlaces, igual
+            que "Imprimir el ticket", que es lo más simple que hay: el teléfono
+            navega solo, sin que tenga que correr nada.
+            El caso sin señal lo resuelve la pantalla del pedido, que ya avisa y
+            deja el botón de enviar apagado. %>
+        <a class="btn btn-borde" href="/app/pedir/<%= r.id %>?tipo=correccion">Pedir corrección a GENERAL</a>
+        <a class="btn btn-borde-suave" href="/app/pedir/<%= r.id %>?tipo=anulacion">Pedir anulación a GENERAL</a>
 
         <%# Anular en el momento SOLO lo ve GENERAL, entrado con su propio código.
             El balancero no tiene esta opción: pide la anulación y GENERAL la

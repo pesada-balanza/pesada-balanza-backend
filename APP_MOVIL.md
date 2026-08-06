@@ -248,7 +248,7 @@ alguna se agranda de más, la prueba lo avisa antes de subirlo.
 - No agrega ninguna librería nueva: `package.json` no cambió.
 
 **Al subir cambios de la app**, hay que subir el número de versión que está
-arriba de `app-movil-estaticos/sw.js` (`pesada-app-v4`, `v5`, …). Eso hace que
+arriba de `app-movil-estaticos/sw.js` (`pesada-app-v5`, `v6`, …). Eso hace que
 los teléfonos descarten las **pantallas** que tenían guardadas y tomen las
 nuevas. Las pesadas pendientes y los números reservados no se tocan (ver
 "Actualizar la app NO borra lo que quedó pendiente", más arriba).
@@ -274,6 +274,14 @@ que lo cargó lo pierda de vista.
 > En la app cada balanza ve y cierra **solo lo suyo**, en los tres pasos.
 
 ### Cuando el balancero pide una anulación o una corrección
+
+Los accesos a "Pedir corrección a GENERAL" y "Pedir anulación a GENERAL" son
+**enlaces comunes**, no botones con JavaScript. Antes eran
+`<button onclick="location.href=…">` —los únicos tres lugares de la app que
+dependían de un `onclick` escrito en el HTML— y en algún teléfono el toque no
+hacía nada. Un enlace lo abre el navegador solo, sin que tenga que correr ningún
+script. Si no hay señal, quien avisa es la pantalla del pedido.
+
 
 El balancero escribe el motivo (obligatorio) y GENERAL lo ve por **dos caminos
 distintos**, que existen los dos:
