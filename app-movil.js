@@ -530,8 +530,12 @@ module.exports = function crearAppMovil(deps) {
     const s = sesionApp(req);
     res.locals.puedeCargar = !!(s && s.codigoIngreso);
     res.locals.esGeneral = !!(s && s.esGeneral);
-    // Para el menú de cuenta del encabezado (sale de la sesión, sin ir a la base).
+    // Para el menú de cuenta del encabezado (sale de la sesión, sin ver la base).
     res.locals.balanzaNombre = (s && s.balanza) || '';
+    // Qué versión está sirviendo el servidor. La pantalla "Balanza y turno" la
+    // compara con la que tiene guardada el teléfono: así se ve de un vistazo si
+    // el teléfono quedó atrasado, sin tener que adivinar.
+    res.locals.versionApp = versionDelServiceWorker();
     return next();
   });
 
@@ -558,6 +562,23 @@ module.exports = function crearAppMovil(deps) {
       return res.send(contenido);
     });
   });
+
+  /**
+   * La versión que está sirviendo el servidor, sacada del propio sw.js para que
+   * no haya dos lugares donde escribirla. Se lee una vez y queda en memoria.
+   */
+  let versionCache = null;
+  function versionDelServiceWorker() {
+    if (versionCache !== null) return versionCache;
+    try {
+      const texto = fs.readFileSync(path.join(DIR_ESTATICOS, 'sw.js'), 'utf8');
+      const m = texto.match(/VERSION\s*=\s*'([^']+)'/);
+      versionCache = m ? m[1] : '';
+    } catch (err) {
+      versionCache = '';
+    }
+    return versionCache;
+  }
 
   // El service worker se sirve desde /app/sw.js para que su alcance sea /app.
   router.get('/sw.js', (req, res) => {

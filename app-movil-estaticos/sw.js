@@ -126,6 +126,14 @@ self.addEventListener('activate', function (ev) {
  */
 self.addEventListener('message', function (ev) {
   var msj = ev.data || {};
+
+  // Qué versión está corriendo en ESTE teléfono. La pantalla "Balanza y turno"
+  // la compara con la del servidor para avisar si quedó atrasado.
+  if (msj.tipo === 'version') {
+    if (ev.ports && ev.ports[0]) ev.ports[0].postMessage({ version: VERSION });
+    return;
+  }
+
   if (msj.tipo !== 'olvidar-pantallas') return;
   ev.waitUntil(
     caches.delete(CACHE_PANTALLAS).then(function () {

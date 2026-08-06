@@ -247,6 +247,24 @@ alguna se agranda de más, la prueba lo avisa antes de subirlo.
 - La app no usa Bootstrap ni el layout de la web: tiene su propio CSS.
 - No agrega ninguna librería nueva: `package.json` no cambió.
 
+### Cómo saber si un teléfono está al día
+
+En **Balanza y turno**, abajo, hay un bloque **"Versión de la app"** que muestra
+dos cosas: la versión que tiene guardada **ese teléfono** y la que está sirviendo
+el **servidor**. Si no coinciden, aparece el botón **"Actualizar la app"**, que
+baja la versión nueva y recarga. No se pierde nada de lo cargado: las pesadas sin
+subir viven aparte.
+
+Sirve para no adivinar. Después de un deploy, en vez de suponer que el teléfono
+se actualizó, se entra ahí y se ve.
+
+Un teléfono con una versión anterior a la v5 no sabe contestar qué versión tiene:
+en ese caso el bloque dice "una versión vieja" y ofrece actualizar igual.
+
+También se puede ver desde cualquier navegador, abriendo
+`https://<el-dominio>/app/sw.js`: en las primeras líneas está el
+`VERSION = 'pesada-app-vN'` que sirve el servidor en este momento.
+
 **Al subir cambios de la app**, hay que subir el número de versión que está
 arriba de `app-movil-estaticos/sw.js` (`pesada-app-v5`, `v6`, …). Eso hace que
 los teléfonos descarten las **pantallas** que tenían guardadas y tomen las

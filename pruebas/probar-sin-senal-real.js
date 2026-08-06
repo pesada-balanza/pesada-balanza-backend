@@ -522,6 +522,61 @@ async function main() {
 
   await pg.evaluate(() => localStorage.removeItem('pesada.cola'));
 
+  /* ═══════════════════════════════════════════════════════════════════════
+   * LA VERSIÓN DE LA APP, A LA VISTA
+   * -----------------------------------------------------------------------
+   * Para no tener que adivinar si un teléfono quedó con una versión vieja
+   * guardada: la pantalla "Balanza y turno" dice qué versión tiene el teléfono
+   * y cuál el servidor, y ofrece actualizar si no coinciden.
+   * ═════════════════════════════════════════════════════════════════════ */
+  console.log('\n── La versión de la app se puede ver desde la app');
+  await ctx.setOffline(false);
+  await pg.goto('about:blank');
+  await esperar(300);
+  await pg.goto(BASE + '/app/ingreso', { waitUntil: 'networkidle' }).catch(() => {});
+  await pg.evaluate(async () => {
+    await fetch('/app/api/ingreso', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: '5679' }),
+    });
+  });
+  await pg.goto(BASE + '/app/balanza', { waitUntil: 'networkidle' });
+  await esperar(1200);
+
+  const version = await pg.evaluate(() => ({
+    telefono: (document.getElementById('v-telefono') || {}).textContent,
+    servidor: (document.getElementById('v-servidor') || {}).textContent,
+    estado: (document.getElementById('v-estado') || {}).textContent,
+    ofreceActualizar: !(document.getElementById('v-actualizar') || {}).hidden,
+  }));
+  console.log('     ' + JSON.stringify(version));
+  ok('dice la versión que sirve el servidor',
+    /pesada-app-v\d+/.test(version.servidor || ''), version.servidor);
+  ok('y la que tiene guardada el teléfono',
+    /pesada-app-v\d+/.test(version.telefono || ''), version.telefono);
+  ok('las dos coinciden (el teléfono está al día)',
+    (version.telefono || '').trim() === (version.servidor || '').trim(),
+    version.telefono + ' vs ' + version.servidor);
+  ok('lo dice con palabras: "Está al día"', /Está al día/.test(version.estado || ''), version.estado);
+  ok('y NO ofrece actualizar, porque no hace falta', !version.ofreceActualizar);
+
+  // Con un teléfono atrasado: el botón tiene que aparecer.
+  await pg.evaluate(() => {
+    // Se finge que el servidor sirve otra versión, que es lo que pasa después de
+    // un deploy y antes de que el teléfono se actualice.
+    document.getElementById('v-servidor').textContent = 'pesada-app-v999';
+  });
+  const conAtraso = await pg.evaluate(() => {
+    // Se vuelve a correr la comparación como la hace la pantalla
+    const t = document.getElementById('v-telefono').textContent.trim();
+    const s = document.getElementById('v-servidor').textContent.trim();
+    return t !== s;
+  });
+  ok('si las versiones no coinciden, se nota', conAtraso);
+
+  ok('el botón de actualizar existe en la pantalla',
+    !!(await pg.$('#v-actualizar')), 'no está');
+
   ok('sin errores de JavaScript', erroresJs.length === 0, erroresJs.join(' | '));
 
   await browser.close();

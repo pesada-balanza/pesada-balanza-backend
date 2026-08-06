@@ -86,6 +86,25 @@
       <a class="btn btn-borde-suave" href="/app/general/pedidos">Pedidos de anulación</a>
     <% } %>
 
+    <%# Versión de la app. Está acá para poder saber, sin adivinar, si el
+        teléfono quedó con una versión vieja guardada: se compara la que sirve el
+        servidor con la que tiene este teléfono. %>
+    <div class="tarjeta" style="padding:16px; gap:10px">
+      <span class="cuerpo-fuerte">Versión de la app</span>
+      <div class="fila">
+        <div class="fila-col">
+          <span class="etiqueta">En este teléfono</span>
+          <span class="dato mono" id="v-telefono">…</span>
+        </div>
+        <div class="fila-col" style="align-items:flex-end">
+          <span class="etiqueta">En el servidor</span>
+          <span class="dato mono" id="v-servidor"><%= versionApp || '—' %></span>
+        </div>
+      </div>
+      <span class="txt-chico" id="v-estado">Comprobando…</span>
+      <button type="button" class="btn btn-borde-suave" id="v-actualizar" hidden>Actualizar la app</button>
+    </div>
+
     <div class="espaciador"></div>
 
     <button type="button" id="salir" class="btn btn-borde-suave" style="min-height:54px">Salir de la app</button>
@@ -118,6 +137,81 @@
   document.getElementById('cambiar-balanza').addEventListener('click', function (ev) {
     ev.preventDefault();
     salir('Para cambiar de balanza hay que poner el código de la otra. ¿Seguimos?');
+  });
+
+  /* ── Versión de la app ────────────────────────────────────────────────────
+     Sirve para no adivinar: dice qué versión tiene ESTE teléfono guardada y
+     cuál está sirviendo el servidor. Si no coinciden, ofrece actualizar.
+     ─────────────────────────────────────────────────────────────────────── */
+  var vTelefono = document.getElementById('v-telefono');
+  var vEstado = document.getElementById('v-estado');
+  var btnActualizar = document.getElementById('v-actualizar');
+  var enElServidor = '<%= versionApp || "" %>';
+
+  function mostrar(version) {
+    vTelefono.innerHTML = App.esc(version || 'sin guardar');
+
+    if (!version) {
+      vEstado.innerHTML = 'Este teléfono todavía no guardó la app. Abrila una vez con ' +
+        'internet y queda disponible sin señal.';
+      return;
+    }
+    if (!enElServidor || version === enElServidor) {
+      vEstado.innerHTML = 'Está al día.';
+      return;
+    }
+    vEstado.innerHTML = 'Hay una versión más nueva en el servidor. Tocá "Actualizar la app": ' +
+      'no se pierde nada de lo cargado.';
+    btnActualizar.hidden = false;
+  }
+
+  if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+    mostrar('');
+  } else {
+    // Se le pregunta al propio service worker qué versión es.
+    var canal = new MessageChannel();
+    var contestó = false;
+    canal.port1.onmessage = function (ev) {
+      contestó = true;
+      mostrar((ev.data && ev.data.version) || '');
+    };
+    try {
+      navigator.serviceWorker.controller.postMessage({ tipo: 'version' }, [canal.port2]);
+    } catch (e) {
+      mostrar('');
+    }
+    // Un service worker viejo no sabe contestar esto: si no contesta, es viejo.
+    window.setTimeout(function () {
+      if (!contestó) {
+        vTelefono.innerHTML = 'una versión vieja';
+        vEstado.innerHTML = 'Este teléfono tiene una versión anterior guardada. ' +
+          'Tocá "Actualizar la app": no se pierde nada de lo cargado.';
+        btnActualizar.hidden = false;
+      }
+    }, 1500);
+  }
+
+  btnActualizar.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    if (!App.hayConexion()) {
+      vEstado.innerHTML = 'Para actualizar hace falta internet.';
+      return;
+    }
+    btnActualizar.disabled = true;
+    btnActualizar.innerHTML = 'Actualizando…';
+    vEstado.innerHTML = 'Bajando la versión nueva…';
+
+    // Se le pide al navegador que revise el service worker y, cuando el nuevo
+    // toma el relevo, se recarga. Si en 8 segundos no pasó nada, se recarga
+    // igual: la pantalla siempre viene del servidor.
+    function recargar() { window.location.reload(); }
+    navigator.serviceWorker.addEventListener('controllerchange', recargar);
+    window.setTimeout(recargar, 8000);
+
+    navigator.serviceWorker.getRegistration('/app').then(function (reg) {
+      if (reg) return reg.update();
+      return null;
+    }).catch(function () { /* se recarga por el timeout */ });
   });
 })();
 </script>
