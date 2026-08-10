@@ -47,6 +47,7 @@ const COLUMNS_REGISTROS = [
   { header: 'Comentarios',     key: 'comentarios',    width: 28 },
   { header: 'Bruto Regulado',  key: 'bruto',          width: 16 },
   { header: 'Neto',            key: 'neto',           width: 15 },
+  { header: 'CP',              key: 'cp',             width: 14 },
   { header: 'Bruto LOTE - Bruto Regulado', key: 'difBrutoLoteBruto', width: 22 },
   { header: 'Anulado',         key: 'anulado',        width: 10 },
   { header: 'Confirmada CAMIONES', key: 'confirmada', width: 14 },
