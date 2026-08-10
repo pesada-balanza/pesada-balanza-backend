@@ -523,6 +523,86 @@ async function main() {
   await pg.evaluate(() => localStorage.removeItem('pesada.cola'));
 
   /* ═══════════════════════════════════════════════════════════════════════
+   * EL CTG SIN SEÑAL
+   * -----------------------------------------------------------------------
+   * El CTG viene con la carta de porte, después de la regulada. Se decidió que
+   * se pueda cargar sin señal: queda en la cola y sube después, y el plazo se
+   * mide contra el momento en que se tipeó (lo manda el teléfono).
+   * ═════════════════════════════════════════════════════════════════════ */
+  console.log('\n── Cargar el CTG sin señal');
+  await ctx.setOffline(false);
+  await pg.goto('about:blank');
+  await esperar(300);
+  await pg.goto(BASE + '/app/ingreso', { waitUntil: 'networkidle' }).catch(() => {});
+  await pg.evaluate(async () => {
+    await fetch('/app/api/ingreso', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: '5679' }),
+    });
+  });
+
+  // Un ticket cerrado hoy, esperando el CTG
+  const paraCtg = await baseFalsa.collection('registros').insertOne({
+    idTicket: 95, fecha: hoy(), usuario: 'Juan Sosa', cargaPara: 'AMH', socio: '',
+    pesadaPara: 'REGULADA', transporte: 'Ciriaci', patentes: 'CT G01 AA', chofer: 'Carta Porte',
+    campo: 'El Mataco - SACHAYOJ - SE', grano: 'SOJA', lote: ['Lote 1'],
+    cargoDe: 'SILOBOLSA', silobolsa: '1',
+    brutoEstimado: 52500, tara: 15000, netoEstimado: 37500,
+    brutoLote: 51000, bruto: 52500, neto: 37500,
+    fechaTaraFinal: hoy(), fechaRegulada: hoy(), confirmada: true, anulado: false,
+    modificaciones: 0, codigoIngreso: '5679', origen: 'app', nroApp: '1-0095',
+    cargadoPor: 'Juan Sosa', appImpreso: true, creadoEn: new Date(),
+  });
+  const idParaCtg = String(paraCtg.insertedId);
+
+  // Se abre CON señal, para que el service worker guarde la pantalla
+  await pg.goto(BASE + '/app/ctg', { waitUntil: 'networkidle' });
+  await esperar(700);
+  ok('la pantalla de CTG lista el ticket', (await pg.content()).indexOf('CT G01 AA') !== -1);
+
+  // Ahora sin señal: la pantalla se tiene que ver igual y dejar tipear
+  await ctx.setOffline(true);
+  await pg.goto('about:blank');
+  await esperar(300);
+  await pg.goto(BASE + '/app/ctg', { waitUntil: 'domcontentloaded' }).catch(() => {});
+  await esperar(800);
+  const htmlCtgSinSenal = await pg.content();
+  ok('sin señal la pantalla de CTG se ve igual', /CT G01 AA/.test(htmlCtgSinSenal),
+    pg.url() + ' → ' + htmlCtgSinSenal.replace(/\s+/g, ' ').slice(0, 200));
+  ok('y NO dice que necesita internet', !/necesita internet/i.test(htmlCtgSinSenal));
+
+  const antesDeCtg = baseFalsa.collection('registros').docs.find(
+    (d) => String(d._id) === idParaCtg
+  ).cp;
+  await pg.fill('#cp-' + idParaCtg, '10134099999');
+  await pg.click('[data-guardar="' + idParaCtg + '"]');
+  await esperar(900);
+
+  ok('sin señal NO llegó al servidor', !antesDeCtg && !baseFalsa.collection('registros').docs
+    .find((d) => String(d._id) === idParaCtg).cp);
+  const colaCtg = await pg.evaluate(() => JSON.parse(localStorage.getItem('pesada.cola') || '[]'));
+  const itemCtg = colaCtg.filter((c) => c.tipo === 'ctg')[0];
+  ok('quedó en la cola del teléfono', !!itemCtg, JSON.stringify(colaCtg).slice(0, 250));
+  ok('con el CTG escrito', itemCtg && itemCtg.datos.cp === '10134099999', (itemCtg || {}).datos);
+  ok('y con la fecha en que se tipeó (para medir el plazo)',
+    itemCtg && !!itemCtg.datos.cargadoEn, (itemCtg || {}).datos);
+  ok('la tarjeta avisa que quedó sin subir',
+    /Sin subir/i.test(await pg.content()));
+
+  console.log('\n── Y al volver la señal sube solo');
+  await ctx.setOffline(false);
+  await pg.goto(BASE + '/app/patio', { waitUntil: 'networkidle' }).catch(() => {});
+  await pg.evaluate(() => window.dispatchEvent(new Event('online')));
+  await esperar(2500);
+
+  const conCtgFinal = baseFalsa.collection('registros').docs.find((d) => String(d._id) === idParaCtg);
+  ok('el CTG llegó al servidor', conCtgFinal.cp === '10134099999', conCtgFinal.cp);
+  ok('sin consumir modificaciones', (conCtgFinal.modificaciones || 0) === 0, conCtgFinal.modificaciones);
+  const colaFinalCtg = await pg.evaluate(() => JSON.parse(localStorage.getItem('pesada.cola') || '[]'));
+  ok('y la cola quedó limpia', colaFinalCtg.filter((c) => c.tipo === 'ctg').length === 0,
+    JSON.stringify(colaFinalCtg));
+
+  /* ═══════════════════════════════════════════════════════════════════════
    * LA VERSIÓN DE LA APP, A LA VISTA
    * -----------------------------------------------------------------------
    * Para no tener que adivinar si un teléfono quedó con una versión vieja

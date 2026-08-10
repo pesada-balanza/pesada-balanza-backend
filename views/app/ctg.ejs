@@ -1,0 +1,159 @@
+<%#
+  Cargar el CTG (el campo CP).
+
+  Es un paso posterior a la regulada: el número viene con la carta de porte, que
+  se emite cuando el camión sale. Al pesar todavía no existe, así que el ticket
+  se cierra sin él y el CTG se carga después.
+
+  La lista la dibuja el servidor y el service worker la guarda. Sin señal se ve
+  la última lista y el CTG se puede tipear igual: queda en la cola del teléfono y
+  sube cuando vuelve internet. Por eso el plazo se mide contra el momento en que
+  se tipeó, no contra cuándo llega al servidor.
+%>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="<%= volver %>" class="volver"><span class="flecha">‹</span><span class="texto">Volver</span></a>
+      <span class="t-pantalla">Cargar CTG</span>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+      <%- include('menu') %>
+    </div>
+  </div>
+
+  <div class="cuerpo">
+
+    <% if (!lista.length) { %>
+      <div class="tarjeta" style="align-items:flex-start; gap:6px">
+        <span class="cuerpo-fuerte">No hay tickets esperando el CTG</span>
+        <span class="txt">
+          Aparecen acá los tickets con la regulada cerrada a los que todavía les
+          falta el CTG, hasta <%= diasPlazo %> día después de la regulada.
+        </span>
+      </div>
+    <% } else { %>
+
+      <p class="txt" style="margin:0">
+        <%= lista.length %> ticket<%= lista.length === 1 ? '' : 's' %> esperando el CTG.
+        Es el número de la carta de porte: solo números, hasta 11 dígitos.
+      </p>
+
+      <div id="lista-ctg" style="display:flex; flex-direction:column; gap:12px">
+        <% lista.forEach(function (t) { %>
+          <div class="tarjeta" data-ticket="<%= t.id %>">
+            <div class="fila-base">
+              <span class="dato"><%= t.patentes %></span>
+              <span class="mono-chico">#<%= t.nro %></span>
+            </div>
+
+            <span class="txt">
+              <%= [t.transporte, t.chofer, t.campoCorto].filter(Boolean).join(' · ') %>
+            </span>
+            <span class="txt-chico">
+              <%= [t.grano, kg(t.neto) + ' kg', 'regulada ' + t.fechaRegulada].filter(Boolean).join(' · ') %>
+            </span>
+
+            <div class="campo" style="margin-top:4px">
+              <label class="etiqueta" for="cp-<%= t.id %>">CTG</label>
+              <input type="text" id="cp-<%= t.id %>" class="mono" inputmode="numeric"
+                     autocomplete="off" maxlength="11" placeholder="hasta 11 números"
+                     data-cp="<%= t.id %>">
+            </div>
+
+            <div class="campo-error" style="min-height:18px" data-error="<%= t.id %>"></div>
+
+            <button type="button" class="btn" style="min-height:52px"
+                    data-guardar="<%= t.id %>">Guardar CTG</button>
+          </div>
+        <% }); %>
+      </div>
+
+    <% } %>
+
+    <div class="espaciador"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var elegido = '<%= elegido %>';
+
+  // Si se entró desde un ticket puntual, se le pone el foco a ese.
+  if (elegido) {
+    var caja = document.querySelector('[data-ticket="' + elegido + '"]');
+    if (caja) {
+      caja.scrollIntoView({ block: 'center' });
+      var campo = caja.querySelector('[data-cp]');
+      if (campo) { try { campo.focus(); } catch (e) {} }
+    }
+  }
+
+  function guardar(id) {
+    var campo = document.getElementById('cp-' + id);
+    var error = document.querySelector('[data-error="' + id + '"]');
+    var btn = document.querySelector('[data-guardar="' + id + '"]');
+    var caja = document.querySelector('[data-ticket="' + id + '"]');
+    error.innerHTML = '';
+
+    var cp = (campo.value || '').replace(/\D/g, '');
+    if (!cp) {
+      error.innerHTML = 'Escribí el CTG: son solo números.';
+      return;
+    }
+    if (cp.length > 11) {
+      error.innerHTML = 'El CTG tiene hasta 11 números.';
+      return;
+    }
+
+    App.enviar({
+      url: '/app/api/ctg',
+      // `cargadoEn` es el momento en que se tipeó: con eso el servidor mide el
+      // plazo aunque la cola suba más tarde.
+      datos: { id: id, cp: cp, cargadoEn: new Date().toISOString() },
+      offline: true,
+      tipo: 'ctg',
+      boton: btn,
+      textoGuardando: 'Guardando…',
+
+      alGuardarLocal: function () {
+        caja.innerHTML =
+          '<div class="fila-base"><span class="cuerpo-fuerte">CTG ' + App.esc(cp) + ' guardado</span>' +
+          '<span class="chip chip-ambar">Sin subir</span></div>' +
+          '<span class="txt">Se sube solo cuando vuelva internet.</span>';
+        App.brindis('CTG guardado en el teléfono. Se sube solo cuando vuelva internet.', 'ambar');
+      },
+
+      alListo: function (res) {
+        caja.innerHTML =
+          '<div class="fila-base"><span class="cuerpo-fuerte">CTG ' + App.esc(res.cp || cp) + ' cargado</span>' +
+          '<span class="chip chip-verde">Listo</span></div>' +
+          '<span class="txt">El ticket ya se puede reimprimir con el CTG.</span>';
+        App.brindis('CTG cargado.');
+      },
+
+      alFallar: function (msg) { error.innerHTML = App.esc(msg); }
+    });
+  }
+
+  var botones = document.querySelectorAll('[data-guardar]');
+  for (var i = 0; i < botones.length; i++) {
+    botones[i].addEventListener('click', function (ev) {
+      ev.preventDefault();
+      guardar(this.getAttribute('data-guardar'));
+    });
+  }
+
+  // Solo números, mientras se escribe.
+  var campos = document.querySelectorAll('[data-cp]');
+  for (var j = 0; j < campos.length; j++) {
+    campos[j].addEventListener('input', function () {
+      var limpio = (this.value || '').replace(/\D/g, '').slice(0, 11);
+      if (limpio !== this.value) this.value = limpio;
+    });
+  }
+})();
+</script>

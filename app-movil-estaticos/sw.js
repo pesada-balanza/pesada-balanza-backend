@@ -14,7 +14,7 @@
 // Al subir cambios hay que subir este número: así el teléfono descarta las
 // pantallas guardadas y toma las nuevas. Las pesadas sin subir NO se tocan:
 // viven en localStorage y este archivo no lo mira nunca.
-var VERSION = 'pesada-app-v5';
+var VERSION = 'pesada-app-v6';
 
 // Dos copias separadas a propósito:
 //  - FIJOS: css, js, ícono. No dependen de quién esté usando la app.
@@ -45,7 +45,7 @@ var ESENCIALES = [
  * /app/local?paso=tara-final&id=… , eso no estaba guardado con ese "?" exacto,
  * y terminaba mostrando el patio de vuelta. Se veía como un botón muerto.
  */
-var CASCARAS = ['/app/local', '/app/imprimir'];
+var CASCARAS = ['/app/local', '/app/imprimir', '/app/ctg'];
 
 function esCascara(pathname) {
   for (var i = 0; i < CASCARAS.length; i++) {

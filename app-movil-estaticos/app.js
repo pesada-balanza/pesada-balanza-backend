@@ -696,6 +696,9 @@
       '/app/patio', '/app/nueva-pesada', '/app/local', '/app/balanza',
       // La hoja del ticket, para poder imprimir y ver el ticket sin señal.
       '/app/imprimir',
+      // La lista de tickets que esperan el CTG: sin señal se ve la última y el
+      // número se puede tipear igual.
+      '/app/ctg',
     ];
     for (var i = 0; i < pantallas.length; i++) {
       try {

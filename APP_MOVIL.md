@@ -266,7 +266,7 @@ También se puede ver desde cualquier navegador, abriendo
 `VERSION = 'pesada-app-vN'` que sirve el servidor en este momento.
 
 **Al subir cambios de la app**, hay que subir el número de versión que está
-arriba de `app-movil-estaticos/sw.js` (`pesada-app-v5`, `v6`, …). Eso hace que
+arriba de `app-movil-estaticos/sw.js` (`pesada-app-v6`, `v7`, …). Eso hace que
 los teléfonos descarten las **pantallas** que tenían guardadas y tomen las
 nuevas. Las pesadas pendientes y los números reservados no se tocan (ver
 "Actualizar la app NO borra lo que quedó pendiente", más arriba).
@@ -343,6 +343,64 @@ Colecciones **nuevas**, propias de la app (la web no las mira):
 
 Las anulaciones y las ediciones de observaciones se registran en
 `registros_auditoria`, la misma colección que ya usa la web.
+
+---
+
+## El CTG
+
+El CTG (Código de Trazabilidad de Granos) se guarda en el campo **`cp`**, el
+mismo de la web, y sale en la columna CP del Excel y en el renglón "CP / CTG" del
+ticket impreso.
+
+Es un paso **posterior a la regulada**: el número viene con la carta de porte, que
+se emite cuando el camión sale. Al pesar todavía no existe, así que el ticket se
+cierra sin él y el CTG se carga después.
+
+### Cómo se llega
+
+Cuando se cierra la regulada el camión **sale del patio**, así que sin un aviso el
+paso no existiría: nadie se acuerda y no habría cómo llegar al ticket. Hay tres
+accesos:
+
+1. **En el patio**, un aviso "**N tickets sin CTG**" con los números y un botón
+   "Cargar". Desaparece solo cuando no queda ninguno.
+2. **En el ticket**, el renglón "CP / CTG" se ve vacío con un "Cargar" al lado, y
+   además hay un botón grande **"Cargar el CTG"**.
+3. **La pantalla `/app/ctg`**, con la lista de los que esperan: patente, número,
+   grano, neto y fecha de la regulada, cada uno con su campo y su botón.
+
+### Las reglas (las mismas que la web)
+
+| | |
+| --- | --- |
+| Cuándo | solo tickets con la **regulada cerrada**, no anulados |
+| Plazo | hasta **1 día después** de la regulada |
+| Formato | numérico, hasta **11 dígitos** (el campo solo acepta números) |
+| Una sola vez | cargado el CTG, el acceso desaparece. Para **cambiarlo** se usa "Editar observaciones", que sí consume una de las 2 modificaciones |
+| Cupo | cargarlo **no** consume modificaciones |
+| Auditoría | entrada `tipoOperacion: 'CTG'` con `origen: 'app-movil'` |
+
+### Quién puede
+
+- El **balancero**, solo los tickets de su balanza. Es donde el chofer entrega la
+  carta de porte, que es donde está el número.
+- **GENERAL**, los de todas las balanzas.
+
+### Sin señal
+
+Se puede cargar igual: queda en la cola del teléfono con el chip `SIN SUBIR` y
+sube cuando vuelve internet. La pantalla `/app/ctg` la guarda el service worker,
+así que sin señal se ve la última lista y el número se tipea normal.
+
+El plazo se mide contra el **momento en que el balancero lo tipeó** (el teléfono
+lo manda en `cargadoEn`), no contra cuándo llegó al servidor: si no, una cola que
+sube dos días después se rechazaría sola. Al dato del teléfono no se le cree
+cualquier cosa: una fecha futura, o de más de 5 días atrás, se descarta y se usa
+la de hoy, así no se puede estirar el plazo.
+
+Si la cola reintenta y el CTG ya está cargado **con el mismo número**, el servidor
+contesta bien para que no quede trabada. Si es otro número, avisa que hay que
+corregirlo por observaciones.
 
 ---
 

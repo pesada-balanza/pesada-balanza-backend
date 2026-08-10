@@ -32,6 +32,21 @@
       </div>
     <% } %>
 
+    <%# Tickets cerrados a los que les falta el CTG. Va acá porque cuando se
+        cierra la regulada el camión sale del patio: sin este aviso el paso no
+        existe, nadie se acuerda y no habría cómo llegar al ticket. %>
+    <% if (datos.sinCtg && datos.sinCtg.length) { %>
+      <div class="aviso">
+        <div class="aviso-col">
+          <span class="aviso-titulo">
+            <%= datos.sinCtg.length %> ticket<%= datos.sinCtg.length === 1 ? '' : 's' %> sin CTG
+          </span>
+          <span class="aviso-detalle mono"><%= datos.sinCtg.map(function(t){ return t.nro; }).join(' · ') %></span>
+        </div>
+        <a class="pastilla" href="/app/ctg">Cargar</a>
+      </div>
+    <% } %>
+
     <%# Camiones sin regular que quedaron de ayer (ref. 7c) %>
     <% if (datos.sinRegular.length) { %>
       <div class="aviso">

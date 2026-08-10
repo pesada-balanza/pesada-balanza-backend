@@ -817,6 +817,142 @@ async function main() {
   cookies = cookiesBalanza;
 
   /* ═════════════════════════════════════════════════════════════════════
+   * CARGAR EL CTG (el campo `cp`)
+   * ---------------------------------------------------------------------
+   * Mismas reglas que la web (/registrar-cp): solo con la regulada cerrada,
+   * una sola vez, hasta 1 día después, numérico de hasta 11 dígitos, y NO
+   * consume las 2 modificaciones.
+   * ═══════════════════════════════════════════════════════════════════ */
+  seccion('Cargar el CTG');
+  cookies = Object.assign({}, cookies5679);
+
+  // Un ticket recién cerrado (el de la regulada de más arriba) espera el CTG.
+  const docCerrado = baseFalsa.collection('registros').docs.find(
+    (d) => d.codigoIngreso === '5679' && d.fechaRegulada && !d.cp && !d.anulado
+  );
+  const idCtg = String(docCerrado._id);
+
+  r = await ir('GET', '/app/patio');
+  ok('el patio avisa que hay tickets sin CTG', /ticket(s)? sin CTG/.test(r.texto), '');
+  ok('con el acceso para cargarlo', /href="\/app\/ctg"/.test(r.texto));
+
+  r = await ir('GET', '/app/registro/' + idCtg);
+  ok('el ticket muestra el renglón CP / CTG vacío', /CP \/ CTG/.test(r.texto));
+  ok('y ofrece cargarlo', /\/app\/ctg\?id=/.test(r.texto));
+
+  r = await ir('GET', '/app/ctg');
+  ok('la pantalla de CTG abre', r.estado === 200 && /Cargar CTG/.test(r.texto), r.estado);
+  ok('lista el ticket que espera', r.texto.indexOf(docCerrado.patentes) !== -1);
+
+  // Validaciones
+  r = await ir('POST', '/app/api/ctg', { id: idCtg, cp: 'ABC' });
+  ok('un CTG con letras se rechaza', r.estado === 400 && /números/.test(r.json.error), r.texto.slice(0, 150));
+  r = await ir('POST', '/app/api/ctg', { id: idCtg, cp: '123456789012' });
+  ok('más de 11 dígitos se rechaza', r.estado === 400, r.texto.slice(0, 150));
+  r = await ir('POST', '/app/api/ctg', { id: idCtg, cp: '' });
+  ok('vacío se rechaza', r.estado === 400);
+
+  // Un ticket sin regulada no acepta CTG
+  const docAbierto = baseFalsa.collection('registros').docs.find(
+    (d) => d.codigoIngreso === '5679' && !d.fechaRegulada && !d.anulado
+  );
+  if (docAbierto) {
+    r = await ir('POST', '/app/api/ctg', { id: String(docAbierto._id), cp: '10134008525' });
+    ok('sin la regulada cerrada no se puede cargar el CTG',
+      r.estado === 400 && /regulada/.test(r.json.error), r.texto.slice(0, 150));
+  }
+
+  // La carga buena
+  const modsAntes = docCerrado.modificaciones || 0;
+  r = await ir('POST', '/app/api/ctg', { id: idCtg, cp: '10134008525' });
+  ok('se carga el CTG', r.estado === 200 && r.json.cp === '10134008525', r.texto.slice(0, 150));
+  const conCtg = baseFalsa.collection('registros').docs.find((d) => String(d._id) === idCtg);
+  ok('queda guardado en el campo cp (el de la web)', conCtg.cp === '10134008525', conCtg.cp);
+  ok('NO consume las 2 modificaciones', (conCtg.modificaciones || 0) === modsAntes,
+    'antes ' + modsAntes + ', ahora ' + conCtg.modificaciones);
+  ok('deja auditoría tipo CTG',
+    baseFalsa.collection('registros_auditoria').docs.some(
+      (d) => d.tipoOperacion === 'CTG' && String(d.registroId) === idCtg && d.camposNuevos.cp === '10134008525'
+    ));
+  ok('con la marca de que vino de la app',
+    baseFalsa.collection('registros_auditoria').docs.some(
+      (d) => d.tipoOperacion === 'CTG' && d.origen === 'app-movil'
+    ));
+
+  // Una sola vez
+  r = await ir('POST', '/app/api/ctg', { id: idCtg, cp: '10134008525' });
+  ok('reenviar el MISMO CTG no falla (la cola reintentando)',
+    r.estado === 200 && r.json.duplicado === true, r.texto.slice(0, 150));
+  r = await ir('POST', '/app/api/ctg', { id: idCtg, cp: '99999999999' });
+  ok('cambiarlo por otro se rechaza y remite a observaciones',
+    r.estado === 409 && /Editar observaciones/.test(r.json.error), r.texto.slice(0, 180));
+
+  r = await ir('GET', '/app/registro/' + idCtg);
+  ok('el ticket ahora muestra el CTG cargado', r.texto.indexOf('10134008525') !== -1);
+  ok('y ya no ofrece cargarlo', !/\/app\/ctg\?id=/.test(r.texto));
+
+  r = await ir('GET', '/app/ctg');
+  ok('la lista ya no lo trae', r.texto.indexOf('10134008525') === -1);
+
+  // El plazo: un ticket regulado hace 5 días ya venció
+  const viejo = await baseFalsa.collection('registros').insertOne({
+    idTicket: 9001, fecha: '2020-01-01', usuario: 'Juan Sosa', cargaPara: 'AMH',
+    pesadaPara: 'REGULADA', patentes: 'VE NCI 01', chofer: 'Vencido',
+    campo: 'El Mataco - SACHAYOJ - SE', grano: 'SOJA', lote: ['Lote 1'],
+    codigoIngreso: '5679', neto: 30000, fechaTaraFinal: '2020-01-01',
+    fechaRegulada: '2020-01-01', confirmada: true, anulado: false, modificaciones: 0,
+  });
+  r = await ir('POST', '/app/api/ctg', { id: String(viejo.insertedId), cp: '10134008526' });
+  ok('un ticket vencido no acepta CTG', r.estado === 400 && /plazo/.test(r.json.error), r.texto.slice(0, 180));
+
+  // Sin señal: el teléfono manda cuándo lo tipeó, y con eso se mide el plazo
+  const paraCola = await baseFalsa.collection('registros').insertOne({
+    idTicket: 9002, fecha: hoyStr, usuario: 'Juan Sosa', cargaPara: 'AMH',
+    pesadaPara: 'REGULADA', patentes: 'CO LA 01', chofer: 'De la cola',
+    campo: 'El Mataco - SACHAYOJ - SE', grano: 'SOJA', lote: ['Lote 1'],
+    codigoIngreso: '5679', neto: 30000, fechaTaraFinal: hoyStr,
+    fechaRegulada: hoyStr, confirmada: true, anulado: false, modificaciones: 0,
+  });
+  r = await ir('POST', '/app/api/ctg', {
+    id: String(paraCola.insertedId), cp: '10134008527',
+    cargadoEn: new Date().toISOString(),
+  });
+  ok('con la fecha del teléfono se carga igual', r.estado === 200, r.texto.slice(0, 180));
+
+  // Una fecha inventada muy vieja NO estira el plazo: se descarta y se usa hoy
+  const otroViejo = await baseFalsa.collection('registros').insertOne({
+    idTicket: 9003, fecha: '2020-01-01', usuario: 'Juan Sosa', cargaPara: 'AMH',
+    pesadaPara: 'REGULADA', patentes: 'TR AMP 01', chofer: 'Trampa',
+    campo: 'El Mataco - SACHAYOJ - SE', grano: 'SOJA', lote: ['Lote 1'],
+    codigoIngreso: '5679', neto: 30000, fechaTaraFinal: '2020-01-01',
+    fechaRegulada: '2020-01-01', confirmada: true, anulado: false, modificaciones: 0,
+  });
+  r = await ir('POST', '/app/api/ctg', {
+    id: String(otroViejo.insertedId), cp: '10134008528', cargadoEn: '2020-01-01T10:00:00.000Z',
+  });
+  ok('una fecha de hace años no estira el plazo', r.estado === 400 && /plazo/.test(r.json.error),
+    r.texto.slice(0, 180));
+
+  // Otra balanza no puede cargar el CTG de un ticket ajeno
+  const ajeno = baseFalsa.collection('registros').docs.find(
+    (d) => d.codigoIngreso === '5680' && d.fechaRegulada && !d.cp && !d.anulado
+  );
+  if (ajeno) {
+    r = await ir('POST', '/app/api/ctg', { id: String(ajeno._id), cp: '10134008529' });
+    ok('una balanza no carga el CTG de otra', r.estado === 404, r.texto.slice(0, 150));
+  }
+
+  // GENERAL sí puede, en todas las balanzas
+  cookies = Object.assign({}, cookiesGeneral);
+  r = await ir('GET', '/app/ctg');
+  ok('GENERAL también ve la pantalla de CTG', r.estado === 200 && /Cargar CTG/.test(r.texto), r.estado);
+  if (ajeno) {
+    r = await ir('POST', '/app/api/ctg', { id: String(ajeno._id), cp: '10134008529' });
+    ok('y carga el CTG de cualquier balanza', r.estado === 200, r.texto.slice(0, 180));
+  }
+  cookies = Object.assign({}, cookies5679);
+
+  /* ═════════════════════════════════════════════════════════════════════
    * PERMISOS Y VARIOS
    * ═══════════════════════════════════════════════════════════════════ */
   seccion('Permisos, sesión y pantallas sueltas');

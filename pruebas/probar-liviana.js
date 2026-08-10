@@ -155,6 +155,7 @@ async function main() {
     ['/app/registro/' + conTF.insertedId, 'detalle', 5],
     ['/app/local', 'pantalla sin señal', 8],
     ['/app/balanza', 'balanza y turno', 4],
+    ['/app/ctg', 'cargar CTG', 6],
     ['/app/api/tablas', 'tablas (campos, siembra, contratistas)', 5],
     ['/app/api/sugerencias', 'sugerencias', 3],
     ['/app/estatico/app.js', 'app.js', 11],

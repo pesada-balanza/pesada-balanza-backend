@@ -758,11 +758,59 @@ module.exports = function crearAppMovil(deps) {
    * PATIO  (ref. 1a, 7a, 7c, 5f)
    * ======================================================================= */
 
+  /* =========================================================================
+   * CTG (el campo `cp`)
+   * -------------------------------------------------------------------------
+   * Es un paso POSTERIOR a la regulada: el número viene con la carta de porte,
+   * que se emite cuando el camión sale, así que al pesar todavía no existe.
+   *
+   * Mismas reglas que la web (app.js, /registrar-cp): solo tickets con la
+   * regulada cerrada, sin anular, que todavía no tengan CTG, hasta 1 día
+   * después de la regulada, numérico de hasta 11 dígitos. Cargarlo NO consume
+   * las 2 modificaciones; corregirlo después sí (se hace por observaciones,
+   * igual que en la web).
+   * ======================================================================= */
+  const DIAS_REGULADA_A_CTG = 1;
+
+  /** Los tickets de una balanza (o de todas, para GENERAL) a los que les falta el CTG. */
+  async function ticketsSinCtg(codigoIngreso) {
+    // Se acota por fecha en la consulta: como el plazo es de 1 día después de la
+    // regulada, no hace falta traer toda la historia. El "sin CTG" se filtra
+    // después, porque `cp` puede estar ausente o vacío y eso en una sola
+    // condición de Mongo obliga a un $or que no aporta nada acá.
+    const desde = ymd(new Date(Date.now() - (DIAS_REGULADA_A_CTG + 1) * 24 * 60 * 60 * 1000));
+    const filtro = {
+      pesadaPara: 'REGULADA',
+      anulado: { $ne: true },
+      fechaRegulada: { $gte: desde },
+    };
+    if (codigoIngreso) filtro.codigoIngreso = codigoIngreso;
+
+    const docs = await colRegistros().find(filtro).sort({ idTicket: -1 }).toArray();
+
+    return docs
+      .filter((r) => !r.cp)
+      .filter((r) => r.fechaRegulada && ticketVigente(r.fechaRegulada, DIAS_REGULADA_A_CTG))
+      .map((r) => ({
+        id: String(r._id),
+        nro: r.nroApp || String(r.idTicket || ''),
+        patentes: r.patentes || '',
+        chofer: r.chofer || '',
+        transporte: r.transporte || '',
+        campoCorto: String(r.campo || '').split(' - ')[0],
+        grano: r.grano || '',
+        neto: Number(r.neto) || 0,
+        fechaRegulada: r.fechaRegulada,
+        balanza: nombreBalanza(r.codigoIngreso),
+      }));
+  }
+
   async function datosPatio(codigoIngreso, nombreDia) {
     const hoy = hoyStr();
     const camiones = await camionesAbiertos(codigoIngreso);
     const sinImprimir = camiones.filter((c) => c.sinImprimir);
     const sinRegular = camiones.filter((c) => c.sinRegularDeAyer);
+    const sinCtg = await ticketsSinCtg(codigoIngreso);
     return {
       balanza: nombreBalanza(codigoIngreso),
       nombreDia: nombreDia || '',
@@ -771,6 +819,7 @@ module.exports = function crearAppMovil(deps) {
       camiones,
       sinImprimir: sinImprimir.map((c) => ({ id: c.id, nro: c.nro })),
       sinRegular: sinRegular.map((c) => ({ id: c.id, nro: c.nro })),
+      sinCtg: sinCtg.map((c) => ({ id: c.id, nro: c.nro })),
       enCurso: camiones.length,
     };
   }
@@ -1616,12 +1665,22 @@ module.exports = function crearAppMovil(deps) {
         !!r.fechaRegulada &&
         ticketVigente(r.fechaRegulada, 1);
 
+      // El CTG: solo la primera carga y dentro del plazo. Para cambiarlo después
+      // se usa "Editar observaciones", igual que en la web.
+      const puedeCargarCtg =
+        !r.anulado &&
+        r.pesadaPara === 'REGULADA' &&
+        !r.cp &&
+        !!r.fechaRegulada &&
+        ticketVigente(r.fechaRegulada, DIAS_REGULADA_A_CTG);
+
       return res.render('app/registro', {
         layout: 'app/layout',
         titulo: 'Ticket ' + v.nro,
         r: v,
         kg,
         puedeEditarComentarios,
+        puedeCargarCtg,
         pedido: pedido
           ? {
               tipo: pedido.tipo,
@@ -1679,6 +1738,126 @@ module.exports = function crearAppMovil(deps) {
       );
 
       return res.json({ ok: true });
+    } catch (err) {
+      return siguienteError(err, req, res);
+    }
+  });
+
+  /* =========================================================================
+   * CARGAR EL CTG
+   * ======================================================================= */
+
+  /**
+   * Pantalla con los tickets a los que les falta el CTG. La dibuja el servidor,
+   * y el service worker la guarda: sin señal se ve la última lista y el CTG se
+   * puede tipear igual (se encola y sube después).
+   *
+   * La ve el balancero (solo sus tickets) y GENERAL (todos).
+   */
+  router.get('/ctg', exigirApp, async (req, res) => {
+    try {
+      const s = sesionApp(req);
+      const lista = await ticketsSinCtg(s.esGeneral ? null : s.codigoIngreso);
+      return res.render('app/ctg', {
+        layout: 'app/layout',
+        titulo: 'Cargar CTG',
+        lista,
+        // Si se entró desde un ticket puntual, ese va primero y abierto.
+        elegido: idValido(req.query.id) ? String(req.query.id) : '',
+        volver: s.codigoIngreso ? '/app/patio' : '/app/general',
+        diasPlazo: DIAS_REGULADA_A_CTG,
+        kg,
+      });
+    } catch (err) {
+      return siguienteError(err, req, res);
+    }
+  });
+
+  /**
+   * Desde qué día se mide el plazo.
+   *
+   * Sin señal el CTG se guarda en el teléfono y sube después, así que el plazo
+   * se mide contra el momento en que el balancero lo TIPEÓ (lo manda el
+   * teléfono en `cargadoEn`), no contra cuándo llegó al servidor: si no, una
+   * cola que sube dos días más tarde se rechazaría sola.
+   *
+   * No se le cree cualquier cosa al teléfono: una fecha futura, o de más de 5
+   * días atrás (lo que vive un ticket), se descarta y se usa hoy. Así el dato
+   * del teléfono no puede estirar el plazo indefinidamente.
+   */
+  function fechaDeCargaCtg(cuerpo) {
+    const t = Date.parse(String((cuerpo && cuerpo.cargadoEn) || ''));
+    if (!isFinite(t)) return hoyStr();
+    const ahora = Date.now();
+    const masViejoAceptable = ahora - 5 * 24 * 60 * 60 * 1000;
+    if (t > ahora || t < masViejoAceptable) return hoyStr();
+    return ymd(new Date(t));
+  }
+
+  /** ¿La fecha de carga cae dentro del plazo desde la regulada? */
+  function dentroDelPlazoCtg(fechaRegulada, fechaCarga) {
+    if (!fechaRegulada) return false;
+    const desde = new Date(fechaRegulada + 'T00:00:00');
+    const hasta = new Date(fechaCarga + 'T00:00:00');
+    const dias = Math.floor((hasta - desde) / (24 * 60 * 60 * 1000));
+    return dias >= 0 && dias <= DIAS_REGULADA_A_CTG;
+  }
+
+  router.post('/api/ctg', exigirApp, async (req, res) => {
+    try {
+      const s = sesionApp(req);
+      const r = await traerRegistroDeBalanza(req.body.id, s.esGeneral ? null : s.codigoIngreso);
+      if (!r) return fallar(res, 404, 'No se encontró el ticket.');
+      if (r.anulado) return fallar(res, 400, 'Este ticket está anulado.');
+      if (r.pesadaPara !== 'REGULADA' || !r.fechaRegulada) {
+        return fallar(res, 400, 'El CTG se carga recién cuando está cerrada la regulada.');
+      }
+
+      const cp = String(req.body.cp || '').trim();
+      if (!/^\d{1,11}$/.test(cp)) {
+        return fallar(res, 400, 'El CTG son solo números, hasta 11 dígitos.');
+      }
+
+      // Ya tenía CTG. Si es el mismo, es la cola reintentando: se contesta bien
+      // para que no quede trabada. Si es otro, se corrige por observaciones.
+      if (r.cp) {
+        if (String(r.cp) === cp) return res.json({ ok: true, duplicado: true, cp });
+        return fallar(
+          res,
+          409,
+          'Este ticket ya tiene el CTG ' + r.cp + '. Para cambiarlo se usa "Editar observaciones".'
+        );
+      }
+
+      const fechaCarga = fechaDeCargaCtg(req.body);
+      if (!dentroDelPlazoCtg(r.fechaRegulada, fechaCarga)) {
+        return fallar(
+          res,
+          400,
+          'El plazo para cargar el CTG venció (hasta ' + DIAS_REGULADA_A_CTG +
+            ' día después de la regulada). Hay que pedirle la corrección a GENERAL.'
+        );
+      }
+
+      await colAuditoria().insertOne({
+        tipoOperacion: 'CTG',
+        registroId: r._id,
+        camposAnteriores: { cp: '' },
+        camposNuevos: { cp },
+        usuario:
+          (s.codigoIngreso && (await nombreDelDia(s.codigoIngreso, hoyStr()))) ||
+          s.codigoIngreso ||
+          s.codigoObservacion ||
+          'app',
+        origen: 'app-movil',
+        cargadoEn: fechaCarga,
+        timestamp: new Date(),
+      });
+
+      // Solo el CTG: NO se toca `modificaciones` (igual que la web).
+      await colRegistros().updateOne({ _id: r._id }, { $set: { cp } });
+
+      return res.json({ ok: true, cp, nro: r.nroApp || String(r.idTicket || '') });
     } catch (err) {
       return siguienteError(err, req, res);
     }

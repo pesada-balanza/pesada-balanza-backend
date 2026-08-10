@@ -137,14 +137,22 @@
                   style="color:var(--tinta); border-color:var(--borde-fuerte); background:transparent; cursor:pointer">Editar</button>
         <% } %>
       </div>
-      <% if (r.cp) { %>
+      <%# El CTG viene con la carta de porte, después de la regulada. Si el
+          ticket está cerrado y todavía no lo tiene, se ve el renglón vacío con
+          el acceso para cargarlo: así no queda escondido. %>
+      <% if (r.cp || puedeCargarCtg) { %>
         <div class="divisor"></div>
         <div class="fila">
           <div class="fila-col">
             <span class="etiqueta">CP / CTG</span>
-            <span class="dato mono"><%= r.cp %></span>
+            <span class="dato mono"><%= r.cp || '—' %></span>
           </div>
-          <span class="chip-fijo">🔒 fijo</span>
+          <% if (r.cp) { %>
+            <span class="chip-fijo">🔒 fijo</span>
+          <% } else { %>
+            <a class="chip-fijo" href="/app/ctg?id=<%= r.id %>"
+               style="color:var(--tinta); border-color:var(--borde-fuerte); background:transparent">Cargar</a>
+          <% } %>
         </div>
       <% } %>
     </div>
@@ -152,6 +160,10 @@
     <%# Acciones %>
     <div class="tarjeta" style="padding:16px; gap:9px">
       <a class="btn btn-borde-suave" href="/app/imprimir?ids=<%= r.id %>">Imprimir el ticket</a>
+
+      <% if (puedeCargarCtg) { %>
+        <a class="btn btn-borde" href="/app/ctg?id=<%= r.id %>">Cargar el CTG</a>
+      <% } %>
 
       <%# El PDF recién se comparte cuando está cargada la regulada: antes el
           ticket no tiene todos los pesos y solo se imprime (ref. 5e). %>
