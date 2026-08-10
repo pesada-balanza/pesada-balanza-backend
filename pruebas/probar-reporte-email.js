@@ -263,6 +263,38 @@ async function main() {
    * grabado" y NO traía el motivo, que es lo único que GENERAL necesita leer
    * para decidir.
    * ═════════════════════════════════════════════════════════════════════ */
+  console.log('\n── Con el interruptor APAGADO no sale ningún aviso por evento');
+  delete process.env.AVISOS_POR_TICKET;
+  enviados.length = 0;
+  await notificaciones.notificar({
+    tipo: 'TARA FINAL', patentes: 'AA 111 BB', idTicket: '1-0001',
+    fecha: '2026-08-10', codigoIngreso: '5684', tara: 13920,
+  });
+  await notificaciones.notificar({
+    tipo: 'REGULADA', patentes: 'AA 111 BB', idTicket: '1-0001',
+    fecha: '2026-08-10', codigoIngreso: '5684', neto: 36140,
+  });
+  await notificaciones.notificar({
+    tipo: 'PEDIDO DE ANULACIÓN', patentes: 'AA 111 BB', idTicket: '1-0001',
+    fecha: '2026-08-10', codigoIngreso: '5684', motivo: 'algo', pedidoPor: 'Matias',
+  });
+  await esperar(400);
+  ok('TARA FINAL no manda correo', enviados.length === 0, JSON.stringify(enviados.map((e) => e.subject)));
+  ok('REGULADA tampoco', enviados.length === 0);
+  ok('el pedido de anulación tampoco', enviados.length === 0);
+
+  console.log('\n── Pero el reporte de las 19 hs sigue saliendo igual');
+  enviados.length = 0;
+  await app.enviarReporteDiario();
+  ok('el reporte de las 19 hs se manda', enviados.length === 1, enviados.length);
+  ok('y sigue llevando el Excel adjunto',
+    !!(enviados[0] && enviados[0].attachments && enviados[0].attachments[0]));
+  ok('con el asunto de siempre', /Reporte diario/.test((enviados[0] || {}).subject || ''),
+    (enviados[0] || {}).subject);
+
+  console.log('\n── El interruptor se puede volver a prender');
+  process.env.AVISOS_POR_TICKET = '1';
+
   console.log('\n── El aviso a GENERAL de un pedido de anulación');
   enviados.length = 0;
   await notificaciones.notificar({
@@ -303,6 +335,16 @@ async function main() {
     /Nuevo registro grabado/.test(avReg.html));
   ok('y no le aparecen filas de pedido', !/Motivo|Lo pidió/.test(avReg.html));
   ok('con su asunto de siempre', /REGULADA/.test(avReg.subject) && /EL MATACO/.test(avReg.subject), avReg.subject);
+
+  // Se deja como queda en producción: apagado.
+  delete process.env.AVISOS_POR_TICKET;
+  enviados.length = 0;
+  await notificaciones.notificar({
+    tipo: 'REGULADA', patentes: 'ZZ 999 ZZ', idTicket: '1-0002',
+    fecha: '2026-08-10', codigoIngreso: '5684', neto: 1,
+  });
+  await esperar(300);
+  ok('apagándolo de nuevo, deja de mandar', enviados.length === 0, enviados.length);
 
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);

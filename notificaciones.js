@@ -1,17 +1,44 @@
 /**
  * notificaciones.js
- * Envía avisos por email (nodemailer/Gmail) cuando se graba
- * un ticket de TARA FINAL o REGULADA.
+ * Avisos por email (nodemailer/Gmail) de cada evento: TARA FINAL, REGULADA y
+ * los pedidos de anulación o corrección.
  *
- * Variables de entorno requeridas:
- *   EMAIL_USER  → cuenta Gmail remitente, ej: tucuenta@gmail.com
- *   EMAIL_PASS  → App Password de Gmail (16 chars, sin espacios)
- *   EMAIL_TO    → destinatarios separados por coma, ej: a@x.com,b@y.com
+ * ⚠ ESTOS AVISOS ESTÁN APAGADOS. Salía uno por cada tara final y cada regulada,
+ * o sea dos por camión, a las cuatro direcciones de EMAIL_TO: en plena descarga
+ * era un correo por minuto y no se leía ninguno. Se pidió recibir solo el
+ * reporte de las 19 hs.
+ *
+ * El reporte de las 19 hs NO pasa por acá (lo manda app.js por su cuenta), así
+ * que sigue llegando igual.
+ *
+ * Variables de entorno:
+ *   EMAIL_USER          → cuenta Gmail remitente, ej: tucuenta@gmail.com
+ *   EMAIL_PASS          → App Password de Gmail (16 chars, sin espacios)
+ *   EMAIL_TO            → destinatarios separados por coma, ej: a@x.com,b@y.com
+ *   AVISOS_POR_TICKET   → '1' para volver a prender los avisos por evento.
+ *                         Cualquier otro valor (o sin definir) = apagados.
  */
 
 'use strict';
 
 const nodemailer = require('nodemailer');
+
+/**
+ * Interruptor de los avisos por evento. Se lee en cada aviso (y no una sola vez
+ * al arrancar) para poder prenderlos y apagarlos sin reiniciar nada.
+ */
+function avisosPorTicketPrendidos() {
+  return String(process.env.AVISOS_POR_TICKET || '').trim() === '1';
+}
+
+// Queda dicho en el log del servidor al arrancar, para que se pueda verificar
+// desde Render sin adivinar.
+console.log(
+  avisosPorTicketPrendidos()
+    ? '[Notif Email] Avisos por ticket PRENDIDOS (AVISOS_POR_TICKET=1).'
+    : '[Notif Email] Avisos por ticket APAGADOS. Solo se manda el reporte de las 19 hs. ' +
+      'Para prenderlos: AVISOS_POR_TICKET=1'
+);
 
 /* ─────────────────────────────────────────────────────────────
  * Mapeo de códigos de ingreso → nombre del puesto/campo
@@ -85,6 +112,10 @@ async function enviarEmail(asunto, cuerpoHtml) {
  */
 async function notificar(opts) {
   try {
+    // Apagados a pedido: se recibe solo el reporte de las 19 hs. El ticket se
+    // guarda igual — esto solo decide si además sale un email.
+    if (!avisosPorTicketPrendidos()) return;
+
     const {
       tipo, patentes, idTicket, fecha, codigoIngreso,
       tara, bruto, neto, campo, grano, lote,

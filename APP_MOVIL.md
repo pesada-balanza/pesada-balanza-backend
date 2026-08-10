@@ -307,8 +307,8 @@ distintos**, que existen los dos:
 1. **En la app** — le aparece en **"Para revisar"**, arriba de la pantalla de
    inicio de GENERAL, y desde ahí entra a la bandeja de pedidos, lee el motivo y
    decide. Es el camino principal: no depende del email.
-2. **Por email** — a la misma casilla que ya recibe los avisos de TARA FINAL y
-   REGULADA (`EMAIL_TO`). Sirve para enterarse sin tener la app abierta.
+2. **Por email** — solo si los avisos por evento están prendidos, que **hoy no lo
+   están** (ver más abajo). Con los avisos apagados, el camino es el de la app.
 
 El aviso dice si es una **anulación** o una **corrección** (antes cualquier
 pedido se anunciaba como "de anulación"), y el email lleva el **motivo escrito**,
@@ -343,6 +343,35 @@ Colecciones **nuevas**, propias de la app (la web no las mira):
 
 Las anulaciones y las ediciones de observaciones se registran en
 `registros_auditoria`, la misma colección que ya usa la web.
+
+---
+
+## Los correos: solo el de las 19 hs
+
+Salía **un correo por cada tara final y cada regulada** —dos por camión— más uno
+por cada pedido de anulación o corrección, a las cuatro direcciones de
+`EMAIL_TO`. En plena descarga era un correo por minuto y no se leía ninguno.
+
+Se apagaron. Ahora el único correo que sale es el **reporte de las 19 hs**.
+
+| | |
+| --- | --- |
+| Lugares que mandan correo en todo el proyecto | **2**: el reporte de las 19 hs (`app.js`) y los avisos por evento (`notificaciones.js`) |
+| Destinatarios | los dos usan `EMAIL_TO`. Sin `cc`, sin `bcc`, sin `replyTo` |
+| Direcciones escritas en el código | ninguna: están todas en `EMAIL_TO` |
+| Otros canales (webhook, SMS, WhatsApp) | ninguno |
+
+El interruptor es **`AVISOS_POR_TICKET`**: apagado si no está definido. Para
+volver a prenderlos, `AVISOS_POR_TICKET=1` en Render. Se prende y se apaga sin
+tocar código, y al arrancar el servidor deja dicho en el log en qué estado está:
+
+```
+[Notif Email] Avisos por ticket APAGADOS. Solo se manda el reporte de las 19 hs.
+```
+
+Lo que **no** cambia: los tickets se guardan igual, los pedidos de anulación y
+corrección se registran igual y le siguen apareciendo a GENERAL en **"Para
+revisar"**, y el reporte de las 19 hs sale igual con todas sus hojas.
 
 ---
 
