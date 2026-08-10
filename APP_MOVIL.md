@@ -359,7 +359,7 @@ Se apagaron. Ahora el único correo que sale es el **reporte de las 19 hs**.
 | Lugares que mandan correo en todo el proyecto | **2**: el reporte de las 19 hs (`app.js`) y los avisos por evento (`notificaciones.js`) |
 | Destinatarios | los dos usan `EMAIL_TO`. Sin `cc`, sin `bcc`, sin `replyTo` |
 | Direcciones escritas en el código | ninguna: están todas en `EMAIL_TO` |
-| Otros canales (webhook, SMS, WhatsApp) | ninguno |
+| Otros canales | **WhatsApp**: `whatsapp-worker/`, un programa aparte que manda el reporte de las 19 hs a 18 números escritos en `whatsapp-worker/lineas.js`. **No manda nada por ticket** y no se toca con este interruptor. |
 
 El interruptor es **`AVISOS_POR_TICKET`**: apagado si no está definido. Para
 volver a prenderlos, `AVISOS_POR_TICKET=1` en Render. Se prende y se apaga sin
