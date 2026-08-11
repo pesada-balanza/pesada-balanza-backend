@@ -200,6 +200,12 @@ async function main() {
   ok('el campo de fecha muestra el ícono de calendario', /class="nd-icono"/.test(r.texto));
   ok('ya no está el botón Hoy', !/>Hoy</.test(r.texto));
   ok('desde el resumen se llega al buscador', /href="\/app\/buscar"/.test(r.texto));
+  // Va pegado a los números del día, arriba del bloque de "¿Vas a cargar…?".
+  ok('el botón de buscar está arriba del bloque de cargar una pesada',
+    r.texto.indexOf('href="/app/buscar"') < r.texto.indexOf('¿Vas a cargar una pesada?'),
+    r.texto.indexOf('href="/app/buscar"') + ' / ' + r.texto.indexOf('¿Vas a cargar una pesada?'));
+  ok('y abajo de la tarjeta de Por grano',
+    r.texto.indexOf('Por grano') < r.texto.indexOf('href="/app/buscar"'));
 
   // La fecha aparece UNA sola vez como día que se mira; arriba va la de hoy.
   const vecesHoy = (r.texto.match(new RegExp(diaConFecha(HOY), 'g')) || []).length;
@@ -222,6 +228,10 @@ async function main() {
   ok('no muestra el ticket de hoy al mirar ayer', !/AC642HV/.test(r.texto));
   ok('el "volver" de la lista dice a dónde vuelve, no repite el día',
     /class="texto">Resumen</.test(r.texto));
+  ok('en la lista, el botón de buscar está arriba de los camiones',
+    r.texto.indexOf('href="/app/buscar"') !== -1 &&
+    r.texto.indexOf('href="/app/buscar"') < r.texto.indexOf('/app/registro/'),
+    r.texto.indexOf('href="/app/buscar"') + ' / ' + r.texto.indexOf('/app/registro/'));
   const vecesAyer = (r.texto.match(new RegExp(diaConFecha(AYER), 'g')) || []).length;
   ok('el día que se mira sale una sola vez en la lista', vecesAyer === 1, vecesAyer);
 
@@ -379,7 +389,7 @@ async function main() {
   r = await ir('GET', '/app/sw.js');
   ok('el service worker no guarda /app/buscar', /SIN_GUARDAR/.test(r.texto) && /'\/app\/buscar'/.test(r.texto));
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
-  ok('la versión subió', /pesada-app-v8/.test(r.texto));
+  ok('la versión subió', /pesada-app-v9/.test(r.texto));
 
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);

@@ -22,6 +22,9 @@
 
     <%- include('nav-dias', { dias: dias }) %>
 
+    <%# Arriba de la lista: si el camión no está en este día, se lo busca de acá. %>
+    <a class="btn btn-borde-suave" href="/app/buscar">Buscar un ticket</a>
+
     <% if (!camiones.length) { %>
       <div class="tarjeta" style="gap:6px">
         <span class="cuerpo-fuerte">No hay camiones ese día</span>
@@ -49,7 +52,5 @@
     <% }); %>
 
     <div class="espaciador"></div>
-
-    <a class="btn btn-borde-suave" href="/app/buscar">Buscar un ticket</a>
   </div>
 </div>
