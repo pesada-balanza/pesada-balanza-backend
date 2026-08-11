@@ -960,6 +960,71 @@ async function main() {
   r = await ir('POST', '/app/api/ctg', { id: String(viejo.insertedId), cp: '10134008526' });
   ok('un ticket vencido no acepta CTG', r.estado === 400 && /plazo/.test(r.json.error), r.texto.slice(0, 180));
 
+  /* ═════════════════════════════════════════════════════════════════════
+   * UN TICKET CON LA FECHA DE REGULADA ADELANTADA
+   * ---------------------------------------------------------------------
+   * Pasó de verdad: un ticket con `fechaRegulada` posterior a hoy aparecía en
+   * el aviso "sin CTG" (porque `ticketVigente` solo mira que no sea viejo) pero
+   * al guardar se rechazaba por plazo. Un aviso que no se podía sacar nunca.
+   * ═══════════════════════════════════════════════════════════════════ */
+  seccion('Un ticket con la fecha de la regulada adelantada');
+
+  const enElFuturo = new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const hoyISO = new Date().toISOString().slice(0, 10);
+  const adelantado = await baseFalsa.collection('registros').insertOne({
+    idTicket: 9002, fecha: hoyISO, usuario: 'Juan Sosa', cargaPara: 'AMH',
+    pesadaPara: 'REGULADA', patentes: 'AD ELA 01', chofer: 'Adelantado',
+    campo: 'El Mataco - SACHAYOJ - SE', grano: 'TRIGO', lote: ['Lote 1'],
+    codigoIngreso: '5679', neto: 35980, fechaTaraFinal: hoyISO,
+    fechaRegulada: enElFuturo, confirmada: true, anulado: false, modificaciones: 0,
+  });
+  const idAdelantado = String(adelantado.insertedId);
+
+  r = await ir('GET', '/app/ctg');
+  ok('NO aparece en la lista de los que esperan el CTG',
+    r.texto.indexOf('AD ELA 01') === -1, (r.texto.match(/AD ELA 01/) || [''])[0]);
+
+  r = await ir('GET', '/app/patio');
+  ok('ni en el aviso del patio', r.texto.indexOf('AD ELA 01') === -1 && r.texto.indexOf('9002') === -1);
+
+  r = await ir('POST', '/app/api/ctg', { id: idAdelantado, cp: '10134008527' });
+  ok('al intentar cargarlo, dice que el dato está mal cargado y no "venció el plazo"',
+    r.estado === 400 && /adelantada/.test(r.json.error) && !/venció/.test(r.json.error),
+    r.texto.slice(0, 220));
+  ok('y nombra la fecha que tiene, para poder buscarlo',
+    r.json.error.indexOf(enElFuturo) !== -1, r.json.error);
+
+  // GENERAL lo ve para poder corregirlo: antes no se veía en ninguna parte.
+  cookies = {};
+  r = await ir('POST', '/app/api/ingreso', { code: '12341' }, { desde: '10.20.30.41' });
+  ok('GENERAL entra', r.estado === 200, r.texto.slice(0, 120));
+
+  r = await ir('GET', '/app/general');
+  ok('el resumen de GENERAL lo pone en "Para revisar"',
+    /1 ticket con la fecha de regulada adelantada/.test(r.texto),
+    (r.texto.match(/con la fecha de regulada[^<]*/) || [''])[0]);
+  ok('con el camino a la lista', /href="\/app\/general\/fechas-adelantadas"/.test(r.texto));
+
+  r = await ir('GET', '/app/general/fechas-adelantadas');
+  ok('la lista abre y trae el ticket', r.estado === 200 && r.texto.indexOf('AD ELA 01') !== -1, r.estado);
+  ok('dice la fecha que tiene', r.texto.indexOf('regulada ' + enElFuturo) !== -1);
+  ok('y explica que hay que corregirlo', /mal cargado/.test(r.texto));
+
+  r = await ir('GET', '/app/registro/' + idAdelantado);
+  ok('desde ahí se puede abrir el ticket', r.estado === 200 && /AD ELA 01/.test(r.texto), r.estado);
+
+  cookies = Object.assign({}, cookies5679);
+  r = await ir('GET', '/app/general');
+  ok('a un balancero no se le ofrece esa lista (es de GENERAL)',
+    !/fechas-adelantadas/.test(r.texto));
+
+  r = await ir('GET', '/app/general/fechas-adelantadas');
+  ok('y si la pide, no entra', r.estado !== 200, r.estado);
+
+  // Se saca de la base para no ensuciar lo que viene
+  baseFalsa.collection('registros').docs = baseFalsa
+    .collection('registros').docs.filter((d) => d.idTicket !== 9002);
+
   // Sin señal: el teléfono manda cuándo lo tipeó, y con eso se mide el plazo
   const paraCola = await baseFalsa.collection('registros').insertOne({
     idTicket: 9002, fecha: hoyStr, usuario: 'Juan Sosa', cargaPara: 'AMH',

@@ -14,7 +14,7 @@
 // Al subir cambios hay que subir este número: así el teléfono descarta las
 // pantallas guardadas y toma las nuevas. Las pesadas sin subir NO se tocan:
 // viven en localStorage y este archivo no lo mira nunca.
-var VERSION = 'pesada-app-v12';
+var VERSION = 'pesada-app-v13';
 
 // Dos copias separadas a propósito:
 //  - FIJOS: css, js, ícono. No dependen de quién esté usando la app.

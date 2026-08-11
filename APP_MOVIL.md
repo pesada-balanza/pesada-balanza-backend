@@ -404,6 +404,35 @@ pantalla vacía.
 | Cupo | cargarlo **no** consume modificaciones |
 | Auditoría | entrada `tipoOperacion: 'CTG'` con `origen: 'app-movil'` |
 
+### Si la fecha de la regulada está adelantada
+
+Pasó de verdad, con un registro editado a mano en la base: `fechaRegulada` quedó
+en **2026-12-20** cuando el ticket era de 2025. Eso hacía que el ticket
+apareciera en el aviso "sin CTG" **y al guardar se rechazara por plazo**: un aviso
+que no se podía sacar de encima nunca.
+
+La causa era que la lista usaba `ticketVigente()`, que solo controla que la fecha
+**no sea vieja**: una fecha posterior a hoy da una diferencia negativa y pasa el
+control. El guardado, en cambio, usa `dentroDelPlazoCtg()`, que sí exige que no
+sea futura. Ahora **la lista usa la misma regla que el guardado**, así que los dos
+coinciden siempre.
+
+Además:
+
+- Si alguien igual intenta cargarlo, el mensaje dice que **la fecha está
+  adelantada y el dato está mal cargado**, con la fecha que tiene. Antes decía
+  "venció el plazo", que manda a buscar otra cosa.
+- No se esconde: el resumen de **GENERAL** lo pone en "Para revisar" —
+  *"N tickets con la fecha de regulada adelantada"*— y `/app/general/fechas-adelantadas`
+  los lista. Se corrige en Ver Registros de la web.
+
+Qué afecta y qué no: `fechaRegulada` define **el plazo del CTG**. En qué día suma
+el ticket lo define `fecha`, así que el resumen del día y el acumulado de campaña
+no se mueven por esto.
+
+La web sigue con su propia regla (`ticketVigente` en `/registrar-cp`), así que
+**desde la web ese ticket sí acepta el CP**. No se tocó a propósito.
+
 ### Quién puede
 
 - El **balancero**, solo los tickets de su balanza. Es donde el chofer entrega la
@@ -721,6 +750,7 @@ probado que si se rompe el acumulado, esta sigue estando.
 | `/app/general/pedidos` | pedidos de anulación y corrección |
 | `/app/general/repetidos` | camiones repetidos en dos balanzas |
 | `/app/general/sin-regular` | camiones que quedaron sin regular |
+| `/app/general/fechas-adelantadas` | tickets con la fecha de regulada posterior a hoy |
 
 ---
 
