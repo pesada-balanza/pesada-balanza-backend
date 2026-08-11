@@ -115,6 +115,16 @@
         este día no está el camión que se busca. %>
     <a class="btn btn-borde-suave" href="/app/buscar">Buscar un ticket</a>
 
+    <%# Este código ve una sola balanza, así que el día que se está mirando se
+        puede imprimir de acá mismo. %>
+    <%# `porBalanza` es lo del día elegido (los "en curso" no, que son de
+        cualquier fecha): si está vacío, ese día no hay nada para imprimir. %>
+    <% if (balanzaUnica && resumen.porBalanza.length) { %>
+      <a class="btn btn-borde-suave" href="/app/imprimir-dia/<%= balanzaUnica %>?fecha=<%= resumen.fecha %>">
+        Imprimir los tickets del día
+      </a>
+    <% } %>
+
     <div class="espaciador"></div>
 
     <div class="botonera">

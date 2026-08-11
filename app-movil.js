@@ -1596,12 +1596,19 @@ module.exports = function crearAppMovil(deps) {
    * los datos a /app/api/tickets, y sin señal los toma de lo guardado en el
    * teléfono. Un solo dibujante = el ticket sale igual siempre.
    */
+  /**
+   * Cuántos tickets entran en una sola hoja de impresión. Se subió de 60 a 120
+   * para poder imprimir un día completo: entran 6 por hoja A4, así que 120 son
+   * 20 hojas. Es mucho papel, pero es lo que se pide cuando se pide un día.
+   */
+  const TOPE_TICKETS_IMPRESION = 120;
+
   router.get('/imprimir', exigirApp, (req, res) => {
     const ids = String(req.query.ids || '')
       .split(',')
       .map((x) => x.trim())
       .filter(idValido)
-      .slice(0, 60);
+      .slice(0, TOPE_TICKETS_IMPRESION);
     return res.render('app/imprimir', {
       layout: false,
       ids,
@@ -1614,6 +1621,64 @@ module.exports = function crearAppMovil(deps) {
   router.get('/ticket/:id', exigirApp, (req, res) => {
     if (!idValido(req.params.id)) return noEncontrado(res);
     return res.redirect('/app/imprimir?ids=' + encodeURIComponent(req.params.id));
+  });
+
+  /**
+   * Todos los tickets de UN DÍA de una balanza, en una sola hoja.
+   *
+   * Es para el que mira los registros: se elige el día con las flechas y de ahí
+   * se imprime lo de ese día, sin tener que entrar ticket por ticket. Cada
+   * código solo puede imprimir su balanza; el 12341, cualquiera.
+   *
+   * Los anulados quedan afuera: un ticket anulado no se le entrega a nadie.
+   */
+  router.get('/imprimir-dia/:codigo', exigirApp, async (req, res) => {
+    try {
+      const s = sesionApp(req);
+      const codigo = String(req.params.codigo || '');
+      if (balanzasVisibles(s).indexOf(codigo) === -1) {
+        return pantallaError(res, 'Sin permiso', 'No podés imprimir los tickets de esta balanza.', '/app/general');
+      }
+      const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.fecha || '')) ? req.query.fecha : hoyStr();
+
+      const docs = await colRegistros()
+        .find(
+          { codigoIngreso: codigo, fecha, anulado: { $ne: true } },
+          { projection: { _id: 1 } }
+        )
+        .sort({ idTicket: 1 })
+        .toArray();
+
+      const volver = '/app/general/balanza/' + codigo + '?fecha=' + fecha;
+
+      if (!docs.length) {
+        return pantallaError(
+          res,
+          'No hay tickets ese día',
+          'Esta balanza no registró pesadas el ' + fechaLarga(fecha) + ', así que no hay nada para imprimir.',
+          volver
+        );
+      }
+
+      // Si el día tiene más de lo que entra en una hoja, se lo dice en vez de
+      // recortar callado: quien imprime tiene que saber que faltan.
+      if (docs.length > TOPE_TICKETS_IMPRESION) {
+        return pantallaError(
+          res,
+          'Son demasiados para una sola hoja',
+          'Ese día tiene ' + docs.length + ' tickets y la hoja imprime hasta ' +
+            TOPE_TICKETS_IMPRESION + ' por vez. Imprimí por ticket desde la lista del día.',
+          volver
+        );
+      }
+
+      const ids = docs.map((d) => String(d._id)).join(',');
+      return res.redirect(
+        '/app/imprimir?ids=' + encodeURIComponent(ids) + '&volver=' + encodeURIComponent(volver)
+      );
+    } catch (err) {
+      return siguienteError(err, req, res);
+    }
   });
 
   /** Todos los pendientes de imprimir juntos: se agrupan de a 6 por hoja. */
@@ -1673,12 +1738,16 @@ module.exports = function crearAppMovil(deps) {
         .split(',')
         .map((x) => x.trim())
         .filter(idValido)
-        .slice(0, 60)
+        .slice(0, TOPE_TICKETS_IMPRESION)
         .map(oid);
       if (!ids.length) return res.json({ ok: true, tickets: [] });
 
+      // Con `balanzaDeLaSesion` y no con `s.codigoIngreso`: los códigos de ver
+      // registros no tienen codigoIngreso, y así también pueden imprimir lo de
+      // SU balanza (y solo lo de su balanza).
       const filtro = { _id: { $in: ids } };
-      if (!s.esGeneral) filtro.codigoIngreso = s.codigoIngreso;
+      const balanza = balanzaDeLaSesion(s);
+      if (balanza) filtro.codigoIngreso = balanza;
 
       const docs = await colRegistros().find(filtro).sort({ idTicket: 1 }).toArray();
       return res.json({ ok: true, tickets: docs.map(vistaRegistro) });
@@ -2344,10 +2413,15 @@ module.exports = function crearAppMovil(deps) {
       const s = sesionApp(req);
       const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.fecha || '')) ? req.query.fecha : hoyStr();
       const resumen = await resumenDelDia(s, fecha);
+      // Si el código ve una sola balanza, desde acá mismo puede imprimir el día:
+      // este resumen ES su pantalla de inicio y no tiene por qué entrar a la
+      // lista para eso. GENERAL ve todas, así que entra por la balanza que quiera.
+      const visibles = balanzasVisibles(s);
       return res.render('app/general', {
         layout: 'app/layout',
         titulo: 'Resumen del día',
         resumen,
+        balanzaUnica: visibles.length === 1 ? visibles[0] : '',
         dias: navegacionDias(fecha, '/app/general'),
         kg,
         puedeCargar: !!s.codigoIngreso,
@@ -2391,6 +2465,7 @@ module.exports = function crearAppMovil(deps) {
         titulo: nombreBalanza(codigo),
         balanza: nombreBalanza(codigo),
         nombreDia: await nombreDelDia(codigo, fecha),
+        codigo,
         fecha,
         diaBonito: diaBonito(fecha),
         dias: navegacionDias(fecha, '/app/general/balanza/' + codigo),

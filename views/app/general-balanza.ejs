@@ -51,6 +51,14 @@
       </a>
     <% }); %>
 
+    <%# Imprimir todo lo del día que se está mirando, sin entrar ticket por
+        ticket. Va abajo de la lista: primero se mira, después se imprime. %>
+    <% if (camiones.length) { %>
+      <a class="btn btn-borde-suave" href="/app/imprimir-dia/<%= codigo %>?fecha=<%= fecha %>">
+        Imprimir los tickets del día
+      </a>
+    <% } %>
+
     <div class="espaciador"></div>
   </div>
 </div>

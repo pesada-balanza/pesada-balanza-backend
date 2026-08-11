@@ -492,6 +492,26 @@ observación podía abrir `/app/registro/:id` de otra balanza porque el permiso 
 resolvía con `s.codigoIngreso`, que en esos códigos no existe. Ahora lo resuelve
 `balanzaDeLaSesion()`, que sale de las balanzas visibles, y ese ticket da **404**.
 
+### Imprimir los tickets de un día
+
+En la lista de una balanza, abajo de los camiones, está **"Imprimir los tickets
+del día"**: arma una sola hoja con todos los tickets del día que se está mirando,
+sin tener que entrar de a uno. En el **resumen** aparece el mismo botón cuando el
+código ve una sola balanza (o sea, en todos menos el `12341`, que entra por la
+balanza que quiera).
+
+- Los **anulados quedan afuera**: un ticket anulado no se le entrega a nadie.
+- Los que todavía no cerraron la regulada **sí entran**, con los renglones
+  punteados para completar a mano, que es para lo que están.
+- Entran **6 por hoja A4**, hasta **120 tickets** por vez (20 hojas). Si un día
+  tuviera más, la app lo dice en vez de recortar callado.
+- Al terminar, el botón de volver lleva **al mismo día** que se estaba mirando.
+
+Cada código imprime **solo su balanza**. Al revisar esto apareció otro resto del
+mismo problema de permisos: `/app/api/tickets` —lo que la hoja usa para traer los
+datos— miraba `s.codigoIngreso`, que en un código de ver registros no existe, así
+que la hoja salía vacía. Ahora usa `balanzaDeLaSesion()`, igual que el resto.
+
 ### Sin señal
 
 El buscador **necesita internet**: los tickets de días anteriores están en el
@@ -516,6 +536,34 @@ Se apagaron. Ahora el único correo que sale es el **reporte de las 19 hs**.
 | Destinatarios | los dos usan `EMAIL_TO`. Sin `cc`, sin `bcc`, sin `replyTo` |
 | Direcciones escritas en el código | ninguna: están todas en `EMAIL_TO` |
 | Otros canales | **WhatsApp**: `whatsapp-worker/`, un programa aparte que manda el reporte de las 19 hs a 18 números escritos en `whatsapp-worker/lineas.js`. **No manda nada por ticket** y no se toca con este interruptor. |
+
+### Quiénes reciben el reporte de las 19 hs
+
+**Por correo**: las direcciones **no están en el repositorio**. Viven en la
+variable `EMAIL_TO` de Render (separadas por coma), nunca se subieron a git y no
+hay ningún `.env` versionado. Para verlas hay dos caminos:
+
+1. **Render** → el servicio → **Environment** → `EMAIL_TO`.
+2. La casilla de Gmail que figura en `EMAIL_USER` → **Enviados** → abrir
+   cualquier "[Pesada Balanza] Reporte diario" y mirar el **Para**.
+
+**Por WhatsApp**: eso sí está en el repositorio, en `whatsapp-worker/lineas.js`,
+y va por código de observación (cada uno recibe su balanza; el `12341`, todo):
+
+| Código | Balanzas | Números |
+| --- | --- | --- |
+| `12341` GENERAL | todas | 3482-640795 · 3482-444432 · 3482-308290 |
+| `1235` | Charata / El 44 / El Mataco / La Porfía / Panuncio / Tierra Negra | 3482-318493 · 3841-437666 · 3482-639085 |
+| `1236` | La Pradera | 3482-532094 · 3482-318492 |
+| `1237` | El 90 / El C1 / Grifa / Hidalgo | 3482-304051 · 3482-629969 |
+| `1238` | Aguero / Ferulo / Martinoli / Poncho Perdido / Wichí | 3482-639085 · 3482-533112 |
+| `1239` | Doble Cero / El Búfalo / La Juanita / Martina | 3482-650071 · 3482-629969 |
+| `1240` | Amamá / Avelleira / Cejolao / Quimilí | 3482-629969 · 3482-318486 |
+| `1241` | Don Paco / Don Pascual / Gioda | 3482-532094 · 3482-308290 |
+
+Son **13 números distintos** en **18 envíos** (algunos reciben más de un código).
+Ese worker corre en una PC, no en Render: si está apagada, no sale el WhatsApp,
+pero el correo sale igual.
 
 El interruptor es **`AVISOS_POR_TICKET`**: apagado si no está definido. Para
 volver a prenderlos, `AVISOS_POR_TICKET=1` en Render. Se prende y se apaga sin
@@ -585,6 +633,36 @@ puede perder; el acumulado es información agregada.
 Está probado a propósito: `pruebas/probar-reporte-email.js` rompe el acumulado y
 verifica que el Excel llegue completo sin esa hoja.
 
+---
+
+## La hoja "Todos los registros" del mail de las 19 hs
+
+Otra hoja más en el mismo Excel: **todos los tickets desde el 1 de abril de
+2026**, uno por fila. Sirve para tener el historial completo en un solo archivo,
+sin entrar al sistema.
+
+- **Las mismas columnas** que la hoja del día, y armadas con la misma función:
+  un cambio de columnas se hace en un solo lugar y las dos hojas quedan iguales.
+- Ordenada por **fecha** y después por número de ticket.
+- **Incluye los anulados**, con su marca `ANULADO` y el neto en negativo, igual
+  que en la hoja del día: es un historial, esconderlos haría que los números no
+  cierren contra el sistema.
+- Encabezado congelado, para que al bajar miles de filas se siga viendo qué
+  columna es cada una.
+- Al final, la fila **TOTAL Neto (toneladas)**.
+
+La fecha de corte es el **1-4-2026** y se puede cambiar sin tocar código con la
+variable **`REGISTROS_DESDE`** (formato `YYYY-MM-DD`) en Render.
+
+**Cuánto pesa**: medido con 5.985 tickets (unos 45 por día desde abril), el Excel
+completo queda en **0,47 MB** y tarda **3,5 segundos** en armarse. Muy lejos del
+límite de Gmail (25 MB). Una campaña entera, unos 16.000 tickets, daría alrededor
+de 1,3 MB.
+
+Como el acumulado, va en **su propio `try/catch`**: si falla, se anota en el log y
+el mail sale igual con el resto. Las dos hojas extra son independientes — está
+probado que si se rompe el acumulado, esta sigue estando.
+
 ### Reglas del sistema actual que se respetan tal cual
 
 - Solo **GENERAL** (`12341`) puede anular, y **desde su propia sesión**. El
@@ -623,6 +701,7 @@ verifica que el Excel llegue completo sin esa hoja.
 | `/app/local?paso=…` | seguir un ticket sin señal (la dibuja el teléfono) |
 | `/app/ctg` | tickets que esperan el CTG |
 | `/app/buscar?q=…&rango=…` | buscar un ticket (patente, chofer, transporte o número) |
+| `/app/imprimir-dia/:codigo?fecha=…` | todos los tickets de un día en una hoja |
 
 **GENERAL**
 

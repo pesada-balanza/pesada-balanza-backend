@@ -2644,8 +2644,62 @@ async function generarExcelReporteDiario() {
     console.error('[Reporte Diario] No se pudo armar el acumulado de campaña:', err.message);
   }
 
+  // ── Hoja extra: TODOS los registros desde una fecha ──────────────────────
+  // El historial completo, ticket por ticket, con las mismas columnas que la
+  // hoja del día. Sirve para tener en un solo archivo todo lo cargado sin
+  // entrar al sistema. Va también en su propio try/catch: si un día crece
+  // demasiado o falla, el reporte de todos los días tiene que salir igual.
+  let historial = null;
+  try {
+    historial = await agregarHojaTodosLosRegistros(workbook, sheet.columns, addRowToSheetDiario);
+  } catch (err) {
+    console.error('[Reporte Diario] No se pudo armar la hoja de todos los registros:', err.message);
+  }
+
   const buffer = await workbook.xlsx.writeBuffer();
-  return { buffer, total: registros.length, fecha: hoy, campana };
+  return { buffer, total: registros.length, fecha: hoy, campana, historial };
+}
+
+/**
+ * Hoja con TODOS los registros desde `REGISTROS_DESDE`, ticket por ticket.
+ *
+ * Usa las mismas columnas y la misma función de fila que la hoja del día, así
+ * que un cambio de columnas se aplica solo en un lugar y las dos hojas quedan
+ * iguales. Incluye los anulados —con su marca y el neto en negativo, como en la
+ * hoja del día— porque es un historial: esconderlos haría que los números no
+ * cierren contra el sistema.
+ */
+const REGISTROS_DESDE = '2026-04-01';
+
+/** Se lee en cada envío, así se puede cambiar con la variable sin tocar código. */
+function desdeRegistros() {
+  return (process.env.REGISTROS_DESDE || '').trim() || REGISTROS_DESDE;
+}
+
+async function agregarHojaTodosLosRegistros(workbook, columnas, agregarFila) {
+  const desde = desdeRegistros();
+
+  const registros = await mongoose.connection.db
+    .collection('registros')
+    .find({ fecha: { $gte: desde } })
+    .sort({ fecha: 1, idTicket: 1 })
+    .toArray();
+
+  const hoja = workbook.addWorksheet('Todos los registros');
+  hoja.columns = columnas.map((c) => ({ header: c.header, key: c.key, width: c.width }));
+  hoja.getRow(1).font = { bold: true };
+  registros.forEach((r) => agregarFila(hoja, r));
+
+  // El total y el formato A4 se aplican a mano: esta hoja se agrega después de
+  // las pasadas que recorren todas las hojas.
+  agregarTotalNeto(hoja);
+  configurarA4(hoja);
+
+  // Encabezado congelado: con miles de filas, sin esto no se sabe qué columna
+  // se está mirando al bajar.
+  hoja.views = [{ state: 'frozen', ySplit: 1 }];
+
+  return { desde, filas: registros.length };
 }
 
 /**
@@ -2662,7 +2716,7 @@ async function enviarReporteDiario() {
       return;
     }
 
-    const { buffer, total, fecha, campana } = await generarExcelReporteDiario();
+    const { buffer, total, fecha, campana, historial } = await generarExcelReporteDiario();
 
     const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
@@ -2683,13 +2737,24 @@ async function enviarReporteDiario() {
            en ${campana.tickets} ticket${campana.tickets === 1 ? '' : 's'} con regulada cerrada.</p>`
       : '';
 
+    // Las hojas extra se anuncian solo si se pudieron armar: si una falla, el
+    // mail sale igual y no promete algo que no está en el adjunto.
+    const hojasExtra = [];
+    if (campana) hojasExtra.push('<strong>Acumulado campaña</strong>, con los kilos de cada lote desde que arrancó');
+    if (historial) {
+      hojasExtra.push(
+        '<strong>Todos los registros</strong>, con los ' + historial.filas +
+        ' tickets cargados desde el ' + historial.desde
+      );
+    }
+
     const cuerpoHtml = `
       <div style="font-family:Arial,sans-serif">
         <h2 style="color:#2c7be5">Pesada Balanza</h2>
         <p>Reporte diario de registros correspondientes al <strong>${fecha}</strong>.</p>
         <p>Total de tickets en las últimas 24 hs: <strong>${total}</strong></p>
         ${bloqueCampana}
-        <p style="color:#888;font-size:13px">El archivo Excel adjunto incluye todos los tipos de ticket (CAMIONES, TARA FINAL y REGULADA)${campana ? ', más la hoja <strong>Acumulado campaña</strong> con los kilos de cada lote desde que arrancó' : ''}.</p>
+        <p style="color:#888;font-size:13px">El archivo Excel adjunto incluye todos los tipos de ticket (CAMIONES, TARA FINAL y REGULADA)${hojasExtra.length ? ', más las hojas ' + hojasExtra.join(' y ') : ''}.</p>
       </div>
     `;
 
@@ -2736,3 +2801,4 @@ module.exports = app;
 module.exports.enviarReporteDiario = enviarReporteDiario;
 module.exports.generarExcelReporteDiario = generarExcelReporteDiario;
 module.exports.rangoCampana = rangoCampana;
+module.exports.desdeRegistros = desdeRegistros;

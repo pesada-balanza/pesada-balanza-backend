@@ -143,6 +143,43 @@ async function main() {
     hojas.includes('Registros') && hojas.includes('IMPRIMIR') && hojas.includes('Cargas SOCIO'),
     hojas.join(', '));
   ok('y se agregó "Acumulado campaña"', hojas.includes('Acumulado campaña'), hojas.join(', '));
+  ok('y también "Todos los registros"', hojas.includes('Todos los registros'), hojas.join(', '));
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * LA HOJA CON TODOS LOS REGISTROS DESDE EL 1-4-2026
+   * ═════════════════════════════════════════════════════════════════════ */
+  console.log('\n── Todos los registros desde el 1-4-2026');
+  ok('la fecha de corte por defecto es el 1 de abril de 2026',
+    app.desdeRegistros() === '2026-04-01', app.desdeRegistros());
+
+  const wsTodos = wb.getWorksheet('Todos los registros');
+  const mTodos = celdas(wsTodos);
+  const textoTodos = mTodos.map((f) => f.join(' | ')).join('\n');
+
+  ok('tiene las mismas columnas que la hoja del día',
+    mTodos[0].join('|') === celdas(wb.getWorksheet('Registros'))[0].join('|'),
+    JSON.stringify(mTodos[0].slice(0, 5)));
+
+  // Filas de datos: sin el encabezado ni la fila de TOTAL
+  const filasTodos = mTodos.filter((f, i) =>
+    i > 0 && String(f[0]) !== 'TOTAL Neto (toneladas)' && f[0] !== '');
+  ok('trae los 6 tickets desde el 1-4-2026', filasTodos.length === 6, filasTodos.length + ' → ' + textoTodos.slice(0, 200));
+
+  ok('incluye uno de mayo, que NO está en la hoja del día',
+    /2026-05-10/.test(textoTodos) && !/2026-05-10/.test(celdas(wb.getWorksheet('Registros')).map((f) => f.join(' ')).join('\n')));
+  ok('deja afuera el de junio de 2025', !/2025-06-15/.test(textoTodos));
+
+  ok('incluye los anulados, con su marca', /ANULADO/.test(textoTodos), textoTodos.slice(0, 200));
+  ok('y a los anulados les pone el neto en negativo, como la hoja del día',
+    filasTodos.some((f) => f.includes('ANULADO') && f.some((v) => v === -99000)),
+    JSON.stringify(filasTodos.find((f) => f.includes('ANULADO')) || []));
+
+  ok('también trae la fila de TOTAL Neto',
+    mTodos.some((f) => String(f[0]) === 'TOTAL Neto (toneladas)'), JSON.stringify(mTodos[mTodos.length - 1]));
+
+  ok('el cuerpo del mail nombra la hoja y cuántos tickets trae',
+    /Todos los registros/.test(mail.html) && /6 tickets cargados desde el 2026-04-01/.test(mail.html),
+    (mail.html.match(/Todos los registros[^<]*/) || [''])[0]);
 
   console.log('\n── El acumulado suma lo que corresponde');
   const ws = wb.getWorksheet('Acumulado campaña');
@@ -241,6 +278,9 @@ async function main() {
   ok('sin la hoja del acumulado (falló, y se avisó por consola)',
     !hojas2.includes('Acumulado campaña'), hojas2.join(', '));
   ok('y el cuerpo del mail no habla de la campaña', !/Acumulado de la campaña/.test(enviados[0].html));
+  // Las dos hojas extra son independientes: que falle una no se lleva la otra.
+  ok('pero la hoja de todos los registros sigue estando',
+    hojas2.includes('Todos los registros'), hojas2.join(', '));
 
   console.log('\n── El corte de campaña (1 de septiembre)');
   delete process.env.CAMPANA_DESDE;

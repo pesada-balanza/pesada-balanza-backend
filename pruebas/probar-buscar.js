@@ -240,6 +240,53 @@ async function main() {
     /Sin permiso/.test(r.texto) || r.estado === 403, r.estado);
 
   /* ═══════════════════════════════════════════════════════════════════════
+   * IMPRIMIR LOS TICKETS DEL DÍA QUE SE ESTÁ MIRANDO
+   * ═════════════════════════════════════════════════════════════════════ */
+  seccion('Imprimir los tickets del día observado');
+
+  r = await ir('GET', '/app/general/balanza/' + QUIMILI + '?fecha=' + AYER);
+  ok('la lista del día ofrece imprimirlo',
+    r.texto.indexOf('/app/imprimir-dia/' + QUIMILI + '?fecha=' + AYER) !== -1, AYER);
+
+  r = await ir('GET', '/app/general?fecha=' + AYER);
+  ok('el resumen también, porque este código ve una sola balanza',
+    r.texto.indexOf('/app/imprimir-dia/' + QUIMILI + '?fecha=' + AYER) !== -1);
+
+  r = await ir('GET', '/app/imprimir-dia/' + QUIMILI + '?fecha=' + AYER);
+  ok('imprimir el día lleva a la hoja de impresión', r.estado === 302 && /\/app\/imprimir\?ids=/.test(r.ubicacion || ''), r.estado + ' ' + r.ubicacion);
+  ok('con el ticket de ese día', decodeURIComponent(r.ubicacion || '').indexOf(String(ayerQuimili._id)) !== -1, r.ubicacion);
+  ok('y no con los de otros días',
+    decodeURIComponent(r.ubicacion || '').indexOf(String(hoyQuimili._id)) === -1, r.ubicacion);
+  ok('y vuelve al día que se estaba mirando',
+    decodeURIComponent(r.ubicacion || '').indexOf('volver=/app/general/balanza/' + QUIMILI + '?fecha=' + AYER) !== -1,
+    r.ubicacion);
+
+  // Un anulado no se le entrega a nadie
+  r = await ir('GET', '/app/imprimir-dia/' + QUIMILI);
+  const idsHoy = decodeURIComponent(r.ubicacion || '');
+  ok('el día de hoy también se imprime', r.estado === 302 && idsHoy.indexOf(String(hoyQuimili._id)) !== -1, r.ubicacion);
+  ok('los anulados quedan afuera', idsHoy.indexOf(String(anulado._id)) === -1, r.ubicacion);
+  ok('los que todavía no cerraron la regulada SÍ entran (van con renglones punteados)',
+    idsHoy.indexOf(String(sinCtg._id)) !== -1);
+
+  // Y la hoja de impresión de verdad puede leer esos tickets con este código:
+  // antes /app/api/tickets miraba s.codigoIngreso, que en un código de ver
+  // registros no existe, y la hoja salía vacía.
+  r = await ir('GET', '/app/api/tickets?ids=' + ayerQuimili._id);
+  ok('el código de ver registros puede leer el ticket para imprimirlo',
+    r.estado === 200 && r.json && r.json.tickets.length === 1, r.texto.slice(0, 150));
+
+  r = await ir('GET', '/app/api/tickets?ids=' + ajeno._id);
+  ok('pero no el de otra balanza', r.json && r.json.tickets.length === 0, r.texto.slice(0, 150));
+
+  r = await ir('GET', '/app/imprimir-dia/5679');
+  ok('no puede imprimir el día de otra balanza', /Sin permiso/.test(r.texto), r.estado);
+
+  r = await ir('GET', '/app/imprimir-dia/' + QUIMILI + '?fecha=2020-01-01');
+  ok('un día sin tickets lo dice, no manda a una hoja vacía',
+    /No hay tickets ese día/.test(r.texto), r.estado);
+
+  /* ═══════════════════════════════════════════════════════════════════════
    * BUSCADOR
    * ═════════════════════════════════════════════════════════════════════ */
   seccion('Buscar por patente, chofer y número');
@@ -389,7 +436,7 @@ async function main() {
   r = await ir('GET', '/app/sw.js');
   ok('el service worker no guarda /app/buscar', /SIN_GUARDAR/.test(r.texto) && /'\/app\/buscar'/.test(r.texto));
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
-  ok('la versión subió', /pesada-app-v10/.test(r.texto));
+  ok('la versión subió', /pesada-app-v11/.test(r.texto));
 
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);
