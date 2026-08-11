@@ -14,7 +14,7 @@
 // Al subir cambios hay que subir este número: así el teléfono descarta las
 // pantallas guardadas y toma las nuevas. Las pesadas sin subir NO se tocan:
 // viven en localStorage y este archivo no lo mira nunca.
-var VERSION = 'pesada-app-v6';
+var VERSION = 'pesada-app-v7';
 
 // Dos copias separadas a propósito:
 //  - FIJOS: css, js, ícono. No dependen de quién esté usando la app.
@@ -52,6 +52,21 @@ function esCascara(pathname) {
     if (pathname === CASCARAS[i]) return true;
   }
   return false;
+}
+
+/**
+ * Pantallas que NO se guardan nunca. El buscador está acá porque sus resultados
+ * dependen de lo que hay en el servidor en ese momento: mostrar sin señal la
+ * respuesta de una búsqueda vieja sería mentirle al balancero. Sin conexión se
+ * le dice que hace falta internet.
+ */
+var SIN_GUARDAR = ['/app/buscar'];
+
+function seGuarda(pathname) {
+  for (var i = 0; i < SIN_GUARDAR.length; i++) {
+    if (pathname === SIN_GUARDAR[i]) return false;
+  }
+  return true;
 }
 
 /** Busca en lo guardado, y para las cáscaras ignora lo que va atrás del "?". */
@@ -149,11 +164,20 @@ function esDeLaApp(url) {
 /** Pantalla de "necesita internet", para que un botón nunca parezca muerto. */
 function pantallaNoGuardada(pathname) {
   var esElCodigo = pathname === '/app/ingreso';
-  var titulo = esElCodigo ? 'Para entrar con un código hace falta internet' : 'Esta pantalla necesita internet';
-  var detalle = esElCodigo
-    ? 'El código se revisa en el servidor, así que hace falta conexión una vez. Después la app ' +
-      'sigue funcionando sin señal con el código que ya está abierto.'
-    : 'Desde el patio se puede seguir cargando sin señal: el camión, la tara final y la regulada.';
+  var esElBuscador = pathname === '/app/buscar';
+
+  var titulo = 'Esta pantalla necesita internet';
+  var detalle = 'Desde el patio se puede seguir cargando sin señal: el camión, la tara final y la regulada.';
+
+  if (esElCodigo) {
+    titulo = 'Para entrar con un código hace falta internet';
+    detalle = 'El código se revisa en el servidor, así que hace falta conexión una vez. Después la app ' +
+      'sigue funcionando sin señal con el código que ya está abierto.';
+  } else if (esElBuscador) {
+    titulo = 'El buscador necesita internet';
+    detalle = 'Los tickets de días anteriores están en el servidor, no en el teléfono. Sin señal se ' +
+      'puede seguir cargando en el patio y ver los tickets de este teléfono.';
+  }
 
   return new Response(
     '<!doctype html><meta charset="utf-8">' +
@@ -215,7 +239,7 @@ self.addEventListener('fetch', function (ev) {
         // patio o a la pantalla de GENERAL según el código) NO se guardan: si
         // se guardaran, sin señal el teléfono mostraría la pantalla del código
         // con el que se entró la última vez, que puede no ser el de ahora.
-        if (resp && resp.ok && resp.type !== 'opaque' && !resp.redirected) {
+        if (resp && resp.ok && resp.type !== 'opaque' && !resp.redirected && seGuarda(url.pathname)) {
           var copia = resp.clone();
           caches.open(CACHE_PANTALLAS).then(function (c) { c.put(req, copia); });
         }

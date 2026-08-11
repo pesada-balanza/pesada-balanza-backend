@@ -156,6 +156,9 @@ async function main() {
     ['/app/local', 'pantalla sin señal', 8],
     ['/app/balanza', 'balanza y turno', 4],
     ['/app/ctg', 'cargar CTG', 6],
+    ['/app/buscar', 'buscar un ticket', 4],
+    // El caso más pesado del buscador: el tope de 100 resultados.
+    ['/app/buscar?q=Chofer&rango=30', 'buscar con 100 resultados', 9],
     ['/app/api/tablas', 'tablas (campos, siembra, contratistas)', 5],
     ['/app/api/sugerencias', 'sugerencias', 3],
     ['/app/estatico/app.js', 'app.js', 11],

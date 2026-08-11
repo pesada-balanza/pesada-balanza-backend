@@ -1,0 +1,103 @@
+<%# Buscar un ticket — un solo campo (patente, chofer, transporte o número) y
+    un rango de días. Todo por GET, así la pantalla se puede compartir y el
+    botón "atrás" del teléfono vuelve a la búsqueda anterior. %>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="<%= volver %>" class="volver"><span class="flecha">‹</span><span class="texto">Volver</span></a>
+      <span class="t-pantalla">Buscar un ticket</span>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+      <%- include('menu') %>
+    </div>
+  </div>
+
+  <div class="cuerpo" style="gap:11px">
+
+    <form method="get" action="/app/buscar" class="campo">
+      <input type="text" name="q" value="<%= q %>" maxlength="60"
+             placeholder="Patente, chofer o número de ticket"
+             autocomplete="off" autocapitalize="characters" spellcheck="false"
+             aria-label="Patente, chofer o número de ticket">
+      <input type="hidden" name="rango" value="<%= rango %>">
+      <button type="submit" class="btn">Buscar</button>
+    </form>
+
+    <%# Rango de días. Cada chip es un enlace que repite la misma búsqueda. %>
+    <div class="chips">
+      <% [['hoy','Hoy'],['ayer','Ayer'],['7','7 días'],['30','30 días'],['campana','Toda la campaña']].forEach(function (op) { %>
+        <a class="chip-elegible<%= rango === op[0] ? ' elegido' : '' %>"
+           href="/app/buscar?rango=<%= op[0] %>&q=<%= encodeURIComponent(q) %>"><%= op[1] %></a>
+      <% }); %>
+    </div>
+
+    <% if (!q) { %>
+      <div class="tarjeta" style="gap:7px">
+        <span class="cuerpo-fuerte">Escribí lo que tengas a mano</span>
+        <span class="txt">
+          Sirve la patente (con o sin espacios), el nombre del chofer, el transporte
+          o el número de ticket. No hace falta que esté completo ni con acentos.
+        </span>
+        <span class="txt-aux">
+          <%= verTodas ? 'Busca en todas las balanzas.' : 'Busca en los registros de tu balanza.' %>
+          Hace falta internet.
+        </span>
+      </div>
+    <% } else if (!resultados.length) { %>
+      <div class="tarjeta" style="gap:6px">
+        <span class="cuerpo-fuerte">Sin resultados</span>
+        <span class="txt">
+          No hay tickets con “<%= q %>” en el rango elegido. Probá con otro rango
+          —“Toda la campaña” es el más amplio— o con menos letras.
+        </span>
+      </div>
+    <% } else { %>
+      <div class="fila-base">
+        <span class="cuerpo-fuerte">
+          <%= resultados.length %> <%= resultados.length === 1 ? 'ticket' : 'tickets' %>
+        </span>
+        <% if (recortado) { %>
+          <span class="etiqueta-ambar">Primeros <%= tope %></span>
+        <% } %>
+      </div>
+
+      <% if (recortado) { %>
+        <span class="txt-aux" style="margin-top:-4px">
+          Hay más de <%= tope %>. Se muestran los más nuevos: afiná la búsqueda o
+          elegí un rango más corto.
+        </span>
+      <% } %>
+
+      <% resultados.forEach(function (r) { %>
+        <a class="tarjeta tarjeta-chica" href="/app/registro/<%= r.id %>"
+           style="flex-direction:row; align-items:center; justify-content:space-between; gap:12px">
+          <div class="fila-col">
+            <span class="mono" style="font:600 16px/1 var(--mono)"><%= r.patentes %></span>
+            <span class="txt" style="font-size:12px"><%= [r.transporte, r.chofer].filter(Boolean).join(' · ') || '—' %></span>
+            <span class="txt-aux">
+              <%= [r.nro, r.campoCorto, r.grano, r.lote].filter(Boolean).join(' · ') %>
+            </span>
+            <% if (verTodas && r.balanza) { %>
+              <span class="txt-aux"><%= r.balanza %></span>
+            <% } %>
+          </div>
+          <div class="fila-der">
+            <span class="mono" style="font:600 17px/1 var(--mono)"><%= kg(r.neto) %></span>
+            <span class="mono-chico" style="letter-spacing:.06em; font-size:10px"><%= r.fecha %></span>
+            <% if (r.anulado) { %>
+              <span class="chip" style="color:var(--destructivo)">ANULADO</span>
+            <% } else if (!r.cerrado) { %>
+              <span class="chip chip-ambar"><%= r.sinTaraFinal ? 'En camiones' : 'Sin regular' %></span>
+            <% } else if (r.faltaCtg) { %>
+              <span class="chip chip-ambar">Falta CTG</span>
+            <% } %>
+          </div>
+        </a>
+      <% }); %>
+    <% } %>
+
+    <div class="espaciador"></div>
+  </div>
+</div>

@@ -19,6 +19,7 @@ const SUITES = [
   ['probar-compartir.js', 'Compartir el PDF del ticket'],
   ['probar-pdf.js', 'El PDF: estructura, medidas y contenido'],
   ['probar-arreglos.js', 'Navegación: volver, salir, y el campo en la regulada'],
+  ['probar-buscar.js', 'Buscar un ticket y moverse entre días'],
   ['probar-liviana.js', 'Que sea liviana y que actualizar no borre lo pendiente'],
   ['probar-sin-senal-real.js', 'Sin señal con el service worker de verdad (como en el teléfono)'],
   ['probar-reporte-email.js', 'El reporte de las 19 hs y el acumulado de campaña'],

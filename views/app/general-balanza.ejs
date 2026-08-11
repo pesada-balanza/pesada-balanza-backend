@@ -19,6 +19,8 @@
 
   <div class="cuerpo" style="gap:9px">
 
+    <%- include('nav-dias', { dias: dias }) %>
+
     <% if (!camiones.length) { %>
       <div class="tarjeta" style="gap:6px">
         <span class="cuerpo-fuerte">No hay camiones ese día</span>
@@ -46,5 +48,7 @@
     <% }); %>
 
     <div class="espaciador"></div>
+
+    <a class="btn btn-borde-suave" href="/app/buscar">Buscar un ticket</a>
   </div>
 </div>

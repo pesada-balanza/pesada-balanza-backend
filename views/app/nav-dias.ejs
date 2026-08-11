@@ -1,0 +1,28 @@
+<%# Barra para moverse entre días. Se usa en el resumen y en la lista de una
+    balanza. No lleva JavaScript a propósito: las flechas son enlaces y el
+    campo de fecha va dentro de un formulario GET, así funciona igual en un
+    teléfono viejo.
+    Espera `dias` = { base, fecha, hoy, esHoy, anterior, siguiente, bonito }. %>
+<div class="nav-dias">
+  <a class="nd-flecha" href="<%= dias.base %>?fecha=<%= dias.anterior %>"
+     aria-label="Día anterior">‹</a>
+
+  <span class="nd-dia"><%= dias.esHoy ? 'Hoy, ' + dias.bonito : dias.bonito %></span>
+
+  <% if (dias.siguiente) { %>
+    <a class="nd-flecha" href="<%= dias.base %>?fecha=<%= dias.siguiente %>"
+       aria-label="Día siguiente">›</a>
+  <% } else { %>
+    <%# Adelante de hoy no hay registros: la flecha queda apagada. %>
+    <span class="nd-flecha nd-apagada" aria-hidden="true">›</span>
+  <% } %>
+</div>
+
+<form class="nd-form" method="get" action="<%= dias.base %>">
+  <input type="date" name="fecha" value="<%= dias.fecha %>" max="<%= dias.hoy %>"
+         aria-label="Ir a un día">
+  <button type="submit" class="nd-ir">Ir</button>
+  <% if (!dias.esHoy) { %>
+    <a class="nd-ir" href="<%= dias.base %>">Hoy</a>
+  <% } %>
+</form>

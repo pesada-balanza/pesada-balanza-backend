@@ -1095,6 +1095,7 @@ if (process.env.APP_MOVIL === '1') {
     getContratistas: () => contratistas,   // se carga async desde el xlsx
     codigosIngreso, codigosObservacion, ingresoAObservacion,
     ymd, validarNumero, ticketVigente, notificar, resolverNombreCodigo,
+    rangoCampana,
   }));
   console.log('APP MÓVIL habilitada en /app');
 }

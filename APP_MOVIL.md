@@ -404,6 +404,78 @@ corregirlo por observaciones.
 
 ---
 
+## Ver los registros de otros días y buscar un ticket
+
+Antes las pantallas de "ver registros" mostraban **solo el día de hoy**: no había
+cómo mirar atrás ni cómo encontrar un camión puntual. Ahora hay dos formas, y las
+dos están en **todos los códigos de ver registros** (`1235` … `1241` y el `12341`),
+y también en los códigos de balanza.
+
+### Moverse entre días
+
+Arriba del resumen (`/app/general`) y de la lista de una balanza
+(`/app/general/balanza/:codigo`) hay una barra:
+
+```
+‹        Hoy, lunes 27        ›
+[ 27/07/2026 ]  [ Ir ]  [ Hoy ]
+```
+
+- Las **flechas** van un día atrás o un día adelante. La de adelante queda
+  apagada estando en hoy: adelante no hay registros.
+- El **campo de fecha** salta a un día puntual, con tope en hoy.
+- El botón **Hoy** vuelve, y solo aparece cuando no se está en hoy.
+
+No lleva JavaScript: son enlaces y un formulario `GET`, así que funciona igual en
+un teléfono viejo. Todo pasa por el `?fecha=YYYY-MM-DD` que ya usaban las dos
+pantallas.
+
+### Buscar un ticket
+
+`/app/buscar` — **un solo campo**, porque en un teléfono un campo se usa mucho
+mejor que tres. Se escribe lo que se tenga a mano y se busca en todo lo que puede
+coincidir:
+
+| Se escribe | Encuentra |
+| --- | --- |
+| `AF593JO`, `af 593 jo` | la **patente**, aunque esté guardada con espacios de más (`"AC642HV      AF593JO "`) |
+| `gomez`, `NÚÑEZ` | el **chofer**, sin importar mayúsculas ni acentos |
+| `ciriaci` | el **transporte** |
+| `4-0012`, `1043` | el **número de ticket** (`nroApp` o `idTicket`) |
+
+Abajo del campo, el rango de días en chips: **Hoy · Ayer · 7 días · 30 días ·
+Toda la campaña**. Por omisión, 30 días. "Toda la campaña" usa el mismo corte del
+1 de septiembre que el acumulado del mail (`rangoCampana`, que viene de `app.js`).
+
+Cada resultado es una tarjeta con patente, transporte y chofer, número, campo,
+grano, lote, neto y fecha, más un chip cuando hace falta: `ANULADO`,
+`En camiones`, `Sin regular` o `Falta CTG`. Se toca y abre el ticket.
+
+Se muestran hasta **100** resultados, los más nuevos primero; si hay más, lo
+avisa y pide afinar la búsqueda o acortar el rango.
+
+Todo va por `GET`, así que el botón "atrás" del teléfono vuelve a la búsqueda
+anterior y la dirección se puede compartir.
+
+### Quién ve qué
+
+Cada código ve **solo su balanza**; el `12341` ve todas (y a él, además, se le
+muestra de qué balanza es cada resultado). Eso vale tanto para el buscador como
+para abrir un ticket por su dirección: al revisarlo se encontró que un código de
+observación podía abrir `/app/registro/:id` de otra balanza porque el permiso se
+resolvía con `s.codigoIngreso`, que en esos códigos no existe. Ahora lo resuelve
+`balanzaDeLaSesion()`, que sale de las balanzas visibles, y ese ticket da **404**.
+
+### Sin señal
+
+El buscador **necesita internet**: los tickets de días anteriores están en el
+servidor, no en el teléfono. El service worker **no lo guarda** a propósito
+(`SIN_GUARDAR`): mostrar sin señal la respuesta de una búsqueda vieja sería
+mentirle al balancero. Sin conexión la pantalla lo dice, con el camino de vuelta
+al patio, igual que las demás.
+
+---
+
 ## Los correos: solo el de las 19 hs
 
 Salía **un correo por cada tara final y cada regulada** —dos por camión— más uno
@@ -523,14 +595,16 @@ verifica que el Excel llegue completo sin esa hoja.
 | `/app/imprimir?ids=…` | hoja de impresión del ticket |
 | `/app/ticket-pdf/:id` | PDF del ticket (solo con la regulada cargada) |
 | `/app/local?paso=…` | seguir un ticket sin señal (la dibuja el teléfono) |
+| `/app/ctg` | tickets que esperan el CTG |
+| `/app/buscar?q=…&rango=…` | buscar un ticket (patente, chofer, transporte o número) |
 | `/app/balanza` | balanza y turno · salir |
 
 **GENERAL**
 
 | Dirección | Pantalla |
 | --- | --- |
-| `/app/general` | resumen del día |
-| `/app/general/balanza/:codigo` | detalle de una balanza |
+| `/app/general` | resumen del día (`?fecha=YYYY-MM-DD` para otro día) |
+| `/app/general/balanza/:codigo` | detalle de una balanza (`?fecha=…`) |
 | `/app/general/pedidos` | pedidos de anulación y corrección |
 | `/app/general/repetidos` | camiones repetidos en dos balanzas |
 | `/app/general/sin-regular` | camiones que quedaron sin regular |

@@ -42,6 +42,7 @@ module.exports = function crearAppMovil(deps) {
     ticketVigente,
     notificar,
     resolverNombreCodigo,
+    rangoCampana,
   } = deps;
 
   const router = express.Router();
@@ -81,6 +82,31 @@ module.exports = function crearAppMovil(deps) {
   function diaBonito(fechaStr) {
     const d = new Date(fechaStr + 'T12:00:00Z');
     return DIAS_SEMANA[d.getUTCDay()] + ' ' + d.getUTCDate();
+  }
+
+  /** Corre una fecha YYYY-MM-DD tantos días (puede ser negativo). */
+  function correrDia(fechaStr, dias) {
+    const d = new Date(fechaStr + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + dias);
+    return ymd(d);
+  }
+
+  /**
+   * Lo que necesita la barra de días de las pantallas de registros:
+   * a qué día se va con cada flecha, y si tiene sentido ofrecer "Hoy".
+   * El día siguiente se corta en hoy: adelante no hay registros.
+   */
+  function navegacionDias(fecha, base) {
+    const hoy = hoyStr();
+    return {
+      base,
+      fecha,
+      hoy,
+      esHoy: fecha === hoy,
+      anterior: correrDia(fecha, -1),
+      siguiente: fecha < hoy ? correrDia(fecha, 1) : '',
+      bonito: diaBonito(fecha),
+    };
   }
 
   /** "27/07" a partir de YYYY-MM-DD. */
@@ -289,6 +315,8 @@ module.exports = function crearAppMovil(deps) {
       await colDias().createIndex({ codigoIngreso: 1, fecha: 1 }, { unique: true });
       await colPedidos().createIndex({ estado: 1, creadoEn: -1 });
       await colPedidos().createIndex({ registroId: 1 });
+      // Para buscar tickets por balanza y por fecha sin recorrer todo.
+      await colRegistros().createIndex({ codigoIngreso: 1, fecha: -1 });
     } catch (err) {
       console.warn('[app-movil] No se pudieron crear índices:', err.message);
     }
@@ -1163,6 +1191,27 @@ module.exports = function crearAppMovil(deps) {
   }
 
   /**
+   * A qué balanza está limitada la sesión: el código de esa balanza, o `null` si
+   * ve todas (GENERAL).
+   *
+   * Antes cada pantalla escribía `s.esGeneral ? null : s.codigoIngreso`, y ahí
+   * había un agujero: un código de OBSERVACIÓN (1235, 1240, …) no tiene
+   * `codigoIngreso`, así que quedaba en `null` y pasaba por "ve todas". La lista
+   * estaba bien protegida, pero el detalle de un ticket se podía abrir aunque
+   * fuera de otra balanza.
+   *
+   * Se resuelve con `balanzasVisibles`, que sabe traducir un código de
+   * observación a su balanza. Y si no se puede resolver ninguna, se devuelve un
+   * valor que no coincide con nada: ante la duda, no se muestra.
+   */
+  function balanzaDeLaSesion(s) {
+    if (s && s.esGeneral) return null;
+    const visibles = balanzasVisibles(s);
+    if (visibles.length === 1) return visibles[0];
+    return '__sin_balanza__';
+  }
+
+  /**
    * Resuelve el ticket de un paso que se cargó SIN SEÑAL sobre una pesada que
    * tampoco se había subido todavía.
    *
@@ -1577,7 +1626,7 @@ module.exports = function crearAppMovil(deps) {
   router.get('/ticket-pdf/:id', exigirApp, async (req, res) => {
     try {
       const s = sesionApp(req);
-      const r = await traerRegistroDeBalanza(req.params.id, s.esGeneral ? null : s.codigoIngreso);
+      const r = await traerRegistroDeBalanza(req.params.id, balanzaDeLaSesion(s));
       if (!r) return noEncontrado(res);
 
       if (!r.fechaRegulada) {
@@ -1648,7 +1697,7 @@ module.exports = function crearAppMovil(deps) {
   router.get('/registro/:id', exigirApp, async (req, res) => {
     try {
       const s = sesionApp(req);
-      const r = await traerRegistroDeBalanza(req.params.id, s.esGeneral ? null : s.codigoIngreso);
+      const r = await traerRegistroDeBalanza(req.params.id, balanzaDeLaSesion(s));
       if (!r) return noEncontrado(res);
 
       const pedido = await colPedidos().findOne(
@@ -1704,7 +1753,7 @@ module.exports = function crearAppMovil(deps) {
   router.post('/api/comentarios/:id', exigirApp, async (req, res) => {
     try {
       const s = sesionApp(req);
-      const r = await traerRegistroDeBalanza(req.params.id, s.esGeneral ? null : s.codigoIngreso);
+      const r = await traerRegistroDeBalanza(req.params.id, balanzaDeLaSesion(s));
       if (!r) return fallar(res, 404, 'No se encontró el ticket.');
       if (r.anulado) return fallar(res, 400, 'Este ticket está anulado.');
       if (r.pesadaPara !== 'REGULADA') {
@@ -1757,7 +1806,7 @@ module.exports = function crearAppMovil(deps) {
   router.get('/ctg', exigirApp, async (req, res) => {
     try {
       const s = sesionApp(req);
-      const lista = await ticketsSinCtg(s.esGeneral ? null : s.codigoIngreso);
+      const lista = await ticketsSinCtg(balanzaDeLaSesion(s));
       return res.render('app/ctg', {
         layout: 'app/layout',
         titulo: 'Cargar CTG',
@@ -1806,7 +1855,7 @@ module.exports = function crearAppMovil(deps) {
   router.post('/api/ctg', exigirApp, async (req, res) => {
     try {
       const s = sesionApp(req);
-      const r = await traerRegistroDeBalanza(req.body.id, s.esGeneral ? null : s.codigoIngreso);
+      const r = await traerRegistroDeBalanza(req.body.id, balanzaDeLaSesion(s));
       if (!r) return fallar(res, 404, 'No se encontró el ticket.');
       if (r.anulado) return fallar(res, 400, 'Este ticket está anulado.');
       if (r.pesadaPara !== 'REGULADA' || !r.fechaRegulada) {
@@ -2158,6 +2207,126 @@ module.exports = function crearAppMovil(deps) {
     };
   }
 
+  /* =========================================================================
+   * BUSCAR UN TICKET
+   * -------------------------------------------------------------------------
+   * Un solo campo: patente, chofer, transporte o número de ticket. En un
+   * teléfono un campo se usa mucho mejor que tres, así que se mira qué escribió
+   * y se busca en todo lo que puede coincidir.
+   *
+   * Cada código ve SOLO su balanza; el 12341, todas.
+   * ======================================================================= */
+
+  /** Para comparar texto sin importar mayúsculas ni acentos: "gomez" halla "GÓMEZ". */
+  function normalizar(v) {
+    return String(v || '')
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  }
+
+  const RANGOS = {
+    hoy: 0,
+    ayer: 1,
+    '7': 7,
+    '30': 30,
+  };
+  const TOPE_RESULTADOS = 100;
+
+  /** Desde qué fecha se busca, según el chip elegido. */
+  function desdeDelRango(rango) {
+    // La campaña la define la web (arranca el 1 de septiembre); si no llegó por
+    // deps, se cae al mes de atrás en vez de romper la pantalla.
+    if (rango === 'campana' && typeof rangoCampana === 'function') return rangoCampana(hoyStr()).desde;
+    const dias = RANGOS[rango];
+    const n = typeof dias === 'number' ? dias : 30;
+    return ymd(new Date(Date.now() - n * 24 * 60 * 60 * 1000));
+  }
+
+  router.get('/buscar', exigirApp, async (req, res) => {
+    try {
+      const s = sesionApp(req);
+      const q = String(req.query.q || '').trim().slice(0, 60);
+      const rango = Object.prototype.hasOwnProperty.call(RANGOS, String(req.query.rango))
+        || req.query.rango === 'campana'
+        ? String(req.query.rango)
+        : '30';
+
+      let resultados = [];
+      let recortado = false;
+
+      if (q) {
+        await asegurarIndices();
+        const visibles = balanzasVisibles(s);
+        const filtro = { fecha: { $gte: desdeDelRango(rango) } };
+        if (!s.esGeneral) filtro.codigoIngreso = { $in: visibles.length ? visibles : ['__sin_balanza__'] };
+        if (rango === 'ayer') filtro.fecha.$lte = ymd(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+        const docs = await colRegistros()
+          .find(filtro, {
+            projection: {
+              idTicket: 1, nroApp: 1, fecha: 1, patentes: 1, chofer: 1, transporte: 1,
+              campo: 1, grano: 1, lote: 1, neto: 1, netoEstimado: 1, tara: 1, cp: 1,
+              anulado: 1, fechaRegulada: 1, fechaTaraFinal: 1, codigoIngreso: 1,
+            },
+          })
+          .sort({ idTicket: -1 })
+          .toArray();
+
+        // El filtro de texto se hace acá y no en la consulta porque las patentes
+        // están guardadas con espacios irregulares ("AC642HV      AF593JO "):
+        // hay que normalizarlas para que escribiendo "AF593JO" se encuentren.
+        const clave = patenteClave(q);
+        const texto = normalizar(q);
+
+        const coincide = (r) =>
+          (clave && patenteClave(r.patentes).indexOf(clave) !== -1) ||
+          (texto && normalizar(r.chofer).indexOf(texto) !== -1) ||
+          (texto && normalizar(r.transporte).indexOf(texto) !== -1) ||
+          (texto && normalizar(r.nroApp).indexOf(texto) !== -1) ||
+          (texto && String(r.idTicket || '').indexOf(texto) !== -1);
+
+        const hallados = docs.filter(coincide);
+        recortado = hallados.length > TOPE_RESULTADOS;
+
+        resultados = hallados.slice(0, TOPE_RESULTADOS).map((r) => ({
+          id: String(r._id),
+          nro: r.nroApp || String(r.idTicket || ''),
+          fecha: r.fecha || '',
+          patentes: r.patentes || '',
+          chofer: r.chofer || '',
+          transporte: r.transporte || '',
+          campoCorto: String(r.campo || '').split(' - ')[0],
+          grano: r.grano || '',
+          lote: plano(r.lote),
+          neto: r.fechaRegulada ? Number(r.neto) || 0 : Number(r.netoEstimado) || 0,
+          cerrado: !!r.fechaRegulada,
+          sinTaraFinal: !r.fechaTaraFinal,
+          anulado: !!r.anulado,
+          faltaCtg: !!r.fechaRegulada && !r.cp && !r.anulado,
+          cp: r.cp || '',
+          balanza: nombreBalanza(r.codigoIngreso),
+        }));
+      }
+
+      return res.render('app/buscar', {
+        layout: 'app/layout',
+        titulo: 'Buscar un ticket',
+        q,
+        rango,
+        resultados,
+        recortado,
+        tope: TOPE_RESULTADOS,
+        volver: s.codigoIngreso ? '/app/patio' : '/app/general',
+        verTodas: !!s.esGeneral,
+        kg,
+      });
+    } catch (err) {
+      return siguienteError(err, req, res);
+    }
+  });
+
   router.get('/general', exigirApp, async (req, res) => {
     try {
       const s = sesionApp(req);
@@ -2167,6 +2336,7 @@ module.exports = function crearAppMovil(deps) {
         layout: 'app/layout',
         titulo: 'Resumen del día',
         resumen,
+        dias: navegacionDias(fecha, '/app/general'),
         kg,
         puedeCargar: !!s.codigoIngreso,
       });
@@ -2211,6 +2381,7 @@ module.exports = function crearAppMovil(deps) {
         nombreDia: await nombreDelDia(codigo, fecha),
         fecha,
         diaBonito: diaBonito(fecha),
+        dias: navegacionDias(fecha, '/app/general/balanza/' + codigo),
         camiones,
         total,
         kg,
