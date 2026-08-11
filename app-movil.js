@@ -84,6 +84,15 @@ module.exports = function crearAppMovil(deps) {
     return DIAS_SEMANA[d.getUTCDay()] + ' ' + d.getUTCDate();
   }
 
+  /** "domingo 09/08/26" — el día de la semana y la fecha, para la barra de días. */
+  function diaConFecha(fechaStr) {
+    const d = new Date(fechaStr + 'T12:00:00Z');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const aa = String(d.getUTCFullYear()).slice(2);
+    return DIAS_SEMANA[d.getUTCDay()] + ' ' + dd + '/' + mm + '/' + aa;
+  }
+
   /** Corre una fecha YYYY-MM-DD tantos días (puede ser negativo). */
   function correrDia(fechaStr, dias) {
     const d = new Date(fechaStr + 'T12:00:00Z');
@@ -92,9 +101,12 @@ module.exports = function crearAppMovil(deps) {
   }
 
   /**
-   * Lo que necesita la barra de días de las pantallas de registros:
-   * a qué día se va con cada flecha, y si tiene sentido ofrecer "Hoy".
+   * Lo que necesita la barra de días de las pantallas de registros: a qué día se
+   * va con cada flecha y cómo se escribe el día que se está mirando.
    * El día siguiente se corta en hoy: adelante no hay registros.
+   *
+   * `hoyBonito` es la fecha de HOY, que va arriba a la izquierda y no cambia al
+   * moverse de día: es la referencia de en qué día estamos.
    */
   function navegacionDias(fecha, base) {
     const hoy = hoyStr();
@@ -105,7 +117,9 @@ module.exports = function crearAppMovil(deps) {
       esHoy: fecha === hoy,
       anterior: correrDia(fecha, -1),
       siguiente: fecha < hoy ? correrDia(fecha, 1) : '',
-      bonito: diaBonito(fecha),
+      bonito: diaConFecha(fecha),
+      corto: fechaCorta(fecha),
+      hoyBonito: diaConFecha(hoy),
     };
   }
 

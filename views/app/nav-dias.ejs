@@ -2,12 +2,17 @@
     balanza. No lleva JavaScript a propósito: las flechas son enlaces y el
     campo de fecha va dentro de un formulario GET, así funciona igual en un
     teléfono viejo.
+
+    El campo de fecha arranca VACÍO (muestra el ícono de calendario y el
+    dd/mm/aaaa del teléfono): el día que se está mirando ya lo dice la línea de
+    arriba, repetirlo abajo no aportaba nada.
+
     Espera `dias` = { base, fecha, hoy, esHoy, anterior, siguiente, bonito }. %>
 <div class="nav-dias">
   <a class="nd-flecha" href="<%= dias.base %>?fecha=<%= dias.anterior %>"
      aria-label="Día anterior">‹</a>
 
-  <span class="nd-dia"><%= dias.esHoy ? 'Hoy, ' + dias.bonito : dias.bonito %></span>
+  <span class="nd-dia"><%= dias.bonito %></span>
 
   <% if (dias.siguiente) { %>
     <a class="nd-flecha" href="<%= dias.base %>?fecha=<%= dias.siguiente %>"
@@ -19,10 +24,13 @@
 </div>
 
 <form class="nd-form" method="get" action="<%= dias.base %>">
-  <input type="date" name="fecha" value="<%= dias.fecha %>" max="<%= dias.hoy %>"
-         aria-label="Ir a un día">
+  <label class="nd-caja">
+    <svg class="nd-icono" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
+         fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <rect x="3" y="5" width="18" height="16" rx="3"></rect>
+      <path d="M3 10h18M8 3v4M16 3v4"></path>
+    </svg>
+    <input type="date" name="fecha" max="<%= dias.hoy %>" aria-label="Elegir un día">
+  </label>
   <button type="submit" class="nd-ir">Ir</button>
-  <% if (!dias.esHoy) { %>
-    <a class="nd-ir" href="<%= dias.base %>">Hoy</a>
-  <% } %>
 </form>

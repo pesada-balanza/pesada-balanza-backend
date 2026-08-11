@@ -4,7 +4,9 @@
   <div class="enc">
     <div class="enc-col">
       <span class="etiqueta"><%= resumen.alcance %></span>
-      <span class="t-pantalla-g"><%= resumen.esHoy ? 'Hoy, ' + resumen.diaBonito : resumen.diaBonito %></span>
+      <%# Arriba siempre la fecha de HOY: es la referencia y no cambia al
+          moverse de día. El día que se está mirando lo dice la barra de abajo. %>
+      <span class="t-pantalla-g"><%= dias.hoyBonito %></span>
     </div>
     <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
       <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
@@ -72,7 +74,7 @@
       <div class="tarjeta" style="gap:13px">
         <div class="fila-base">
           <span class="cuerpo-fuerte">Por grano</span>
-          <span class="mono-chico" style="letter-spacing:.06em"><%= resumen.esHoy ? 'HOY' : resumen.diaBonito.toUpperCase() %></span>
+          <span class="mono-chico" style="letter-spacing:.06em"><%= dias.esHoy ? 'HOY' : dias.corto %></span>
         </div>
 
         <% resumen.porGrano.forEach(function (g, i) { %>

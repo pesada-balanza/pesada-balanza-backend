@@ -18,7 +18,7 @@ node pruebas/correr.js
 Tarda un par de minutos y termina con un resumen. Si todo está bien:
 
 ```
-  TODO BIEN — 712 comprobaciones
+  TODO BIEN — 720 comprobaciones
 ```
 
 Si algo se rompió, lista exactamente qué comprobación falló y en qué archivo.

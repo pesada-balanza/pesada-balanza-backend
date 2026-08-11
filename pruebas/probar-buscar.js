@@ -103,6 +103,17 @@ function seccion(t) { console.log('\n── ' + t); }
 function ymd(d) { return d.toISOString().slice(0, 10); }
 function haceDias(n) { return ymd(new Date(Date.now() - n * 24 * 60 * 60 * 1000)); }
 
+const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+/** Cómo se tiene que ver un día en pantalla: "domingo 09/08/26". */
+function diaConFecha(fechaStr) {
+  const d = new Date(fechaStr + 'T12:00:00Z');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const aa = String(d.getUTCFullYear()).slice(2);
+  return DIAS_SEMANA[d.getUTCDay()] + ' ' + dd + '/' + mm + '/' + aa;
+}
+
 const HOY = haceDias(0);
 const AYER = haceDias(1);
 
@@ -181,16 +192,26 @@ async function main() {
   ok('la flecha de ayer apunta al día anterior',
     r.texto.indexOf('/app/general?fecha=' + AYER) !== -1, AYER);
   ok('la flecha de adelante está apagada estando en hoy', /nd-apagada/.test(r.texto));
-  ok('tiene el campo de fecha con tope en hoy',
-    new RegExp('name="fecha"[^>]*max="' + HOY + '"').test(r.texto) ||
-    new RegExp('max="' + HOY + '"').test(r.texto));
+  ok('el día se escribe con día de semana y fecha ("' + diaConFecha(HOY) + '")',
+    r.texto.indexOf(diaConFecha(HOY)) !== -1, diaConFecha(HOY));
+  ok('el campo de fecha tiene tope en hoy', new RegExp('max="' + HOY + '"').test(r.texto));
+  ok('el campo de fecha arranca vacío (no repite el día que se mira)',
+    !/name="fecha"[^>]*value=/.test(r.texto), (r.texto.match(/<input type="date"[^>]*>/) || [''])[0]);
+  ok('el campo de fecha muestra el ícono de calendario', /class="nd-icono"/.test(r.texto));
+  ok('ya no está el botón Hoy', !/>Hoy</.test(r.texto));
   ok('desde el resumen se llega al buscador', /href="\/app\/buscar"/.test(r.texto));
+
+  // La fecha aparece UNA sola vez como día que se mira; arriba va la de hoy.
+  const vecesHoy = (r.texto.match(new RegExp(diaConFecha(HOY), 'g')) || []).length;
+  ok('estando en hoy la fecha sale dos veces: arriba (hoy) y en la barra', vecesHoy === 2, vecesHoy);
 
   r = await ir('GET', '/app/general?fecha=' + AYER);
   ok('el resumen de ayer abre', r.estado === 200, r.estado);
   ok('estando en ayer aparece la flecha de adelante',
     r.texto.indexOf('/app/general?fecha=' + HOY) !== -1);
-  ok('estando en ayer aparece el atajo a Hoy', /class="nd-ir" href="\/app\/general"/.test(r.texto));
+  ok('arriba a la izquierda sigue la fecha de HOY, no la que se está mirando',
+    r.texto.indexOf('class="t-pantalla-g">' + diaConFecha(HOY)) !== -1, diaConFecha(HOY));
+  ok('la barra muestra el día que se está mirando', r.texto.indexOf(diaConFecha(AYER)) !== -1, diaConFecha(AYER));
   ok('el neto de ayer es el del ticket de ayer', /27\.000/.test(r.texto), r.texto.slice(0, 60));
 
   r = await ir('GET', '/app/general/balanza/' + QUIMILI + '?fecha=' + AYER);
@@ -199,6 +220,10 @@ async function main() {
   ok('la flecha de la lista lleva al día anterior de la misma balanza',
     r.texto.indexOf('/app/general/balanza/' + QUIMILI + '?fecha=' + haceDias(2)) !== -1);
   ok('no muestra el ticket de hoy al mirar ayer', !/AC642HV/.test(r.texto));
+  ok('el "volver" de la lista dice a dónde vuelve, no repite el día',
+    /class="texto">Resumen</.test(r.texto));
+  const vecesAyer = (r.texto.match(new RegExp(diaConFecha(AYER), 'g')) || []).length;
+  ok('el día que se mira sale una sola vez en la lista', vecesAyer === 1, vecesAyer);
 
   r = await ir('GET', '/app/general/balanza/5679');
   ok('el 1240 no puede mirar la lista de otra balanza',
@@ -354,7 +379,7 @@ async function main() {
   r = await ir('GET', '/app/sw.js');
   ok('el service worker no guarda /app/buscar', /SIN_GUARDAR/.test(r.texto) && /'\/app\/buscar'/.test(r.texto));
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
-  ok('la versión subió', /pesada-app-v7/.test(r.texto));
+  ok('la versión subió', /pesada-app-v8/.test(r.texto));
 
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);

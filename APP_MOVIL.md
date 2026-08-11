@@ -417,14 +417,25 @@ Arriba del resumen (`/app/general`) y de la lista de una balanza
 (`/app/general/balanza/:codigo`) hay una barra:
 
 ```
-‹        Hoy, lunes 27        ›
-[ 27/07/2026 ]  [ Ir ]  [ Hoy ]
+QUIMILI
+martes 11/08/26                        ← siempre HOY, no cambia
+
+‹        lunes 10/08/26        ›        ← el día que se está mirando
+[ 📅  dd/mm/aaaa ]  [ Ir ]
 ```
 
+- Arriba a la izquierda, abajo del nombre de la balanza, va **siempre la fecha de
+  hoy**: es la referencia y no se mueve. El día que se está mirando lo dice la
+  barra.
 - Las **flechas** van un día atrás o un día adelante. La de adelante queda
   apagada estando en hoy: adelante no hay registros.
-- El **campo de fecha** salta a un día puntual, con tope en hoy.
-- El botón **Hoy** vuelve, y solo aparece cuando no se está en hoy.
+- El **campo de fecha** salta a un día puntual, con tope en hoy. Arranca **vacío**
+  y con el ícono de calendario: se elige el día, aparece, y se toca **Ir**. El
+  ícono que dibuja el navegador se esconde y se estira invisible sobre toda la
+  caja, así queda uno solo y tocar en cualquier parte abre el calendario.
+
+Los días se escriben **`lunes 10/08/26`**: el día de la semana ayuda a ubicarse y
+la fecha completa saca la duda de qué mes o año es.
 
 No lleva JavaScript: son enlaces y un formulario `GET`, así que funciona igual en
 un teléfono viejo. Todo pasa por el `?fecha=YYYY-MM-DD` que ya usaban las dos

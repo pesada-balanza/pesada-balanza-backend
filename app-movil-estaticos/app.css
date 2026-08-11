@@ -596,19 +596,60 @@ a { color: inherit; text-decoration: none; }
 
 .nd-form { display: flex; align-items: center; gap: 8px; }
 
+/* El ícono de calendario va adentro de la caja, y el campo de fecha ocupa el
+   resto. El <label> hace que tocar el ícono abra el calendario igual. */
+.nd-caja {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 12px;
+}
+
+.nd-icono {
+  position: absolute;
+  left: 13px;
+  color: var(--texto3);
+  pointer-events: none;
+}
+
 .nd-form input[type="date"] {
+  position: relative;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 46px;
   -webkit-appearance: none;
   appearance: none;
-  background: #fff;
-  border: 1px solid var(--borde-fuerte);
+  background: transparent;
+  border: 0;
   border-radius: 12px;
-  padding: 0 12px;
+  padding: 0 12px 0 43px;
   font: 600 15px/1 var(--mono);
   color: var(--tinta);
 }
+
+/* El navegador dibuja su propio ícono de calendario a la derecha: quedaban dos.
+   Se lo estira invisible sobre toda la caja, así queda solo el ícono del diseño
+   y tocar en cualquier parte abre el calendario del teléfono. */
+.nd-form input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.nd-form input[type="date"]:focus { outline: 0; }
+.nd-caja:focus-within { border-color: var(--tinta); }
 
 .nd-ir {
   flex: 0 0 auto;
