@@ -462,25 +462,33 @@ async function main() {
       return x.json.id;
     })())],
     ['detalle', '/app/registro/' + idCampo],
-    ['balanza y turno', '/app/balanza'],
   ]) {
     const x = await ir('GET', url);
-    const tieneMenu = /data-abre-modal="modal-menu"/.test(x.texto) && /Balanza y turno/.test(x.texto);
-    ok('la pantalla de ' + pantalla + ' tiene el botón Salir', tieneMenu, x.estado);
+    ok('la pantalla de ' + pantalla + ' tiene el botón Salir',
+      /id="menu-salir"/.test(x.texto), x.estado);
   }
 
   r = await ir('GET', '/app/nueva-pesada');
   ok('el botón de volver es un botón, no un texto chico', /class="volver"><span class="flecha">/.test(r.texto));
 
+  // El botón del rincón hace UNA cosa: salir. Antes abría una hoja con dos
+  // opciones y la de salir quedaba repetida en tres lugares.
+  r = await ir('GET', '/app/patio');
+  ok('el botón del rincón sale directo, sin hoja del medio',
+    !/modal-menu/.test(r.texto) && /id="menu-salir"/.test(r.texto));
+  ok('ya no hay pantalla "Balanza y turno" a la que ir',
+    r.texto.indexOf('/app/balanza') === -1, 'quedó un enlace a /app/balanza');
+  ok('el patio avisa antes de salir, no sale de una',
+    /¿Salir de la app\?/.test(r.texto));
+
+  // Lo único propio que tenía "Balanza y turno" era la versión de la app: eso
+  // NO se pierde, ahora está al final del patio y del resumen.
+  ok('el patio trae el bloque de versión de la app',
+    /Versión de la app/.test(r.texto) && /id="v-actualizar"/.test(r.texto));
+
   r = await ir('GET', '/app/balanza');
-  // El menú tiene DOS opciones y nada más. Todo lo de cambiar de código o de
-  // persona está adentro de "Balanza y turno", en un solo lugar.
-  ok('el menú lleva a Balanza y turno', /Balanza y turno/.test(r.texto));
-  ok('el menú ofrece salir de la app', /Salir de la app/.test(r.texto));
-  ok('el menú NO repite "Entrar con otro código"',
-    r.texto.indexOf('Entrar con otro código') === -1, 'sigue estando el botón repetido');
-  ok('el menú NO repite "Cambiar quién está en la balanza"',
-    r.texto.indexOf('Cambiar quién está en la balanza') === -1, 'sigue estando el botón repetido');
+  ok('la dirección vieja de balanza y turno manda al patio',
+    r.estado === 302 && r.ubicacion === '/app/patio', r.estado + ' ' + r.ubicacion);
 
   /* ═════════════════════════════════════════════════════════════════════
    * CERRAR EL TICKET SIN SEÑAL (tara final y regulada sobre una pesada
@@ -696,7 +704,10 @@ async function main() {
     /Entrar con el código de una balanza/.test(r.texto));
   ok('y le explica por qué no puede cargar con este código',
     /Este código entra a mirar y a autorizar/.test(r.texto));
-  ok('GENERAL también tiene el botón Salir', /data-abre-modal="modal-menu"/.test(r.texto));
+  ok('GENERAL también tiene el botón Salir', /id="menu-salir"/.test(r.texto));
+  ok('y en el resumen tiene la entrada a los pedidos',
+    /href="\/app\/general\/pedidos"/.test(r.texto));
+  ok('y el bloque de versión de la app', /id="v-actualizar"/.test(r.texto));
   ok('muestra "todas las balanzas"', /TODAS LAS BALANZAS/.test(r.texto));
   // El total del día se calcula de la base, no se escribe a mano: así el test no
   // se rompe cada vez que la prueba agrega un ticket más.
@@ -957,7 +968,7 @@ async function main() {
    * ═══════════════════════════════════════════════════════════════════ */
   seccion('Permisos, sesión y pantallas sueltas');
   r = await ir('GET', '/app/balanza');
-  ok('la pantalla balanza y turno abre (6c)', r.estado === 200 && /Balanza y turno/.test(r.texto));
+  ok('la dirección vieja de balanza y turno no da error, redirige', r.estado === 302, r.estado);
 
   r = await ir('GET', '/app/pantalla-que-no-existe');
   ok('una dirección inexistente da 404 con la pantalla de la app', r.estado === 404 && /No se encontró/.test(r.texto));

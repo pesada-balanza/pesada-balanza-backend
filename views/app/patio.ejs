@@ -141,6 +141,10 @@
 
     <%# Para encontrar un ticket de otro día: patente, chofer o número. %>
     <a class="btn btn-borde-suave" href="/app/buscar">Buscar un ticket</a>
+
+    <%# Discreto: en el patio se trabaja todo el día, así que el bloque de versión
+        aparece solo si el teléfono quedó atrasado o todavía no guardó la app. %>
+    <%- include('version', { discreto: true }) %>
   </div>
 
   <div class="barra-fija">

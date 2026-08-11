@@ -154,7 +154,6 @@ async function main() {
     ['/app/regulada/' + conTF.insertedId, 'regulada', 9],
     ['/app/registro/' + conTF.insertedId, 'detalle', 5],
     ['/app/local', 'pantalla sin señal', 8],
-    ['/app/balanza', 'balanza y turno', 4],
     ['/app/ctg', 'cargar CTG', 6],
     ['/app/buscar', 'buscar un ticket', 4],
     // El caso más pesado del buscador: el tope de 100 resultados.

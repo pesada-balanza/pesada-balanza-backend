@@ -480,7 +480,7 @@ async function main() {
 
   // En TODAS las pantallas, no solo en el patio
   console.log('     en cada pantalla:');
-  for (const p of ['/app/nueva-pesada', '/app/balanza', '/app/local']) {
+  for (const p of ['/app/nueva-pesada', '/app/ctg', '/app/local']) {
     await pg.goto(BASE + p, { waitUntil: 'domcontentloaded' }).catch(() => {});
     await esperar(400);
     const v = await pg.evaluate(() => {
@@ -606,8 +606,9 @@ async function main() {
    * LA VERSIÓN DE LA APP, A LA VISTA
    * -----------------------------------------------------------------------
    * Para no tener que adivinar si un teléfono quedó con una versión vieja
-   * guardada: la pantalla "Balanza y turno" dice qué versión tiene el teléfono
-   * y cuál el servidor, y ofrece actualizar si no coinciden.
+   * guardada: el bloque "Versión de la app", al final del patio y del resumen,
+   * dice qué versión tiene el teléfono y cuál el servidor, y ofrece actualizar
+   * si no coinciden.
    * ═════════════════════════════════════════════════════════════════════ */
   console.log('\n── La versión de la app se puede ver desde la app');
   await ctx.setOffline(false);
@@ -620,7 +621,7 @@ async function main() {
       body: JSON.stringify({ code: '5679' }),
     });
   });
-  await pg.goto(BASE + '/app/balanza', { waitUntil: 'networkidle' });
+  await pg.goto(BASE + '/app/patio', { waitUntil: 'networkidle' });
   await esperar(1200);
 
   const version = await pg.evaluate(() => ({

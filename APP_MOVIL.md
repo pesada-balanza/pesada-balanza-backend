@@ -61,12 +61,22 @@ poner el código de una balanza.
 
 ### Salir o cambiar de código
 
-Arriba a la derecha de todas las pantallas hay un botón **Salir**. Abre un menú
-con dos opciones, y nada más:
+Arriba a la derecha de todas las pantallas hay un botón **Salir**, y hace **una
+sola cosa**: pregunta y sale. Antes abría una hoja intermedia con dos opciones
+—"Balanza y turno" y "Salir de la app"— y la opción de salir terminaba estando en
+tres lugares distintos, con un botón que decía "Salir" y no salía.
 
-- **Balanza y turno** — ahí adentro está todo junto: cambiar de balanza (poniendo
-  el código de la otra) y cambiar quién está en la balanza hoy.
-- **Salir de la app** — cierra la sesión y vuelve a pedir el código.
+**"Balanza y turno" ya no existe** (`/app/balanza` redirige al patio o al
+resumen). Se sacó porque casi todo lo que tenía adentro estaba duplicado:
+
+| Lo que tenía | Dónde está ahora |
+| --- | --- |
+| Cambiar de balanza | es **salir** y poner el otro código: el mismo botón con otro nombre |
+| Cambiar quién está en la balanza | en el **patio**, tocando el nombre de arriba a la izquierda |
+| Buscar un ticket | en el patio, el resumen y la lista de una balanza |
+| Resumen y pedidos (GENERAL) | el resumen es su pantalla de inicio, y ahí está el botón de **Pedidos** |
+| Lista de "puede hacer" | se sacó: era informativa, se leía una vez |
+| **Versión de la app** | al final del **patio** y del **resumen** (ver más abajo) |
 
 Al cambiar de código o al salir, la app **tira las pantallas que tenía
 guardadas**: son de la sesión anterior y sin señal mostrarían el patio de otra
@@ -249,14 +259,19 @@ alguna se agranda de más, la prueba lo avisa antes de subirlo.
 
 ### Cómo saber si un teléfono está al día
 
-En **Balanza y turno**, abajo, hay un bloque **"Versión de la app"** que muestra
-dos cosas: la versión que tiene guardada **ese teléfono** y la que está sirviendo
-el **servidor**. Si no coinciden, aparece el botón **"Actualizar la app"**, que
-baja la versión nueva y recarga. No se pierde nada de lo cargado: las pesadas sin
-subir viven aparte.
+Al final del **patio** y del **resumen del día** hay un bloque
+**"Versión de la app"** que muestra dos cosas: la versión que tiene guardada **ese
+teléfono** y la que está sirviendo el **servidor**. Si no coinciden, aparece el
+botón **"Actualizar la app"**, que baja la versión nueva y recarga. No se pierde
+nada de lo cargado: las pesadas sin subir viven aparte.
+
+En el **patio** el bloque va en modo discreto: ahí se trabaja todo el día, así que
+**solo aparece si hay algo que hacer** —el teléfono quedó atrasado, o todavía no
+guardó la app y por lo tanto no va a abrir sin señal—. Si está al día no se ve. En
+el resumen se ve siempre.
 
 Sirve para no adivinar. Después de un deploy, en vez de suponer que el teléfono
-se actualizó, se entra ahí y se ve.
+se actualizó, se abre el patio y, si hace falta actualizar, lo dice solo.
 
 Un teléfono con una versión anterior a la v5 no sabe contestar qué versión tiene:
 en ese caso el bloque dice "una versión vieja" y ofrece actualizar igual.
@@ -608,7 +623,6 @@ verifica que el Excel llegue completo sin esa hoja.
 | `/app/local?paso=…` | seguir un ticket sin señal (la dibuja el teléfono) |
 | `/app/ctg` | tickets que esperan el CTG |
 | `/app/buscar?q=…&rango=…` | buscar un ticket (patente, chofer, transporte o número) |
-| `/app/balanza` | balanza y turno · salir |
 
 **GENERAL**
 
@@ -628,8 +642,8 @@ verifica que el Excel llegue completo sin esa hoja.
 2. Nada de lo cargado se pierde: los tickets están en `registros`, junto con los
    de la web.
 3. Si un teléfono tiene pesadas sin subir, **no borrar la app ni los datos del
-   navegador**: conectarlo a internet y esperar a que suban solas. La pantalla
-   "Balanza y turno" avisa si quedan pendientes antes de dejar salir.
+   navegador**: conectarlo a internet y esperar a que suban solas. El botón
+   **Salir** avisa si quedan pendientes y no deja salir hasta que se suban.
 
 ## Segunda etapa (queda pendiente del handoff)
 

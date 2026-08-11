@@ -693,7 +693,7 @@
   function prepararPantallas() {
     if (!hayConexion() || !window.fetch) return;
     var pantallas = [
-      '/app/patio', '/app/nueva-pesada', '/app/local', '/app/balanza',
+      '/app/patio', '/app/nueva-pesada', '/app/local',
       // La hoja del ticket, para poder imprimir y ver el ticket sin señal.
       '/app/imprimir',
       // La lista de tickets que esperan el CTG: sin señal se ve la última y el

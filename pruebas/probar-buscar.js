@@ -367,8 +367,8 @@ async function main() {
   r = await ir('GET', '/app/patio');
   ok('el patio ofrece buscar un ticket', /href="\/app\/buscar"/.test(r.texto));
 
-  r = await ir('GET', '/app/balanza');
-  ok('la pantalla de balanza también', /href="\/app\/buscar"/.test(r.texto));
+  ok('el patio trae el bloque de versión de la app al final',
+    /Versión de la app/.test(r.texto) && /id="v-actualizar"/.test(r.texto));
 
   r = await ir('GET', '/app/buscar?q=' + encodeURIComponent('Núñez') + '&rango=campana');
   ok('el balancero encuentra su ticket de hace 10 días',
@@ -389,7 +389,7 @@ async function main() {
   r = await ir('GET', '/app/sw.js');
   ok('el service worker no guarda /app/buscar', /SIN_GUARDAR/.test(r.texto) && /'\/app\/buscar'/.test(r.texto));
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
-  ok('la versión subió', /pesada-app-v9/.test(r.texto));
+  ok('la versión subió', /pesada-app-v10/.test(r.texto));
 
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);

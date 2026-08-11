@@ -118,42 +118,32 @@ async function main() {
 
   /* ═══ 2. Salir y cambiar de código ═══ */
   console.log('\n── Salir y cambiar de código');
-  const botonSalir = await pg.$('[data-abre-modal="modal-menu"]');
+  const botonSalir = await pg.$('#menu-salir');
   ok('hay botón Salir en el encabezado', !!botonSalir);
   const cajaSalir = await botonSalir.boundingBox();
   ok('es tocable (44 px o más)', cajaSalir.height >= 40, cajaSalir.height);
 
+  // Ya no hay hoja del medio: el botón hace una sola cosa, y avisa antes.
+  const hayHoja = await pg.evaluate(() => !!document.getElementById('modal-menu'));
+  ok('no hay hoja intermedia con dos opciones', !hayHoja);
+
+  // Primero se rechaza el aviso: no tiene que salir.
+  let vistoElAviso = '';
+  const rechazar = (d) => { vistoElAviso = d.message(); d.dismiss(); };
+  pg.on('dialog', rechazar);
   await botonSalir.click();
-  await pg.waitForTimeout(250);
-  const menuVisible = await pg.evaluate(() => {
-    const m = document.getElementById('modal-menu');
-    return !!m && !m.hidden;
-  });
-  ok('el menú se abre', menuVisible);
-  const textoMenu = await pg.textContent('#modal-menu');
-  ok('lleva a Balanza y turno', /Balanza y turno/.test(textoMenu));
-  ok('ofrece salir de la app', /Salir de la app/.test(textoMenu));
-  ok('muestra de qué balanza es la sesión', /El Mataco/.test(textoMenu), textoMenu.slice(0, 120));
-  // Solo esas dos opciones: nada de lo que ya está adentro de Balanza y turno.
-  ok('NO repite "Entrar con otro código"',
-    textoMenu.indexOf('Entrar con otro código') === -1, 'sigue el botón repetido');
-  ok('NO repite "Cambiar quién está en la balanza"',
-    textoMenu.indexOf('Cambiar quién está en la balanza') === -1, 'sigue el botón repetido');
-  const botonesMenu = await pg.$$eval('#modal-menu .botonera > *', (b) => b.map((x) => x.textContent.trim()));
-  ok('el menú tiene solo Balanza y turno, Salir de la app y Cancelar',
-    botonesMenu.length === 3, botonesMenu.join(' | '));
+  await pg.waitForTimeout(400);
+  ok('avisa antes de salir', /¿Salir de la app\?/.test(vistoElAviso), vistoElAviso.slice(0, 120));
+  ok('el aviso aclara que no se borra nada', /No se borra nada/.test(vistoElAviso));
+  ok('si se dice que no, no sale', pg.url().indexOf('/app/ingreso') === -1, pg.url());
 
+  // Ahora sí: aceptando, sale y pide el código de nuevo (que es también la
+  // forma de cambiar de balanza).
+  pg.off('dialog', rechazar);
   pg.on('dialog', (d) => d.accept());
-  await pg.click('#modal-menu a[href="/app/balanza"]');
-  await pg.waitForURL('**/app/balanza', { timeout: 8000 }).catch(() => {});
-  ok('el menú lleva a Balanza y turno', pg.url().indexOf('/app/balanza') !== -1, pg.url());
-  const textoBalanza = await pg.textContent('.pantalla');
-  ok('y ahí está el cambio de balanza', /Balanza/.test(textoBalanza) && /Cambiar/.test(textoBalanza));
-
-  await pg.click('#cambiar-balanza');
+  await botonSalir.click();
   await pg.waitForURL('**/app/ingreso', { timeout: 8000 }).catch(() => {});
-  ok('"Cambiar" la balanza lleva a la pantalla del código',
-    pg.url().indexOf('/app/ingreso') !== -1, pg.url());
+  ok('aceptando sale y pide el código', pg.url().indexOf('/app/ingreso') !== -1, pg.url());
 
   /* ═══ 4. El campo en la regulada ═══ */
   console.log('\n── El campo se ve y se puede corregir en la regulada');

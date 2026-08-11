@@ -572,11 +572,9 @@ module.exports = function crearAppMovil(deps) {
     const s = sesionApp(req);
     res.locals.puedeCargar = !!(s && s.codigoIngreso);
     res.locals.esGeneral = !!(s && s.esGeneral);
-    // Para el menú de cuenta del encabezado (sale de la sesión, sin ver la base).
-    res.locals.balanzaNombre = (s && s.balanza) || '';
-    // Qué versión está sirviendo el servidor. La pantalla "Balanza y turno" la
-    // compara con la que tiene guardada el teléfono: así se ve de un vistazo si
-    // el teléfono quedó atrasado, sin tener que adivinar.
+    // Qué versión está sirviendo el servidor. El bloque "Versión de la app" del
+    // patio y del resumen la compara con la que tiene guardada el teléfono: así
+    // se ve de un vistazo si quedó atrasado, sin tener que adivinar.
     res.locals.versionApp = versionDelServiceWorker();
     return next();
   });
@@ -2598,21 +2596,17 @@ module.exports = function crearAppMovil(deps) {
    * BALANZA Y TURNO  (ref. 6c)
    * ======================================================================= */
 
-  router.get('/balanza', exigirApp, async (req, res) => {
-    try {
-      const s = sesionApp(req);
-      const nombre = s.codigoIngreso ? await nombreDelDia(s.codigoIngreso, hoyStr()) : '';
-      return res.render('app/balanza', {
-        layout: 'app/layout',
-        titulo: 'Balanza y turno',
-        balanza: s.balanza,
-        nombreDia: nombre,
-        esGeneral: !!s.esGeneral,
-        puedeCargar: !!s.codigoIngreso,
-      });
-    } catch (err) {
-      return siguienteError(err, req, res);
-    }
+  /**
+   * "Balanza y turno" (/app/balanza) se sacó: casi todo lo que tenía adentro
+   * estaba duplicado en otro lado —cambiar de código es salir, el nombre del día
+   * se cambia desde el patio, buscar y los pedidos están en sus pantallas— y lo
+   * único propio, la versión de la app, ahora va al final del patio y del
+   * resumen. Quedan teléfonos con la dirección guardada, así que en vez de un
+   * 404 se los manda a donde corresponde.
+   */
+  router.get('/balanza', exigirApp, (req, res) => {
+    const s = sesionApp(req);
+    return res.redirect(s.codigoIngreso ? '/app/patio' : '/app/general');
   });
 
   /* =========================================================================

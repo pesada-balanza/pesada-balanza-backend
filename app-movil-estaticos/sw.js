@@ -14,7 +14,7 @@
 // Al subir cambios hay que subir este número: así el teléfono descarta las
 // pantallas guardadas y toma las nuevas. Las pesadas sin subir NO se tocan:
 // viven en localStorage y este archivo no lo mira nunca.
-var VERSION = 'pesada-app-v9';
+var VERSION = 'pesada-app-v10';
 
 // Dos copias separadas a propósito:
 //  - FIJOS: css, js, ícono. No dependen de quién esté usando la app.
@@ -142,7 +142,7 @@ self.addEventListener('activate', function (ev) {
 self.addEventListener('message', function (ev) {
   var msj = ev.data || {};
 
-  // Qué versión está corriendo en ESTE teléfono. La pantalla "Balanza y turno"
+  // Qué versión está corriendo en ESTE teléfono. El bloque "Versión de la app"
   // la compara con la del servidor para avisar si quedó atrasado.
   if (msj.tipo === 'version') {
     if (ev.ports && ev.ports[0]) ev.ports[0].postMessage({ version: VERSION });

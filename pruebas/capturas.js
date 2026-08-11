@@ -222,7 +222,7 @@ async function main() {
       await p.click('#modal-anular [data-tecla="3"]');
     });
     await capturar(pg, '/app/pedir/' + conTF._id + '?tipo=anulacion', '10-pedir-anulacion-6e');
-    await capturar(pg, '/app/balanza', '11-balanza-y-turno-6c');
+
     // Patio sin señal (7a)
     await pg.goto(BASE + '/app/patio', { waitUntil: 'networkidle' });
     await ctx.setOffline(true);

@@ -1,60 +1,39 @@
 <%#
-  Menú de cuenta. Va en el encabezado de todas las pantallas principales.
-  Resuelve lo que no había: cerrar sesión y pasar de un código a otro
-  (por ejemplo, de GENERAL a una balanza) sin tener que borrar nada.
+  Botón del rincón. Antes abría una hoja con dos opciones ("Balanza y turno" y
+  "Salir de la app"), y eso confundía: el botón decía "Salir" pero no salía, y la
+  opción de salir estaba repetida en tres lugares. Ahora hace una sola cosa: sale.
+
+  Cambiar de código es salir y poner el otro, así que con esto también se cambia
+  de balanza. Y el nombre de quien está en la balanza se cambia desde el patio,
+  tocando el nombre arriba a la izquierda.
 %>
-<button type="button" class="menu-btn" data-abre-modal="modal-menu">Salir</button>
-
-<div class="velo centrado" id="modal-menu" hidden>
-  <div class="hoja">
-    <div class="hoja-texto">
-      <span class="etiqueta">Sesión</span>
-      <span class="t-modal"><%= balanzaNombre || 'GENERAL' %></span>
-      <span class="txt-chico">
-        El código queda abierto en este teléfono. Podés cambiarlo cuando quieras.
-      </span>
-    </div>
-
-    <%# Dos opciones y nada más. "Balanza y turno" ya tiene adentro el cambio de
-        código Y el cambio de quién está en la balanza, así que acá no se repite:
-        se entra ahí y se resuelve todo en un solo lugar. %>
-    <div class="botonera">
-      <a class="btn" href="/app/balanza">Balanza y turno</a>
-      <button type="button" class="btn btn-borde-suave" id="menu-salir">Salir de la app</button>
-      <button type="button" class="btn btn-texto" data-cierra-modal="modal-menu">Cancelar</button>
-    </div>
-
-    <div class="hoja-nota">
-      <span class="txt-chico">
-        Salir no borra nada de lo cargado. Si quedaron pesadas sin subir, la app avisa
-        y no te deja salir hasta que se suban.
-      </span>
-    </div>
-  </div>
-</div>
+<button type="button" class="menu-btn" id="menu-salir">Salir</button>
 
 <script>
 (function () {
   'use strict';
 
-  function cerrarSesion(mensaje) {
+  document.getElementById('menu-salir').addEventListener('click', function (ev) {
+    ev.preventDefault();
+
     // Si hay pesadas sin subir, no se sale: se perderían al cambiar de código.
     if (App.cola.cantidad() > 0) {
       window.alert(
         'Hay ' + App.cola.cantidad() + ' pesada(s) todavía guardadas en el teléfono. ' +
-        'Conectate a internet y esperá a que se suban antes de cambiar de código.'
+        'Conectate a internet y esperá a que se suban antes de salir.'
       );
       return;
     }
-    if (mensaje && !window.confirm(mensaje)) return;
+
+    if (!window.confirm(
+      '¿Salir de la app?\n\n' +
+      'No se borra nada de lo cargado. Después hay que volver a poner el código, ' +
+      'y para eso hace falta internet una vez.'
+    )) return;
+
     App.pedir('POST', '/app/api/salir', {}, function () {
       window.location.href = '/app/ingreso';
     });
-  }
-
-  document.getElementById('menu-salir').addEventListener('click', function (ev) {
-    ev.preventDefault();
-    cerrarSesion('¿Salir de la app? Después hay que volver a poner el código.');
   });
 })();
 </script>

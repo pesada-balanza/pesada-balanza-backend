@@ -1,0 +1,102 @@
+<%# Versión de la app. Antes vivía dentro de "Balanza y turno"; esa pantalla se
+    sacó porque casi todo lo que tenía estaba duplicado en otro lado, pero esto
+    NO: es la única forma de saber si un teléfono quedó con una versión vieja
+    guardada y de forzar la actualización sin borrar datos del navegador (que es
+    justo lo que no queremos que haga alguien con pesadas sin subir).
+
+    Se muestra chico y callado. En el patio —la pantalla que se usa todo el día—
+    va en modo `discreto`: aparece SOLO si hay algo que hacer (el teléfono quedó
+    atrasado o todavía no guardó la app). Si está al día, no se ve. %>
+<div class="tarjeta tarjeta-chica" style="gap:6px" id="v-caja"
+     <%= (typeof discreto !== 'undefined' && discreto) ? 'hidden' : '' %>>
+  <span class="etiqueta">Versión de la app</span>
+  <span class="mono-chico">
+    teléfono <span id="v-telefono">…</span> ·
+    servidor <span id="v-servidor"><%= versionApp || '—' %></span>
+  </span>
+  <span class="txt-chico" id="v-estado">Comprobando…</span>
+  <button type="button" class="btn btn-borde-suave" id="v-actualizar" hidden>Actualizar la app</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var caja = document.getElementById('v-caja');
+  var vTelefono = document.getElementById('v-telefono');
+  var vEstado = document.getElementById('v-estado');
+  var btnActualizar = document.getElementById('v-actualizar');
+  var enElServidor = '<%= versionApp || "" %>';
+
+  /** En modo discreto la caja arranca escondida: se muestra si hay qué hacer. */
+  function haceFaltaVerlo() { caja.hidden = false; }
+
+  function mostrar(version) {
+    vTelefono.innerHTML = App.esc(version || 'sin guardar');
+
+    if (!version) {
+      vEstado.innerHTML = 'Este teléfono todavía no guardó la app. Abrila una vez con ' +
+        'internet y queda disponible sin señal.';
+      haceFaltaVerlo();
+      return;
+    }
+    if (!enElServidor || version === enElServidor) {
+      vEstado.innerHTML = 'Está al día.';
+      return;
+    }
+    vEstado.innerHTML = 'Hay una versión más nueva. Tocá "Actualizar la app": ' +
+      'no se pierde nada de lo cargado.';
+    btnActualizar.hidden = false;
+    haceFaltaVerlo();
+  }
+
+  if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+    mostrar('');
+  } else {
+    // Se le pregunta al propio service worker qué versión es.
+    var canal = new MessageChannel();
+    var contestó = false;
+    canal.port1.onmessage = function (ev) {
+      contestó = true;
+      mostrar((ev.data && ev.data.version) || '');
+    };
+    try {
+      navigator.serviceWorker.controller.postMessage({ tipo: 'version' }, [canal.port2]);
+    } catch (e) {
+      mostrar('');
+    }
+    // Un service worker viejo no sabe contestar esto: si no contesta, es viejo.
+    window.setTimeout(function () {
+      if (!contestó) {
+        vTelefono.innerHTML = 'una versión vieja';
+        vEstado.innerHTML = 'Este teléfono tiene una versión anterior guardada. ' +
+          'Tocá "Actualizar la app": no se pierde nada de lo cargado.';
+        btnActualizar.hidden = false;
+        haceFaltaVerlo();
+      }
+    }, 1500);
+  }
+
+  btnActualizar.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    if (!App.hayConexion()) {
+      vEstado.innerHTML = 'Para actualizar hace falta internet.';
+      return;
+    }
+    btnActualizar.disabled = true;
+    btnActualizar.innerHTML = 'Actualizando…';
+    vEstado.innerHTML = 'Bajando la versión nueva…';
+
+    // Se le pide al navegador que revise el service worker y, cuando el nuevo
+    // toma el relevo, se recarga. Si en 8 segundos no pasó nada, se recarga
+    // igual: la pantalla siempre viene del servidor.
+    function recargar() { window.location.reload(); }
+    navigator.serviceWorker.addEventListener('controllerchange', recargar);
+    window.setTimeout(recargar, 8000);
+
+    navigator.serviceWorker.getRegistration('/app').then(function (reg) {
+      if (reg) return reg.update();
+      return null;
+    }).catch(function () { /* se recarga por el timeout */ });
+  });
+})();
+</script>
