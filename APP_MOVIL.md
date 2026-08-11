@@ -417,14 +417,17 @@ control. El guardado, en cambio, usa `dentroDelPlazoCtg()`, que sí exige que no
 sea futura. Ahora **la lista usa la misma regla que el guardado**, así que los dos
 coinciden siempre.
 
-Además:
+Y si alguien igual intenta cargarlo, el mensaje dice que **la fecha está
+adelantada y el dato está mal cargado**, con la fecha que tiene. Antes decía
+"venció el plazo", que manda a buscar otra cosa. El ticket no se esconde ni se
+borra: se abre igual desde Ver Registros o desde el buscador, solo deja de
+aparecer en un aviso que no se podía resolver.
 
-- Si alguien igual intenta cargarlo, el mensaje dice que **la fecha está
-  adelantada y el dato está mal cargado**, con la fecha que tiene. Antes decía
-  "venció el plazo", que manda a buscar otra cosa.
-- No se esconde: el resumen de **GENERAL** lo pone en "Para revisar" —
-  *"N tickets con la fecha de regulada adelantada"*— y `/app/general/fechas-adelantadas`
-  los lista. Se corrige en Ver Registros de la web.
+**No hay nada que validar al cargar.** Ni la app ni la web dejan escribir esa
+fecha: las dos ponen `fechaRegulada` con la fecha del día en que se guarda. La
+única forma de que quede adelantada es editar el registro a mano en la base. Y en
+la práctica tampoco tiene sentido: el CTG sale de una carta de porte emitida en
+ARCA, que no se puede confeccionar con fecha futura.
 
 Qué afecta y qué no: `fechaRegulada` define **el plazo del CTG**. En qué día suma
 el ticket lo define `fecha`, así que el resumen del día y el acumulado de campaña
@@ -750,7 +753,6 @@ probado que si se rompe el acumulado, esta sigue estando.
 | `/app/general/pedidos` | pedidos de anulación y corrección |
 | `/app/general/repetidos` | camiones repetidos en dos balanzas |
 | `/app/general/sin-regular` | camiones que quedaron sin regular |
-| `/app/general/fechas-adelantadas` | tickets con la fecha de regulada posterior a hoy |
 
 ---
 

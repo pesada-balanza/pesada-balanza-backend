@@ -2283,12 +2283,6 @@ module.exports = function crearAppMovil(deps) {
       (r) => r.fechaTaraFinal && r.fechaTaraFinal < fecha
     );
 
-    // Tickets con la fecha de la regulada POSTERIOR a hoy: eso no puede pasar
-    // solo (los dos sistemas la escriben con la fecha del día), así que es un
-    // dato mal cargado. Antes no se veía en ninguna parte y encima aparecía en el
-    // aviso de "sin CTG" sin poder resolverse. Se lo muestra a GENERAL, que es
-    // quien puede corregirlo.
-    const adelantados = s.esGeneral ? await ticketsConFechaAdelantada() : [];
 
     const revisar = [];
     if (pedidosPendientes.length) {
@@ -2321,15 +2315,6 @@ module.exports = function crearAppMovil(deps) {
       revisar.push({
         texto: sinRegularViejos.length + ' sin regular de días anteriores',
         url: '/app/general/sin-regular',
-      });
-    }
-    if (adelantados.length) {
-      revisar.push({
-        texto:
-          adelantados.length +
-          ' ticket' + (adelantados.length === 1 ? '' : 's') +
-          ' con la fecha de regulada adelantada',
-        url: '/app/general/fechas-adelantadas',
       });
     }
 
@@ -2683,61 +2668,6 @@ module.exports = function crearAppMovil(deps) {
   });
 
   /** Camiones que quedaron sin regular de días anteriores (ref. 7c/8a). */
-  /**
-   * Tickets con la fecha de la regulada POSTERIOR a hoy.
-   *
-   * No puede pasar solo: tanto la web como la app la escriben con la fecha del
-   * día en que se guarda. Si hay alguno es un dato mal cargado —tocado a mano en
-   * la base, o cargado con la fecha del servidor mal— y hay que corregirlo,
-   * porque de esa fecha dependen el plazo del CTG y en qué día suma el ticket.
-   */
-  async function ticketsConFechaAdelantada() {
-    const docs = await colRegistros()
-      .find({
-        pesadaPara: 'REGULADA',
-        anulado: { $ne: true },
-        fechaRegulada: { $gt: hoyStr() },
-      })
-      .sort({ idTicket: 1 })
-      .toArray();
-    return docs;
-  }
-
-  router.get('/general/fechas-adelantadas', exigirApp, exigirGeneral, async (req, res) => {
-    try {
-      const docs = await ticketsConFechaAdelantada();
-      const grupos = docs.map((r) => ({
-        patentes: r.patentes || '(sin patente)',
-        tickets: [
-          {
-            id: String(r._id),
-            nro: r.nroApp || String(r.idTicket || ''),
-            balanza: nombreBalanza(r.codigoIngreso),
-            hora: 'regulada ' + r.fechaRegulada + (r.fecha ? ' · ticket ' + r.fecha : ''),
-            usuario: r.usuario || r.cargadoPor || '',
-            neto: Number(r.neto) || 0,
-          },
-        ],
-      }));
-
-      return res.render('app/general-lista', {
-        layout: 'app/layout',
-        titulo: 'Fechas adelantadas',
-        encabezado: 'Fecha de regulada adelantada',
-        detalle:
-          'La fecha de la regulada de estos tickets es posterior a hoy, y eso no puede pasar solo: ' +
-          'el dato está mal cargado. El plazo del CTG se mide contra esa fecha, así que mientras esté ' +
-          'así el ticket no lo acepta. En qué día suma no cambia: eso lo define la fecha del ticket, ' +
-          'no la de la regulada. Hay que corregirlo en Ver Registros de la web.',
-        grupos,
-        vacio: 'Ningún ticket tiene la fecha de regulada adelantada.',
-        kg,
-      });
-    } catch (err) {
-      return siguienteError(err, req, res);
-    }
-  });
-
   router.get('/general/sin-regular', exigirApp, exigirGeneral, async (req, res) => {
     try {
       const hoy = hoyStr();

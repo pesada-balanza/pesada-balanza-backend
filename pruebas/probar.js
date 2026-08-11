@@ -994,32 +994,10 @@ async function main() {
   ok('y nombra la fecha que tiene, para poder buscarlo',
     r.json.error.indexOf(enElFuturo) !== -1, r.json.error);
 
-  // GENERAL lo ve para poder corregirlo: antes no se veía en ninguna parte.
-  cookies = {};
-  r = await ir('POST', '/app/api/ingreso', { code: '12341' }, { desde: '10.20.30.41' });
-  ok('GENERAL entra', r.estado === 200, r.texto.slice(0, 120));
-
-  r = await ir('GET', '/app/general');
-  ok('el resumen de GENERAL lo pone en "Para revisar"',
-    /1 ticket con la fecha de regulada adelantada/.test(r.texto),
-    (r.texto.match(/con la fecha de regulada[^<]*/) || [''])[0]);
-  ok('con el camino a la lista', /href="\/app\/general\/fechas-adelantadas"/.test(r.texto));
-
-  r = await ir('GET', '/app/general/fechas-adelantadas');
-  ok('la lista abre y trae el ticket', r.estado === 200 && r.texto.indexOf('AD ELA 01') !== -1, r.estado);
-  ok('dice la fecha que tiene', r.texto.indexOf('regulada ' + enElFuturo) !== -1);
-  ok('y explica que hay que corregirlo', /mal cargado/.test(r.texto));
-
+  // El ticket sigue estando y se puede abrir: no se borra ni se esconde de la
+  // ficha, solo deja de aparecer en un aviso que no se podía resolver.
   r = await ir('GET', '/app/registro/' + idAdelantado);
-  ok('desde ahí se puede abrir el ticket', r.estado === 200 && /AD ELA 01/.test(r.texto), r.estado);
-
-  cookies = Object.assign({}, cookies5679);
-  r = await ir('GET', '/app/general');
-  ok('a un balancero no se le ofrece esa lista (es de GENERAL)',
-    !/fechas-adelantadas/.test(r.texto));
-
-  r = await ir('GET', '/app/general/fechas-adelantadas');
-  ok('y si la pide, no entra', r.estado !== 200, r.estado);
+  ok('el ticket se sigue pudiendo abrir', r.estado === 200 && /AD ELA 01/.test(r.texto), r.estado);
 
   // Se saca de la base para no ensuciar lo que viene
   baseFalsa.collection('registros').docs = baseFalsa
