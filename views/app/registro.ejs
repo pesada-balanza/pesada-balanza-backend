@@ -150,7 +150,8 @@
           <% if (r.cp) { %>
             <span class="chip-fijo">🔒 fijo</span>
           <% } else { %>
-            <a class="chip-fijo" href="/app/ctg?id=<%= r.id %>"
+            <%# `volver` para que la pantalla del CTG vuelva ACÁ, no al inicio. %>
+            <a class="chip-fijo" href="/app/ctg?id=<%= r.id %>&volver=<%= encodeURIComponent('/app/registro/' + r.id) %>"
                style="color:var(--tinta); border-color:var(--borde-fuerte); background:transparent">Cargar</a>
           <% } %>
         </div>
@@ -162,7 +163,7 @@
       <a class="btn btn-borde-suave" href="/app/imprimir?ids=<%= r.id %>">Imprimir el ticket</a>
 
       <% if (puedeCargarCtg) { %>
-        <a class="btn btn-borde" href="/app/ctg?id=<%= r.id %>">Cargar el CTG</a>
+        <a class="btn btn-borde" href="/app/ctg?id=<%= r.id %>&volver=<%= encodeURIComponent('/app/registro/' + r.id) %>">Cargar el CTG</a>
       <% } %>
 
       <%# El PDF recién se comparte cuando está cargada la regulada: antes el

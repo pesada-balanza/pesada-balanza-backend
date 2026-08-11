@@ -855,6 +855,50 @@ async function main() {
   ok('la pantalla de CTG abre', r.estado === 200 && /Cargar CTG/.test(r.texto), r.estado);
   ok('lista el ticket que espera', r.texto.indexOf(docCerrado.patentes) !== -1);
 
+  /* Entrando DESDE un ticket: solo ese, y el Volver vuelve al ticket.
+     Antes mostraba la lista entera y el Volver iba al inicio. */
+  // Se prepara un segundo ticket esperando el CTG, para poder distinguir.
+  const otroEsperando = baseFalsa.collection('registros').docs.find(
+    (d) => d.codigoIngreso === '5679' && d.fechaRegulada && !d.cp && !d.anulado &&
+      String(d._id) !== idCtg
+  );
+
+  r = await ir('GET', '/app/registro/' + idCtg);
+  ok('el ticket manda al CTG con su vuelta puesta',
+    r.texto.indexOf('/app/ctg?id=' + idCtg + '&volver=' + encodeURIComponent('/app/registro/' + idCtg)) !== -1,
+    (r.texto.match(/\/app\/ctg\?[^"]*/) || [''])[0]);
+
+  r = await ir('GET', '/app/ctg?id=' + idCtg + '&volver=' + encodeURIComponent('/app/registro/' + idCtg));
+  ok('entrando desde un ticket, el Volver vuelve al ticket',
+    r.texto.indexOf('href="/app/registro/' + idCtg + '" class="volver"') !== -1,
+    (r.texto.match(/class="volver"[^<]*/) || [''])[0]);
+  // Se cuentan las TARJETAS, no las apariciones del atributo: el script de la
+  // pantalla también lo nombra.
+  ok('y se muestra SOLO ese ticket',
+    (r.texto.match(/class="tarjeta" data-ticket="/g) || []).length === 1,
+    (r.texto.match(/class="tarjeta" data-ticket="/g) || []).length);
+  if (otroEsperando) {
+    ok('el otro que espera no se cuela', r.texto.indexOf(String(otroEsperando._id)) === -1);
+    ok('pero avisa que hay otros y da el camino',
+      /Ver los otros \d+ que esperan el CTG/.test(r.texto) && /href="\/app\/ctg"/.test(r.texto),
+      (r.texto.match(/Ver los otros[^<]*/) || [''])[0]);
+  }
+
+  // Un "volver" que apunte afuera de la app no se usa: sería una puerta para
+  // llevar a alguien a otro sitio desde un botón que dice Volver.
+  r = await ir('GET', '/app/ctg?volver=' + encodeURIComponent('https://sitio-de-afuera.example/x'));
+  ok('un "volver" de afuera se ignora',
+    r.texto.indexOf('sitio-de-afuera') === -1 && /href="\/app\/patio" class="volver"/.test(r.texto),
+    (r.texto.match(/class="volver"[^<]*/) || [''])[0]);
+
+  r = await ir('GET', '/app/imprimir?ids=' + idCtg + '&volver=' + encodeURIComponent('//sitio-de-afuera.example'));
+  ok('y tampoco en la hoja de impresión', r.texto.indexOf('sitio-de-afuera') === -1, r.estado);
+
+  // Un id que no espera CTG: se cae a la lista completa, no a una pantalla vacía
+  r = await ir('GET', '/app/ctg?id=000000000000000000000000');
+  ok('un id que no espera CTG cae a la lista completa',
+    r.estado === 200 && /esperando el CTG/.test(r.texto), r.estado + ' ' + r.texto.slice(0, 0));
+
   // Validaciones
   r = await ir('POST', '/app/api/ctg', { id: idCtg, cp: 'ABC' });
   ok('un CTG con letras se rechaza', r.estado === 400 && /números/.test(r.json.error), r.texto.slice(0, 150));

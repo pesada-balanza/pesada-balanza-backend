@@ -36,8 +36,13 @@
     <% } else { %>
 
       <p class="txt" style="margin:0">
-        <%= lista.length %> ticket<%= lista.length === 1 ? '' : 's' %> esperando el CTG.
-        Es el número de la carta de porte: solo números, hasta 11 dígitos.
+        <% if (soloUno) { %>
+          <%# Se entró desde este ticket, así que se muestra solo este. %>
+          Es el número de la carta de porte: solo números, hasta 11 dígitos.
+        <% } else { %>
+          <%= lista.length %> ticket<%= lista.length === 1 ? '' : 's' %> esperando el CTG.
+          Es el número de la carta de porte: solo números, hasta 11 dígitos.
+        <% } %>
       </p>
 
       <div id="lista-ctg" style="display:flex; flex-direction:column; gap:12px">
@@ -73,6 +78,14 @@
     <% } %>
 
     <div class="espaciador"></div>
+
+    <%# Vino de un ticket puntual, pero puede haber otros esperando: se lo dice y
+        le da el camino, sin obligarlo a pasar por la lista entera. %>
+    <% if (soloUno && otros > 0) { %>
+      <a class="btn btn-borde-suave" href="/app/ctg">
+        Ver los otros <%= otros %> que esperan el CTG
+      </a>
+    <% } %>
   </div>
 </div>
 

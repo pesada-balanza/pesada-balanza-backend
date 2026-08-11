@@ -1603,6 +1603,18 @@ module.exports = function crearAppMovil(deps) {
    */
   const TOPE_TICKETS_IMPRESION = 120;
 
+  /**
+   * A dónde vuelve una pantalla a la que se llega desde varios lados.
+   *
+   * Solo se aceptan direcciones de la propia app: si llegara otra cosa (un link
+   * armado a mano con un sitio de afuera), se usa la de siempre. Un botón
+   * "Volver" que se va del sistema es una puerta para engañar a alguien.
+   */
+  function volverSeguro(valor, porDefecto) {
+    const v = String(valor || '');
+    return /^\/app(\/|\?|$)/.test(v) ? v : porDefecto;
+  }
+
   router.get('/imprimir', exigirApp, (req, res) => {
     const ids = String(req.query.ids || '')
       .split(',')
@@ -1613,7 +1625,7 @@ module.exports = function crearAppMovil(deps) {
       layout: false,
       ids,
       locales: String(req.query.locales || ''),
-      volver: req.query.volver || '/app/patio',
+      volver: volverSeguro(req.query.volver, '/app/patio'),
     });
   });
 
@@ -1887,14 +1899,27 @@ module.exports = function crearAppMovil(deps) {
   router.get('/ctg', exigirApp, async (req, res) => {
     try {
       const s = sesionApp(req);
-      const lista = await ticketsSinCtg(balanzaDeLaSesion(s));
+      const todos = await ticketsSinCtg(balanzaDeLaSesion(s));
+      const elegido = idValido(req.query.id) ? String(req.query.id) : '';
+
+      // Si se entró desde UN ticket, se muestra solo ese: el que viene de un
+      // ticket quiere cargarle el CTG a ese, no revisar la lista entera. Si ese
+      // ticket ya no espera CTG (lo cargaron, o se pasó el plazo), se cae a la
+      // lista completa en vez de mostrar una pantalla vacía.
+      const soloEse = elegido ? todos.filter((t) => t.id === elegido) : [];
+      const lista = soloEse.length ? soloEse : todos;
+
       return res.render('app/ctg', {
         layout: 'app/layout',
         titulo: 'Cargar CTG',
         lista,
-        // Si se entró desde un ticket puntual, ese va primero y abierto.
-        elegido: idValido(req.query.id) ? String(req.query.id) : '',
-        volver: s.codigoIngreso ? '/app/patio' : '/app/general',
+        elegido,
+        soloUno: soloEse.length === 1,
+        otros: soloEse.length ? todos.length - 1 : 0,
+        // A dónde vuelve: al ticket si vino de un ticket, y si no, a su pantalla
+        // de siempre. Antes volvía siempre al inicio, aunque se hubiera entrado
+        // desde otro lado.
+        volver: volverSeguro(req.query.volver, s.codigoIngreso ? '/app/patio' : '/app/general'),
         diasPlazo: DIAS_REGULADA_A_CTG,
         kg,
       });

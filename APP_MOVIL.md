@@ -384,6 +384,15 @@ accesos:
 3. **La pantalla `/app/ctg`**, con la lista de los que esperan: patente, número,
    grano, neto y fecha de la regulada, cada uno con su campo y su botón.
 
+Entrando **desde un ticket** (accesos 1 y 2) se muestra **solo ese ticket**, no la
+lista entera: el que viene de un ticket quiere cargarle el CTG a ese. Si hay más
+esperando, abajo aparece "Ver los otros N que esperan el CTG". Y el **Volver**
+vuelve al ticket, no al inicio: la pantalla acepta un `volver` en la dirección,
+que solo se respeta si apunta adentro de `/app` (un botón "Volver" que se va del
+sistema sería una puerta para engañar a alguien). Si ese ticket ya no espera CTG
+—lo cargaron, o se pasó el plazo— se cae a la lista completa en vez de mostrar una
+pantalla vacía.
+
 ### Las reglas (las mismas que la web)
 
 | | |
