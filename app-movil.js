@@ -1829,6 +1829,8 @@ module.exports = function crearAppMovil(deps) {
         kg,
         puedeEditarComentarios,
         puedeCargarCtg,
+        // Corregir los datos es SOLO de GENERAL: el balancero pide, no corrige.
+        puedeCorregir: !!s.esGeneral && puedeCorregirse(r),
         pedido: pedido
           ? {
               tipo: pedido.tipo,
@@ -1840,6 +1842,201 @@ module.exports = function crearAppMovil(deps) {
           : null,
         esGeneral: !!s.esGeneral,
       });
+    } catch (err) {
+      return siguienteError(err, req, res);
+    }
+  });
+
+  /* =========================================================================
+   * CORREGIR LOS DATOS DE UN TICKET — SOLO GENERAL
+   * -------------------------------------------------------------------------
+   * El balancero NO corrige datos: no es que se le venza un plazo, es que no
+   * puede. Cuando encuentra un error pide la corrección y GENERAL la aplica.
+   * Hasta ahora ese circuito quedaba cortado: el pedido llegaba y lo único que
+   * se podía hacer era rechazarlo.
+   *
+   * Se toma como base el `/modificar/:id` que tenía la web y se sacó en el
+   * commit c343d99 ("Reemplazar Modificar por edición solo de Comentarios"):
+   * los mismos campos y las mismas reglas. Dos diferencias a propósito:
+   *
+   *  1. Ahí lo podía usar cualquier sesión de la web. Acá es SOLO GENERAL.
+   *  2. Ahí se exigía que el ticket tuviera la regulada cerrada. Acá no: el
+   *     caso que hay que resolver es justamente una tara final mal cargada, y
+   *     esos tickets todavía no tienen regulada. El plazo se cuenta desde el
+   *     último paso cargado, que es lo que hacen las dos reglas de la web
+   *     (`/modificar` contaba desde la tara final; `editar-comentarios`, desde
+   *     la regulada).
+   * ======================================================================= */
+
+  const DIAS_PARA_CORREGIR = 1;
+  const MAXIMO_CORRECCIONES = 2;
+
+  /** El último paso cargado del ticket: desde ahí se cuenta el plazo. */
+  function fechaDelUltimoPaso(r) {
+    return r.fechaRegulada || r.fechaTaraFinal || r.fecha || '';
+  }
+
+  /** Las mismas reglas de la web: no anulado, hasta 1 día, máximo 2 cambios. */
+  function puedeCorregirse(r) {
+    if (!r || r.anulado) return false;
+    if ((r.modificaciones || 0) >= MAXIMO_CORRECCIONES) return false;
+    return ticketVigente(fechaDelUltimoPaso(r), DIAS_PARA_CORREGIR);
+  }
+
+  router.get('/corregir/:id', exigirApp, exigirGeneral, async (req, res) => {
+    try {
+      if (!idValido(req.params.id)) return noEncontrado(res);
+      const r = await colRegistros().findOne({ _id: oid(req.params.id) });
+      if (!r) return noEncontrado(res);
+
+      const volverAlTicket = '/app/registro/' + String(r._id);
+
+      if (r.anulado) {
+        return pantallaError(res, 'Ticket anulado', 'Un ticket anulado no se corrige.', volverAlTicket);
+      }
+      if ((r.modificaciones || 0) >= MAXIMO_CORRECCIONES) {
+        return pantallaError(
+          res,
+          'Ya se corrigió dos veces',
+          'Este ticket llegó al máximo de ' + MAXIMO_CORRECCIONES +
+            ' correcciones, igual que en la web. Si hay que cambiar algo más, se anula y se carga de nuevo.',
+          volverAlTicket
+        );
+      }
+      if (!ticketVigente(fechaDelUltimoPaso(r), DIAS_PARA_CORREGIR)) {
+        return pantallaError(
+          res,
+          'El plazo venció',
+          'Se puede corregir hasta ' + DIAS_PARA_CORREGIR + ' día después del último paso cargado, y este ticket ' +
+            'es del ' + fechaLarga(fechaDelUltimoPaso(r)) + '. Es el mismo plazo que en la web.',
+          volverAlTicket
+        );
+      }
+
+      const pedido = await colPedidos().findOne(
+        { registroId: r._id, estado: 'PENDIENTE' },
+        { sort: { creadoEn: -1 } }
+      );
+
+      const contratistas = getContratistas() || {};
+      return res.render('app/corregir', {
+        layout: 'app/layout',
+        titulo: 'Corregir el ticket',
+        r: vistaRegistro(r),
+        contratistas: Object.keys(contratistas).sort(),
+        tractoresPorContratista: contratistas,
+        pedido: pedido ? { motivo: pedido.motivo || '', pedidoPor: pedido.pedidoPor || '' } : null,
+        volver: volverAlTicket,
+        kg,
+      });
+    } catch (err) {
+      return siguienteError(err, req, res);
+    }
+  });
+
+  router.post('/api/corregir/:id', exigirApp, exigirGeneral, async (req, res) => {
+    try {
+      if (!idValido(req.params.id)) return fallar(res, 400, 'Ticket inválido.');
+      const r = await colRegistros().findOne({ _id: oid(req.params.id) });
+      if (!r) return fallar(res, 404, 'No se encontró el ticket.');
+      if (r.anulado) return fallar(res, 400, 'Este ticket está anulado.');
+      if ((r.modificaciones || 0) >= MAXIMO_CORRECCIONES) {
+        return fallar(res, 400, 'Este ticket ya se corrigió ' + MAXIMO_CORRECCIONES + ' veces.');
+      }
+      if (!ticketVigente(fechaDelUltimoPaso(r), DIAS_PARA_CORREGIR)) {
+        return fallar(res, 400, 'El plazo para corregir venció (hasta ' + DIAS_PARA_CORREGIR +
+          ' día después del último paso cargado).');
+      }
+
+      const patentes = String(req.body.patentes || '').trim().toUpperCase().slice(0, 60);
+      const chofer = String(req.body.chofer || '').trim().slice(0, 60);
+      if (!patentes) return fallar(res, 400, 'La patente no puede quedar vacía.');
+      if (!chofer) return fallar(res, 400, 'El chofer no puede quedar vacío.');
+
+      // Los mismos límites que al cargar la tara final: 1.000 a 30.000 kg.
+      const vTara = validarNumero(req.body.tara, 1000, 30000);
+      if (!vTara.ok) return fallar(res, 400, 'Tara: ' + vTara.error);
+      const tara = vTara.valor;
+
+      // El bruto NO se toca: es lo que marcó la balanza y es la única prueba del
+      // pesaje. La tara sí, y con ella se recalculan los netos.
+      const brutoEstimado = Number(r.brutoEstimado) || 0;
+      if (brutoEstimado && tara >= brutoEstimado) {
+        return fallar(res, 400, 'La tara no puede ser mayor o igual que el bruto estimado (' + kg(brutoEstimado) + ' kg).');
+      }
+      const bruto = r.bruto != null ? Number(r.bruto) : null;
+      if (bruto != null && tara >= bruto) {
+        return fallar(res, 400, 'La tara no puede ser mayor o igual que el bruto regulado (' + kg(bruto) + ' kg).');
+      }
+
+      const cargoDe = ['SILOBOLSA', 'CONTRATISTA'].indexOf(String(req.body.cargoDe || '')) !== -1
+        ? String(req.body.cargoDe)
+        : (r.cargoDe || '');
+
+      const cambios = {
+        patentes,
+        chofer,
+        tara,
+        netoEstimado: brutoEstimado ? brutoEstimado - tara : 0,
+        cargoDe,
+        silobolsa: cargoDe === 'SILOBOLSA' ? String(req.body.silobolsa || '').trim().slice(0, 40) : '',
+        contratista: cargoDe === 'CONTRATISTA' ? String(req.body.contratista || '').trim().slice(0, 80) : '',
+        tractor: cargoDe === 'CONTRATISTA' ? String(req.body.tractor || '').trim().slice(0, 80) : '',
+        comentarios: String(req.body.comentarios || '').trim().slice(0, 500),
+      };
+      // El neto real solo existe si ya está la regulada.
+      if (bruto != null) cambios.neto = bruto - tara;
+
+      // Qué cambió de verdad: si no cambió nada, no se gasta una modificación.
+      const antes = {};
+      const despues = {};
+      for (const k of Object.keys(cambios)) {
+        const viejo = k === 'contratista' || k === 'tractor' ? plano(r[k]) : r[k];
+        const nuevoValor = cambios[k];
+        const igual = viejo == null && nuevoValor === '' ? true : String(viejo == null ? '' : viejo) === String(nuevoValor);
+        if (!igual) {
+          antes[k] = r[k] == null ? '' : r[k];
+          despues[k] = nuevoValor;
+        }
+      }
+      if (!Object.keys(despues).length) {
+        return res.json({ ok: true, sinCambios: true, destino: '/app/registro/' + String(r._id) });
+      }
+
+      // Auditoría con el mismo `tipoOperacion` que usaba la web, para que la
+      // historia de un ticket se lea igual venga de donde venga.
+      await colAuditoria().insertOne({
+        tipoOperacion: 'MODIFICACION',
+        registroId: r._id,
+        idTicket: r.idTicket,
+        camposAnteriores: antes,
+        camposNuevos: despues,
+        usuario: 'GENERAL',
+        origen: 'app-movil',
+        timestamp: new Date(),
+        fechaOperacion: new Date(),
+      });
+
+      await colRegistros().updateOne(
+        { _id: r._id },
+        { $set: cambios, $inc: { modificaciones: 1 } }
+      );
+
+      // Si había un pedido de corrección esperando, queda resuelto: no tiene
+      // sentido que GENERAL tenga que corregir y además cerrarlo a mano.
+      await colPedidos().updateMany(
+        { registroId: r._id, estado: 'PENDIENTE', tipo: 'CORRECCION' },
+        {
+          $set: {
+            estado: 'CORREGIDO',
+            resueltoPor: 'GENERAL',
+            resueltoEn: new Date(),
+            respuesta: 'Corregido: ' + Object.keys(despues).join(', '),
+          },
+        }
+      );
+
+      return res.json({ ok: true, destino: '/app/registro/' + String(r._id) + '?aviso=corregido' });
     } catch (err) {
       return siguienteError(err, req, res);
     }
@@ -2531,6 +2728,20 @@ module.exports = function crearAppMovil(deps) {
         .limit(10)
         .toArray();
 
+      // Para los pedidos de corrección hay que saber si el ticket todavía se
+      // puede corregir: si no, se ofrecería un botón que después da un error.
+      const aCorregir = pendientes.filter((p) => p.tipo === 'CORRECCION').map((p) => p.registroId);
+      const corregibles = {};
+      if (aCorregir.length) {
+        const docs = await colRegistros()
+          .find(
+            { _id: { $in: aCorregir } },
+            { projection: { anulado: 1, modificaciones: 1, fecha: 1, fechaTaraFinal: 1, fechaRegulada: 1 } }
+          )
+          .toArray();
+        for (const d of docs) corregibles[String(d._id)] = puedeCorregirse(d);
+      }
+
       const armar = (p) => ({
         id: String(p._id),
         registroId: String(p.registroId),
@@ -2542,6 +2753,7 @@ module.exports = function crearAppMovil(deps) {
         pedidoPor: p.pedidoPor || '',
         cuando: (p.creadoEn && p.creadoEn.toISOString().slice(0, 10) === hoyStr() ? 'hoy ' : '') + horaCorta(p.creadoEn),
         estado: p.estado,
+        sePuedeCorregir: !!corregibles[String(p.registroId)],
       });
 
       return res.render('app/general-pedidos', {

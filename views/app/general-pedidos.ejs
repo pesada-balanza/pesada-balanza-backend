@@ -38,6 +38,12 @@
 
         <a class="btn btn-borde-suave" style="min-height:48px; font-size:14px" href="/app/registro/<%= p.registroId %>">Ver el ticket</a>
 
+        <%# Un pedido de corrección se resuelve corrigiendo. Antes acá lo único
+            que se podía hacer era rechazarlo: el circuito quedaba cortado. %>
+        <% if (p.tipo === 'CORRECCION' && p.sePuedeCorregir) { %>
+          <a class="btn" href="/app/corregir/<%= p.registroId %>">Corregir los datos</a>
+        <% } %>
+
         <div class="botonera-fila">
           <% if (p.tipo === 'ANULACION') { %>
             <button type="button" class="btn btn-rojo" data-decidir="<%= p.id %>" data-decision="ANULAR">Anular</button>
@@ -57,8 +63,9 @@
             <span class="mono-chico">#<%= p.nro %> · <%= p.balanza %></span>
           </div>
           <div class="chips">
-            <span class="chip <%= p.estado === 'ANULADO' ? 'chip-ambar' : '' %>">
-              <%= p.estado === 'ANULADO' ? 'Anulado' : 'Rechazado' %>
+            <%# Tres finales posibles: se anuló, se corrigió, o se rechazó. %>
+            <span class="chip <%= p.estado === 'ANULADO' ? 'chip-ambar' : (p.estado === 'CORREGIDO' ? 'chip-verde' : '') %>">
+              <%= p.estado === 'ANULADO' ? 'Anulado' : (p.estado === 'CORREGIDO' ? 'Corregido' : 'Rechazado') %>
             </span>
           </div>
           <span class="txt-chico">“<%= p.motivo %>” · <%= p.pedidoPor %></span>

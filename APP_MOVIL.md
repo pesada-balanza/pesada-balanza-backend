@@ -361,6 +361,67 @@ Las anulaciones y las ediciones de observaciones se registran en
 
 ---
 
+## Corregir los datos de un ticket (solo GENERAL)
+
+El balancero **no corrige datos**. No es que se le venza un plazo: no puede.
+Cuando encuentra un error pide la corrección y **GENERAL la aplica**. Hasta ahora
+ese circuito quedaba cortado — el pedido llegaba y lo único que se podía hacer era
+rechazarlo.
+
+Se tomó como base el **`/modificar/:id` que tenía la web** y se sacó en el commit
+`c343d99` ("Reemplazar Modificar por edición solo de Comentarios"): los mismos
+campos y las mismas reglas.
+
+### Qué se puede corregir
+
+| Se corrige | No se toca |
+| --- | --- |
+| Patentes, chofer | **Bruto estimado y bruto regulado** |
+| **Tara** (y con ella se recalculan los netos) | Campo, grano, lote |
+| Cargó de: silobolsa, o contratista + tractor | Número de ticket, balanza, fechas |
+| Observaciones | |
+
+Los brutos quedan fijos a propósito: son lo que marcó la balanza y la única prueba
+del pesaje. Lo que se corrige es la tara, y el neto se recalcula solo
+(`netoEstimado = brutoEstimado − tara`, y `neto = bruto − tara` cuando ya está la
+regulada). La tara se valida entre 1.000 y 30.000 kg y no puede quedar por encima
+de ningún bruto.
+
+### Las reglas, las mismas que la web
+
+| | |
+| --- | --- |
+| Quién | **solo GENERAL** (`12341`). En la web lo podía usar cualquier sesión: eso no se trajo |
+| Cuándo | hasta **1 día** después del último paso cargado |
+| Cuántas veces | **2 correcciones** por ticket |
+| No se corrige | un ticket anulado |
+| Auditoría | entrada `tipoOperacion: 'MODIFICACION'` con los campos de antes y los de después, `usuario: 'GENERAL'`, `origen: 'app-movil'` |
+| Cupo | suma 1 a `modificaciones`, así se ve que el ticket fue tocado. Si no cambió nada, no gasta ninguna |
+
+Sobre el plazo: la web tenía **dos** anclajes distintos —`/modificar` contaba desde
+la **tara final** y `editar-comentarios` desde la **regulada**—. Acá se cuenta
+desde **el último paso cargado**, que es lo mismo en los dos casos y no deja
+afuera el que hay que resolver: una tara final mal cargada, en un ticket que
+todavía no tiene regulada. El `/modificar` de la web exigía regulada cerrada, y con
+esa regla el caso real no entraba.
+
+### Cómo se llega
+
+- **En el ticket**: botón "Corregir los datos (GENERAL)". Solo lo ve GENERAL, y
+  aparece resaltado cuando hay un pedido de corrección esperando.
+- **En la bandeja de pedidos**: los de tipo corrección ahora traen "Corregir los
+  datos". Si el ticket ya no se puede corregir (venció el plazo o llegó al máximo)
+  el botón no aparece, para no ofrecer algo que después da error.
+
+Al guardar, el pedido queda **`CORREGIDO`** solo, con constancia de quién y de qué
+campos se cambiaron: GENERAL no tiene que corregir y además cerrarlo a mano. En la
+lista de resueltos sale con el chip verde "Corregido".
+
+**Sin señal no se corrige**: es una decisión que necesita servidor y no se encola.
+La pantalla lo dice.
+
+---
+
 ## El CTG
 
 El CTG (Código de Trazabilidad de Granos) se guarda en el campo **`cp`**, el
@@ -751,6 +812,7 @@ probado que si se rompe el acumulado, esta sigue estando.
 | `/app/general` | resumen del día (`?fecha=YYYY-MM-DD` para otro día) |
 | `/app/general/balanza/:codigo` | detalle de una balanza (`?fecha=…`) |
 | `/app/general/pedidos` | pedidos de anulación y corrección |
+| `/app/corregir/:id` | corregir los datos de un ticket (solo GENERAL) |
 | `/app/general/repetidos` | camiones repetidos en dos balanzas |
 | `/app/general/sin-regular` | camiones que quedaron sin regular |
 

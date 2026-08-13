@@ -1,0 +1,235 @@
+<%#
+  Corregir los datos de un ticket. SOLO GENERAL llega acá.
+
+  El balancero no corrige: cuando encuentra un error pide la corrección y GENERAL
+  la aplica. Los campos son los mismos que tenía el "Modificar" de la web.
+
+  Los brutos NO están: son lo que marcó la balanza y es la única prueba del
+  pesaje. Lo que se corrige es la tara, y con ella se recalculan los netos.
+%>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="<%= volver %>" class="volver"><span class="flecha">‹</span><span class="texto">Ticket <%= r.nro %></span></a>
+      <span class="t-pantalla">Corregir los datos</span>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+      <%- include('menu') %>
+    </div>
+  </div>
+
+  <div class="cuerpo">
+
+    <% if (pedido) { %>
+      <div class="aviso apilado">
+        <span class="aviso-titulo">Corrección pedida</span>
+        <span class="aviso-detalle">“<%= pedido.motivo %>”<%= pedido.pedidoPor ? ' · ' + pedido.pedidoPor : '' %></span>
+      </div>
+    <% } %>
+
+    <%# Lo que no se toca, a la vista para no corregir a ciegas. %>
+    <div class="tarjeta" style="gap:9px">
+      <div class="fila-base">
+        <span class="mono" style="font:600 17px/1 var(--mono)"><%= r.patentes %></span>
+        <span class="mono-chico">#<%= r.nro %> · <%= r.balanza %></span>
+      </div>
+      <span class="txt"><%= [r.campo, r.grano, r.loteTexto].filter(Boolean).join(' · ') %></span>
+      <div class="divisor"></div>
+      <div class="fila-base">
+        <span class="txt-chico">Bruto estimado</span>
+        <span class="mono"><%= kg(r.brutoEstimado) %> kg <span class="chip-fijo">🔒 fijo</span></span>
+      </div>
+      <% if (r.bruto) { %>
+        <div class="fila-base">
+          <span class="txt-chico">Bruto regulado</span>
+          <span class="mono"><%= kg(r.bruto) %> kg <span class="chip-fijo">🔒 fijo</span></span>
+        </div>
+      <% } %>
+      <span class="txt-aux">
+        Los brutos no se corrigen: son lo que marcó la balanza.
+        <% if (r.modificaciones) { %>Este ticket ya se corrigió <%= r.modificaciones %> vez/veces.<% } %>
+      </span>
+    </div>
+
+    <form id="form-corregir">
+
+      <div class="campo">
+        <label class="etiqueta" for="patentes">Patentes</label>
+        <input type="text" id="patentes" name="patentes" class="mono" maxlength="60"
+               autocomplete="off" autocapitalize="characters" spellcheck="false"
+               value="<%= r.patentes %>">
+      </div>
+
+      <div class="campo" style="margin-top:11px">
+        <label class="etiqueta" for="chofer">Chofer</label>
+        <input type="text" id="chofer" name="chofer" maxlength="60" autocomplete="off"
+               value="<%= r.chofer %>">
+      </div>
+
+      <div class="campo" style="margin-top:11px">
+        <label class="etiqueta" for="tara">Tara (kg)</label>
+        <input type="tel" id="tara" name="tara" class="mono" inputmode="numeric"
+               autocomplete="off" value="<%= r.tara %>">
+        <span class="txt-aux" id="calculo">&nbsp;</span>
+      </div>
+
+      <div class="campo" style="margin-top:11px">
+        <span class="etiqueta">Cargó de</span>
+        <div class="opciones" data-opciones="cargoDe">
+          <button type="button" class="opcion<%= r.cargoDe === 'SILOBOLSA' ? ' elegida' : '' %>" data-valor="SILOBOLSA">Silobolsa</button>
+          <button type="button" class="opcion<%= r.cargoDe === 'CONTRATISTA' ? ' elegida' : '' %>" data-valor="CONTRATISTA">Contratista</button>
+        </div>
+        <input type="hidden" name="cargoDe" value="<%= r.cargoDe %>">
+      </div>
+
+      <div class="campo<%= r.cargoDe === 'SILOBOLSA' ? '' : ' oculto' %>" id="campo-silobolsa" style="margin-top:11px">
+        <label class="etiqueta" for="silobolsa">Número de silobolsa</label>
+        <input type="text" id="silobolsa" name="silobolsa" maxlength="40" autocomplete="off"
+               value="<%= r.silobolsa %>">
+      </div>
+
+      <div class="campo<%= r.cargoDe === 'CONTRATISTA' ? '' : ' oculto' %>" id="campo-contratista" style="margin-top:11px">
+        <label class="etiqueta" for="contratista">Contratista</label>
+        <select id="contratista" name="contratista">
+          <option value="">Elegí el contratista…</option>
+          <% contratistas.forEach(function (c) { %>
+            <option value="<%= c %>"<%= r.contratista === c ? ' selected' : '' %>><%= c %></option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div class="campo<%= r.cargoDe === 'CONTRATISTA' ? '' : ' oculto' %>" id="campo-tractor" style="margin-top:11px">
+        <label class="etiqueta" for="tractor">Tractor</label>
+        <select id="tractor" name="tractor">
+          <option value="">Elegí el tractor…</option>
+        </select>
+      </div>
+
+      <div class="campo" style="margin-top:11px">
+        <label class="etiqueta" for="comentarios">Observaciones</label>
+        <textarea id="comentarios" name="comentarios" rows="3" maxlength="500"><%= r.comentarios %></textarea>
+      </div>
+
+      <div class="campo-error" style="min-height:18px" id="error"></div>
+
+      <button type="submit" class="btn btn-grande" id="guardar" style="margin-top:4px">Guardar la corrección</button>
+      <a class="btn btn-texto" href="<%= volver %>">Cancelar</a>
+    </form>
+
+    <div class="espaciador"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var form = document.getElementById('form-corregir');
+  var error = document.getElementById('error');
+  var btn = document.getElementById('guardar');
+  var inputTara = document.getElementById('tara');
+  var calculo = document.getElementById('calculo');
+  var ocultoCargo = form.elements['cargoDe'];
+  var campoSilo = document.getElementById('campo-silobolsa');
+  var campoContr = document.getElementById('campo-contratista');
+  var campoTractor = document.getElementById('campo-tractor');
+  var selContr = document.getElementById('contratista');
+  var selTractor = document.getElementById('tractor');
+
+  var brutoEstimado = <%= Number(r.brutoEstimado) || 0 %>;
+  var bruto = <%= r.bruto ? Number(r.bruto) : 0 %>;
+  var tractoresPor = <%- JSON.stringify(tractoresPorContratista) %>;
+  var tractorActual = '<%= r.tractor %>';
+
+  /* ── Los netos, mientras se escribe la tara ───────────────────────────── */
+  function mostrarCalculo() {
+    var t = Number((inputTara.value || '').replace(/\D/g, ''));
+    if (!t) { calculo.innerHTML = '&nbsp;'; return; }
+    var partes = [];
+    if (brutoEstimado) partes.push('neto estimado ' + App.miles(brutoEstimado - t) + ' kg');
+    if (bruto) partes.push('neto ' + App.miles(bruto - t) + ' kg');
+    calculo.innerHTML = partes.length ? App.esc(partes.join(' · ')) : '&nbsp;';
+  }
+  inputTara.addEventListener('input', function () {
+    var limpio = (this.value || '').replace(/\D/g, '').slice(0, 7);
+    if (limpio !== this.value) this.value = limpio;
+    mostrarCalculo();
+  });
+  mostrarCalculo();
+
+  /* ── Cargó de: silobolsa o contratista ────────────────────────────────── */
+  function llenarTractores(contratista) {
+    var lista = tractoresPor[contratista] || [];
+    selTractor.innerHTML = '<option value="">Elegí el tractor…</option>';
+    for (var i = 0; i < lista.length; i++) {
+      var o = document.createElement('option');
+      o.value = lista[i];
+      o.textContent = lista[i];
+      if (lista[i] === tractorActual) o.selected = true;
+      selTractor.appendChild(o);
+    }
+  }
+
+  function acomodarCargo() {
+    var v = ocultoCargo.value;
+    campoSilo.className = 'campo' + (v === 'SILOBOLSA' ? '' : ' oculto');
+    campoContr.className = 'campo' + (v === 'CONTRATISTA' ? '' : ' oculto');
+    campoTractor.className = 'campo' + (v === 'CONTRATISTA' ? '' : ' oculto');
+  }
+
+  // El manejo de los botones de opción ya está en app.js: se usa ese.
+  App.conectarOpciones(form);
+  ocultoCargo.addEventListener('cambio-opcion', acomodarCargo);
+  selContr.addEventListener('change', function () { llenarTractores(this.value); });
+  llenarTractores(selContr.value);
+  acomodarCargo();
+
+  /* ── Guardar ──────────────────────────────────────────────────────────── */
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    error.innerHTML = '';
+
+    var datos = {
+      patentes: document.getElementById('patentes').value,
+      chofer: document.getElementById('chofer').value,
+      tara: inputTara.value,
+      cargoDe: ocultoCargo.value,
+      silobolsa: document.getElementById('silobolsa').value,
+      contratista: selContr.value,
+      tractor: selTractor.value,
+      comentarios: document.getElementById('comentarios').value
+    };
+
+    var faltan = [];
+    if (!datos.patentes.trim()) faltan.push('la patente');
+    if (!datos.chofer.trim()) faltan.push('el chofer');
+    if (!Number(datos.tara)) faltan.push('la tara');
+    if (datos.cargoDe === 'SILOBOLSA' && !datos.silobolsa.trim()) faltan.push('el número de silobolsa');
+    if (datos.cargoDe === 'CONTRATISTA' && !datos.contratista) faltan.push('el contratista');
+    if (faltan.length) {
+      error.innerHTML = 'Falta ' + App.esc(faltan.join(', '));
+      return;
+    }
+
+    // Corregir necesita servidor: no se encola. Si no hay señal se dice y listo.
+    if (!App.hayConexion()) {
+      error.innerHTML = 'Para corregir un ticket hace falta internet.';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = 'Guardando…';
+    App.pedir('POST', '/app/api/corregir/<%= r.id %>', datos, function (err, res) {
+      if (!err && res && res.ok) {
+        window.location.href = res.destino || '<%= volver %>';
+        return;
+      }
+      btn.disabled = false;
+      btn.innerHTML = 'Guardar la corrección';
+      error.innerHTML = App.esc((err && err.message) || 'No se pudo guardar.');
+    });
+  });
+})();
+</script>

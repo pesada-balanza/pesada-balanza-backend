@@ -160,6 +160,15 @@
 
     <%# Acciones %>
     <div class="tarjeta" style="padding:16px; gap:9px">
+
+      <%# Corregir los datos lo puede hacer SOLO GENERAL. El balancero no tiene
+          esta opción: pide la corrección y GENERAL la aplica. Va primero cuando
+          hay un pedido esperando, que es para lo que GENERAL entró al ticket. %>
+      <% if (puedeCorregir) { %>
+        <a class="<%= pedido && pedido.estado === 'PENDIENTE' && pedido.tipo === 'CORRECCION' ? 'btn' : 'btn btn-borde' %>"
+           href="/app/corregir/<%= r.id %>">Corregir los datos (GENERAL)</a>
+      <% } %>
+
       <a class="btn btn-borde-suave" href="/app/imprimir?ids=<%= r.id %>">Imprimir el ticket</a>
 
       <% if (puedeCargarCtg) { %>
