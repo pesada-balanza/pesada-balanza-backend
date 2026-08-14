@@ -816,29 +816,55 @@
   }
 
   /**
-   * App.compartir({ boton, url, nombre, titulo, texto })
-   * Prepara el archivo al abrir la pantalla y lo comparte al tocar el botón.
-   * Si el teléfono no sabe compartir archivos, lo descarga.
+   * App.compartir({ boton, url, nombre, tipo, que, titulo, texto, prepararSolo })
+   *
+   * Prepara el archivo y lo entrega al tocar el botón: lo comparte con el menú
+   * del teléfono, y si no sabe compartir archivos lo descarga.
+   *
+   * NUNCA navega la pantalla al archivo. En el iPhone, cuando la app está
+   * agregada a la pantalla de inicio, un enlace común a un archivo reemplaza la
+   * app por la vista previa del archivo y no queda forma de volver: hay que
+   * cerrarla y abrirla de nuevo. Bajando el archivo acá y entregándolo desde la
+   * memoria, la pantalla se queda donde está.
+   *
+   *   url    puede ser un texto o una función, para los archivos cuya dirección
+   *          depende de lo que se eligió (por ejemplo un rango de fechas).
+   *   nombre igual: texto o función.
+   *   tipo   el MIME. Por defecto PDF.
+   *   que    cómo se lo nombra en los avisos ("el PDF", "el Excel").
+   *   prepararSolo  si es false, no se baja al abrir la pantalla: se espera al
+   *          primer toque. Para archivos pesados o que casi nadie pide.
+   *
+   * Devuelve { preparar, olvidar }: `olvidar` tira lo bajado, para cuando
+   * cambia lo que se eligió y el archivo que estaba listo ya no corresponde.
    */
   App.compartir = function (op) {
     var boton = op.boton;
-    if (!boton) return;
+    if (!boton) return { preparar: function () {}, olvidar: function () {} };
     var listo = null;
     var bajando = false;
+    var tipo = op.tipo || 'application/pdf';
+    var que = op.que || 'el PDF';
+
+    function dir() { return typeof op.url === 'function' ? op.url() : op.url; }
+    function nombreArchivo() { return typeof op.nombre === 'function' ? op.nombre() : op.nombre; }
 
     function preparar() {
       if (listo || bajando || !hayConexion()) return;
       bajando = true;
-      bajarArchivo(op.url, function (err, blob) {
+      bajarArchivo(dir(), function (err, blob) {
         bajando = false;
         if (!err) listo = blob;
       });
     }
 
+    function olvidar() { listo = null; }
+
     function compartir(blob) {
+      var nombre = nombreArchivo();
       var archivo = null;
       try {
-        archivo = new File([blob], op.nombre, { type: 'application/pdf' });
+        archivo = new File([blob], nombre, { type: tipo });
       } catch (e) {
         archivo = null; // navegador viejo sin File()
       }
@@ -851,18 +877,20 @@
           .catch(function (e) {
             // Si el usuario cancela no hay nada que avisar.
             if (e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) return;
-            if (guardarComoArchivo(blob, op.nombre)) {
-              App.brindis('Se descargó el PDF. Compartilo desde tus archivos.', 'ambar');
+            if (guardarComoArchivo(blob, nombre)) {
+              App.brindis('Se descargó ' + que + '. Compartilo desde tus archivos.', 'ambar');
             }
           });
         return;
       }
 
       // La computadora y los teléfonos que no comparten archivos: se descarga.
-      if (guardarComoArchivo(blob, op.nombre)) {
-        App.brindis('Se descargó el PDF. Compartilo desde tus archivos.', 'ambar');
+      // Acá tampoco se navega al archivo: si ni siquiera se puede descargar, se
+      // avisa. Mandar la pantalla al archivo es lo que dejaba trabada la app.
+      if (guardarComoArchivo(blob, nombre)) {
+        App.brindis('Se descargó ' + que + '. Compartilo desde tus archivos.', 'ambar');
       } else {
-        window.location.href = op.url;
+        App.brindis('Este teléfono no pudo guardar ' + que + '.', 'rojo');
       }
     }
 
@@ -870,16 +898,19 @@
       ev.preventDefault();
       if (listo) return compartir(listo);
       var restaurar = bloquear(boton, 'Preparando…');
-      bajarArchivo(op.url, function (err, blob) {
+      bajarArchivo(dir(), function (err, blob) {
         restaurar();
-        if (err) return App.brindis('No se pudo preparar el PDF. Fijate si tenés internet.', 'rojo');
+        if (err) return App.brindis('No se pudo preparar ' + que + '. Fijate si tenés internet.', 'rojo');
         listo = blob;
         compartir(blob);
       });
     });
 
-    preparar();
-    if (window.addEventListener) window.addEventListener('online', preparar);
+    if (op.prepararSolo !== false) {
+      preparar();
+      if (window.addEventListener) window.addEventListener('online', preparar);
+    }
+    return { preparar: preparar, olvidar: olvidar };
   };
 
   /* ═══════════════════════════════════════════════════════════════════════

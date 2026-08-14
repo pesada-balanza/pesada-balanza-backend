@@ -116,19 +116,18 @@
     <a class="btn btn-borde-suave" href="/app/buscar">Buscar un ticket</a>
 
     <%# Exportar a Excel: el mismo archivo que el botón de la web, con las mismas
-        hojas. Sale el día que se está mirando, y abajo se puede pedir un
-        desde–hasta sin salir de acá. Cada código exporta lo que ve: GENERAL
-        todas las balanzas, los demás la suya.
+        hojas. Un solo botón, que abre el desde–hasta ya puesto en el día que se
+        está mirando: para un día solo hay que tocar "Bajar el Excel". Cada
+        código exporta lo que ve: GENERAL todas las balanzas, los demás la suya.
 
-        Son enlaces comunes, no botones con JavaScript: el teléfono baja el
-        archivo solo. Sin señal, la pantalla del service worker explica que hace
-        falta internet, igual que con el buscador. %>
-    <a class="btn btn-borde-suave" href="/app/excel?desde=<%= resumen.fecha %>">Exportar a Excel</a>
+        El archivo lo entrega App.compartir, que lo baja a memoria y lo pasa al
+        menú del teléfono. NO es un enlace: en el iPhone, con la app agregada a
+        la pantalla de inicio, un enlace a un archivo reemplaza la app por la
+        vista previa y no hay forma de volver salvo cerrarla y abrirla. %>
+    <button type="button" class="btn btn-borde-suave" id="abrir-excel">Exportar a Excel</button>
 
-    <button type="button" class="btn btn-texto" id="abrir-rango">Exportar un rango de fechas</button>
-
-    <div class="tarjeta oculto" id="caja-rango" style="gap:11px">
-      <span class="etiqueta">Exportar de una fecha a otra</span>
+    <div class="tarjeta oculto" id="caja-excel" style="gap:11px">
+      <span class="etiqueta">Qué días exportar</span>
       <div class="campo">
         <label class="etiqueta" for="ex-desde">Desde</label>
         <input type="date" id="ex-desde" value="<%= resumen.fecha %>" max="<%= hoy %>">
@@ -137,39 +136,66 @@
         <label class="etiqueta" for="ex-hasta">Hasta</label>
         <input type="date" id="ex-hasta" value="<%= resumen.fecha %>" max="<%= hoy %>">
       </div>
-      <a class="btn" id="excel-rango" href="/app/excel">Bajar el Excel</a>
-      <button type="button" class="btn btn-texto" id="cerrar-rango">Cancelar</button>
+      <button type="button" class="btn" id="bajar-excel">Bajar el Excel</button>
+      <button type="button" class="btn btn-texto" id="cerrar-excel">Cancelar</button>
     </div>
 
     <script>
     (function () {
       'use strict';
-      var abrir = document.getElementById('abrir-rango');
-      var caja = document.getElementById('caja-rango');
-      var cerrar = document.getElementById('cerrar-rango');
+      var abrir = document.getElementById('abrir-excel');
+      var caja = document.getElementById('caja-excel');
+      var cerrar = document.getElementById('cerrar-excel');
       var desde = document.getElementById('ex-desde');
       var hasta = document.getElementById('ex-hasta');
-      var bajar = document.getElementById('excel-rango');
+
+      function rango() {
+        var d = desde.value || '<%= resumen.fecha %>';
+        var h = hasta.value || d;
+        if (d > h) { var t = d; d = h; h = t; }
+        return { desde: d, hasta: h };
+      }
+
+      var excel = App.compartir({
+        boton: document.getElementById('bajar-excel'),
+        // Se arma en el momento del toque, con lo que esté elegido.
+        url: function () {
+          var r = rango();
+          return '/app/excel?desde=' + encodeURIComponent(r.desde) + '&hasta=' + encodeURIComponent(r.hasta);
+        },
+        nombre: function () {
+          var r = rango();
+          return r.desde === r.hasta
+            ? 'registros-' + r.desde + '.xlsx'
+            : 'registros-' + r.desde + '-a-' + r.hasta + '.xlsx';
+        },
+        tipo: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        que: 'el Excel',
+        titulo: 'Registros de balanza',
+        // No se baja al abrir la pantalla: el Excel pesa y no todos lo piden.
+        // Se empieza a preparar recién cuando se abre la caja, así al tocar
+        // "Bajar el Excel" ya está listo y el iPhone lo comparte en el mismo
+        // toque, que es lo que exige Safari.
+        prepararSolo: false,
+      });
 
       abrir.addEventListener('click', function () {
         caja.className = 'tarjeta';
-        abrir.className = 'btn btn-texto oculto';
-        desde.focus();
+        abrir.className = 'btn btn-borde-suave oculto';
+        excel.preparar();
       });
       cerrar.addEventListener('click', function () {
         caja.className = 'tarjeta oculto';
-        abrir.className = 'btn btn-texto';
+        abrir.className = 'btn btn-borde-suave';
       });
 
-      // La dirección se rearma con lo que haya elegido, así el enlace sigue
-      // siendo un enlace común: el teléfono baja el archivo solo.
-      function acomodar() {
-        bajar.href = '/app/excel?desde=' + encodeURIComponent(desde.value) +
-                     '&hasta=' + encodeURIComponent(hasta.value);
+      // Si cambian las fechas, lo que estaba bajado ya no corresponde.
+      function otroRango() {
+        excel.olvidar();
+        excel.preparar();
       }
-      desde.addEventListener('change', acomodar);
-      hasta.addEventListener('change', acomodar);
-      acomodar();
+      desde.addEventListener('change', otroRango);
+      hasta.addEventListener('change', otroRango);
     })();
     </script>
 

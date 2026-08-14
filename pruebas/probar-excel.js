@@ -192,22 +192,31 @@ async function main() {
   ok('GENERAL entra', r.estado === 200, r.texto.slice(0, 150));
 
   r = await ir('GET', '/app/general');
-  ok('el resumen de GENERAL trae el botón', /\/app\/excel\?desde=/.test(r.texto), r.estado);
+  ok('el resumen de GENERAL trae el botón', /id="abrir-excel"/.test(r.texto), r.estado);
   ok('está después de "Buscar un ticket"',
-    r.texto.indexOf('/app/buscar') < r.texto.indexOf('/app/excel'));
-  ok('y también el rango de fechas', /Exportar un rango de fechas/.test(r.texto));
-  ok('el botón exporta el día que se está mirando',
-    r.texto.indexOf('/app/excel?desde=' + HOY) !== -1, HOY);
+    r.texto.indexOf('/app/buscar') < r.texto.indexOf('abrir-excel'));
+  ok('es un solo botón: no hay uno aparte para el rango',
+    !/Exportar un rango de fechas/.test(r.texto));
+  ok('y abre el desde–hasta', /id="caja-excel"/.test(r.texto) && /id="ex-desde"/.test(r.texto));
+  ok('las fechas vienen puestas en el día que se está mirando',
+    (r.texto.match(new RegExp('id="ex-desde" value="' + HOY + '"')) || []).length === 1, HOY);
+
+  // El error del iPhone: con la app agregada a la pantalla de inicio, un enlace
+  // común a un archivo la reemplaza por la vista previa y hay que cerrarla para
+  // volver. El archivo se baja a memoria y se entrega; no se navega nunca.
+  ok('NO hay un enlace que navegue al archivo',
+    !/href="\/app\/excel/.test(r.texto), (r.texto.match(/href="\/app\/excel[^"]*"/) || [''])[0]);
+  ok('el archivo lo entrega App.compartir', /App\.compartir\(/.test(r.texto));
 
   r = await ir('GET', '/app/general?fecha=' + AYER);
-  ok('al moverse de día, el botón sigue al día mirado',
-    r.texto.indexOf('/app/excel?desde=' + AYER) !== -1, AYER);
+  ok('al moverse de día, las fechas siguen al día mirado',
+    (r.texto.match(new RegExp('id="ex-desde" value="' + AYER + '"')) || []).length === 1, AYER);
 
   cookies = {};
   r = await ir('POST', '/app/api/ingreso', { code: VER_QUIMILI }, { desde: '10.7.0.2' });
   ok('el código de ver registros entra', r.estado === 200, r.texto.slice(0, 150));
   r = await ir('GET', '/app/general');
-  ok('y también tiene el botón', /\/app\/excel\?desde=/.test(r.texto), r.estado);
+  ok('y también tiene el botón', /id="abrir-excel"/.test(r.texto), r.estado);
 
   /* ═══════════════════════════════════════════════════════════════════════
    * EL ARCHIVO: ES EL MISMO REPORTE DE LA WEB

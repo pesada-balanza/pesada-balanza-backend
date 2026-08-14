@@ -395,17 +395,33 @@ Un código no puede sacar la balanza de otro ni por la dirección directa. Se
 comprueba abriendo el `.xlsx` y leyendo las filas, no mirando el HTML: ya hubo
 un agujero de ese tipo en el buscador.
 
-### El rango de fechas
+### Qué días
 
-El botón exporta **el día que se está mirando** —las flechas de día lo cambian—.
-Abajo, "Exportar un rango de fechas" pide un desde–hasta sin salir de la
-pantalla, para el mes o la campaña entera. Si el rango viene al revés se da
-vuelta, en vez de bajar un archivo vacío.
+Es **un solo botón**. Al tocarlo se abre el desde–hasta, ya puesto en el día que
+se está mirando: para un día solo hay que tocar "Bajar el Excel", y para el mes
+o la campaña se cambian las fechas. Si el rango viene al revés se da vuelta, en
+vez de bajar un archivo vacío.
 
 El archivo se llama `registros-2026-08-14.xlsx` (o
 `registros-2026-08-01-a-2026-08-14.xlsx`): en el teléfono los archivos se
 acumulan en Descargas y un `registros.xlsx` repetido no se distingue del de la
 semana pasada.
+
+### Por qué no es un enlace
+
+El botón **no navega al archivo**: lo baja a memoria y lo entrega al menú de
+compartir del teléfono, igual que "Compartir el PDF" del ticket.
+
+No es un detalle de estilo. Con un enlace común, en el iPhone y con la app
+agregada a la pantalla de inicio, el archivo **reemplazaba la app** por la vista
+previa del `.xlsx` y no quedaba forma de volver: había que cerrarla y abrirla de
+nuevo. En la computadora no pasaba, así que se comprueba con un navegador de
+verdad (`probar-compartir.js`) y no mirando el HTML: se toca el botón y se
+verifica que la pantalla siga donde estaba.
+
+El archivo se empieza a preparar al abrir el desde–hasta, así al tocar "Bajar el
+Excel" ya está listo y Safari lo comparte **en el mismo toque**, que es lo que
+exige. En las computadoras, que no saben compartir archivos, se descarga.
 
 **Sin señal no se exporta**: la planilla la arma el servidor. La app lo dice con
 un cartel y el service worker **no guarda** el archivo, para no dejar planillas
