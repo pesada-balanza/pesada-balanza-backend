@@ -290,22 +290,19 @@ async function enviarReportes() {
 
       const registros = await fetchRegistros(obsCode);
       const nombre = NOMBRES_BALANZA[obsCode] || obsCode;
-      const sinRegistros = registros.length === 0;
 
-      // Si no hubo tickets en el día, se manda un mensaje de TEXTO avisando
-      // "sin registros" en lugar de un Excel vacío.
-      let contenido, opciones;
-      if (sinRegistros) {
-        contenido = `*Pesada Balanza* — ${nombre}: sin registros del día ${hoy}.`;
-        opciones = {};
-      } else {
-        const workbook = generarWorkbookReporte(registros);
-        const buffer = await workbook.xlsx.writeBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        const filename = `reporte_${nombreBalanza(obsCode)}_${hoy}.xlsx`;
-        contenido = new MessageMedia(MIME_XLSX, base64, filename);
-        opciones = { caption: `Balanza: ${nombre}` };
+      // Si no hubo movimientos en el día, NO se envía nada para esa balanza.
+      if (registros.length === 0) {
+        console.log(`[Envío] ${obsCode} (${nombre}): sin registros del día, no se envía nada.`);
+        continue;
       }
+
+      const workbook = generarWorkbookReporte(registros);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      const filename = `reporte_${nombreBalanza(obsCode)}_${hoy}.xlsx`;
+      const media = new MessageMedia(MIME_XLSX, base64, filename);
+      const caption = `Balanza: ${nombre}`;
 
       for (const numero of numeros) {
         const chatId = await resolverChatId(numero);
@@ -327,11 +324,10 @@ async function enviarReportes() {
             await sleep(DELAY_MS);
             continue;
           }
-          await client.sendMessage(chatId, contenido, opciones);
+          await client.sendMessage(chatId, media, { caption });
           enviados++;
-          const detTickets = sinRegistros ? 'sin registros' : `${registros.length} tickets`;
-          detalle.push(`✅ ${obsCode} → ${numero} [llegó a: ${waId}] (${detTickets})`);
-          console.log(`[Envío] ${obsCode} → ${numero} [WhatsApp real: ${waId}]: OK (${detTickets})`);
+          detalle.push(`✅ ${obsCode} → ${numero} [llegó a: ${waId}] (${registros.length} tickets)`);
+          console.log(`[Envío] ${obsCode} → ${numero} [WhatsApp real: ${waId}]: OK (${registros.length} tickets)`);
         } catch (err) {
           salteados++;
           detalle.push(`❌ ${obsCode} → ${numero}: ${err.message}`);
