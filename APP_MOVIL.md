@@ -361,6 +361,58 @@ Las anulaciones y las ediciones de observaciones se registran en
 
 ---
 
+## Exportar a Excel
+
+El **mismo archivo** que da el botón "Exportar a Excel" de la web, ahora también
+en el resumen del día de la app, abajo de "Buscar un ticket".
+
+No es un reporte nuevo: las dos puertas llaman a la misma función
+(`construirLibroRegistros` en `app.js`), así que no hay una segunda versión que
+se pueda desincronizar. Las hojas son las de siempre:
+
+| Hoja | Qué trae |
+| --- | --- |
+| **Registros** | todas las columnas, con los anulados en negativo |
+| **IMPRIMIR** | el subconjunto de columnas para papel |
+| **Cargas SOCIO** | solo las cargas para socio, por fecha y campo |
+| **una por campo** | los tickets de ese campo, por fecha y número |
+
+Cada una con el total de neto al final y configurada en A4.
+
+### Quién exporta qué
+
+Lo único que cambia entre la web y la app es **qué registros entran**, y lo
+decide el código con el que se entró — el mismo criterio que el resumen que se
+está mirando, así que el Excel dice lo mismo que la pantalla:
+
+| Código | Qué saca |
+| --- | --- |
+| **GENERAL** (`12341`) | todas las balanzas |
+| **ver registros** (ej. el de Quimili) | su balanza y nada más |
+| **el de la balanza** | su balanza y nada más |
+
+Un código no puede sacar la balanza de otro ni por la dirección directa. Se
+comprueba abriendo el `.xlsx` y leyendo las filas, no mirando el HTML: ya hubo
+un agujero de ese tipo en el buscador.
+
+### El rango de fechas
+
+El botón exporta **el día que se está mirando** —las flechas de día lo cambian—.
+Abajo, "Exportar un rango de fechas" pide un desde–hasta sin salir de la
+pantalla, para el mes o la campaña entera. Si el rango viene al revés se da
+vuelta, en vez de bajar un archivo vacío.
+
+El archivo se llama `registros-2026-08-14.xlsx` (o
+`registros-2026-08-01-a-2026-08-14.xlsx`): en el teléfono los archivos se
+acumulan en Descargas y un `registros.xlsx` repetido no se distingue del de la
+semana pasada.
+
+**Sin señal no se exporta**: la planilla la arma el servidor. La app lo dice con
+un cartel y el service worker **no guarda** el archivo, para no dejar planillas
+viejas ocupando el teléfono ni entregar una que ya no coincide con el sistema.
+
+---
+
 ## Corregir los datos de un ticket (solo GENERAL)
 
 El balancero **no corrige datos**. No es que se le venza un plazo: no puede.
@@ -813,6 +865,7 @@ probado que si se rompe el acumulado, esta sigue estando.
 | `/app/general/balanza/:codigo` | detalle de una balanza (`?fecha=…`) |
 | `/app/general/pedidos` | pedidos de anulación y corrección |
 | `/app/corregir/:id` | corregir los datos de un ticket (solo GENERAL) |
+| `/app/excel` | bajar el Excel de registros (el mismo de la web) |
 | `/app/general/repetidos` | camiones repetidos en dos balanzas |
 | `/app/general/sin-regular` | camiones que quedaron sin regular |
 

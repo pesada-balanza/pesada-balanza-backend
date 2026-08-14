@@ -115,6 +115,64 @@
         este día no está el camión que se busca. %>
     <a class="btn btn-borde-suave" href="/app/buscar">Buscar un ticket</a>
 
+    <%# Exportar a Excel: el mismo archivo que el botón de la web, con las mismas
+        hojas. Sale el día que se está mirando, y abajo se puede pedir un
+        desde–hasta sin salir de acá. Cada código exporta lo que ve: GENERAL
+        todas las balanzas, los demás la suya.
+
+        Son enlaces comunes, no botones con JavaScript: el teléfono baja el
+        archivo solo. Sin señal, la pantalla del service worker explica que hace
+        falta internet, igual que con el buscador. %>
+    <a class="btn btn-borde-suave" href="/app/excel?desde=<%= resumen.fecha %>">Exportar a Excel</a>
+
+    <button type="button" class="btn btn-texto" id="abrir-rango">Exportar un rango de fechas</button>
+
+    <div class="tarjeta oculto" id="caja-rango" style="gap:11px">
+      <span class="etiqueta">Exportar de una fecha a otra</span>
+      <div class="campo">
+        <label class="etiqueta" for="ex-desde">Desde</label>
+        <input type="date" id="ex-desde" value="<%= resumen.fecha %>" max="<%= hoy %>">
+      </div>
+      <div class="campo">
+        <label class="etiqueta" for="ex-hasta">Hasta</label>
+        <input type="date" id="ex-hasta" value="<%= resumen.fecha %>" max="<%= hoy %>">
+      </div>
+      <a class="btn" id="excel-rango" href="/app/excel">Bajar el Excel</a>
+      <button type="button" class="btn btn-texto" id="cerrar-rango">Cancelar</button>
+    </div>
+
+    <script>
+    (function () {
+      'use strict';
+      var abrir = document.getElementById('abrir-rango');
+      var caja = document.getElementById('caja-rango');
+      var cerrar = document.getElementById('cerrar-rango');
+      var desde = document.getElementById('ex-desde');
+      var hasta = document.getElementById('ex-hasta');
+      var bajar = document.getElementById('excel-rango');
+
+      abrir.addEventListener('click', function () {
+        caja.className = 'tarjeta';
+        abrir.className = 'btn btn-texto oculto';
+        desde.focus();
+      });
+      cerrar.addEventListener('click', function () {
+        caja.className = 'tarjeta oculto';
+        abrir.className = 'btn btn-texto';
+      });
+
+      // La dirección se rearma con lo que haya elegido, así el enlace sigue
+      // siendo un enlace común: el teléfono baja el archivo solo.
+      function acomodar() {
+        bajar.href = '/app/excel?desde=' + encodeURIComponent(desde.value) +
+                     '&hasta=' + encodeURIComponent(hasta.value);
+      }
+      desde.addEventListener('change', acomodar);
+      hasta.addEventListener('change', acomodar);
+      acomodar();
+    })();
+    </script>
+
     <%# Este código ve una sola balanza, así que el día que se está mirando se
         puede imprimir de acá mismo. %>
     <%# `porBalanza` es lo del día elegido (los "en curso" no, que son de

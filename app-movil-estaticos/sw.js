@@ -14,7 +14,7 @@
 // Al subir cambios hay que subir este número: así el teléfono descarta las
 // pantallas guardadas y toma las nuevas. Las pesadas sin subir NO se tocan:
 // viven en localStorage y este archivo no lo mira nunca.
-var VERSION = 'pesada-app-v14';
+var VERSION = 'pesada-app-v15';
 
 // Dos copias separadas a propósito:
 //  - FIJOS: css, js, ícono. No dependen de quién esté usando la app.
@@ -58,9 +58,10 @@ function esCascara(pathname) {
  * Pantallas que NO se guardan nunca. El buscador está acá porque sus resultados
  * dependen de lo que hay en el servidor en ese momento: mostrar sin señal la
  * respuesta de una búsqueda vieja sería mentirle al balancero. Sin conexión se
- * le dice que hace falta internet.
+ * le dice que hace falta internet. El Excel, por lo mismo y porque es un
+ * archivo: guardarlo dejaría planillas viejas ocupando el teléfono.
  */
-var SIN_GUARDAR = ['/app/buscar'];
+var SIN_GUARDAR = ['/app/buscar', '/app/excel'];
 
 function seGuarda(pathname) {
   for (var i = 0; i < SIN_GUARDAR.length; i++) {
@@ -165,6 +166,7 @@ function esDeLaApp(url) {
 function pantallaNoGuardada(pathname) {
   var esElCodigo = pathname === '/app/ingreso';
   var esElBuscador = pathname === '/app/buscar';
+  var esElExcel = pathname === '/app/excel';
 
   var titulo = 'Esta pantalla necesita internet';
   var detalle = 'Desde el patio se puede seguir cargando sin señal: el camión, la tara final y la regulada.';
@@ -177,6 +179,9 @@ function pantallaNoGuardada(pathname) {
     titulo = 'El buscador necesita internet';
     detalle = 'Los tickets de días anteriores están en el servidor, no en el teléfono. Sin señal se ' +
       'puede seguir cargando en el patio y ver los tickets de este teléfono.';
+  } else if (esElExcel) {
+    titulo = 'El Excel necesita internet';
+    detalle = 'La planilla la arma el servidor. Cuando vuelva la señal, el botón funciona igual.';
   }
 
   return new Response(

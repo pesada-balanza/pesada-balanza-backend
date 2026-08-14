@@ -1096,6 +1096,10 @@ if (process.env.APP_MOVIL === '1') {
     codigosIngreso, codigosObservacion, ingresoAObservacion,
     ymd, validarNumero, ticketVigente, notificar, resolverNombreCodigo,
     rangoCampana,
+    // El mismo reporte que el botón "Exportar a Excel" de la web: se arma en un
+    // solo lugar y la app decide qué registros entran según con qué código se
+    // entró (ver /app/excel).
+    construirLibroRegistros,
   }));
   console.log('APP MÓVIL habilitada en /app');
 }
@@ -1201,6 +1205,176 @@ app.get(
   }
 );
 
+/**
+ * Arma el libro Excel de "Exportar a Excel" con los registros que se le pasen.
+ *
+ * Está acá, en una sola función, porque el mismo reporte sale por tres puertas:
+ * el botón de la web (/export), el de la app móvil (/app/excel) y —con sus
+ * hojas propias— el mail de las 19 hs. Lo que cambia entre ellas es QUÉ
+ * registros entran, no cómo se arma el archivo: el filtro por balanza y por
+ * fecha lo hace cada ruta según con qué código entró la persona.
+ *
+ * Hojas: Registros (todo), IMPRIMIR (columnas para papel), Cargas SOCIO, y una
+ * por campo. Cada una con el total de neto al final y configurada en A4.
+ */
+async function construirLibroRegistros(registros) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Registros');
+
+  sheet.columns = [
+    { header: 'ID Ticket', key: 'idTicket', width: 10 },
+    { header: 'Fecha', key: 'fecha', width: 15 },
+    { header: 'Usuario', key: 'usuario', width: 15 },
+    { header: 'Carga Para', key: 'cargaPara', width: 15 },
+    { header: 'Socio', key: 'socio', width: 15 },
+    { header: 'Pesada Para', key: 'pesadaPara', width: 15 },
+    { header: 'Transporte', key: 'transporte', width: 15 },
+    { header: 'Patentes', key: 'patentes', width: 15 },
+    { header: 'Chofer', key: 'chofer', width: 15 },
+    { header: 'Bruto Estimado', key: 'brutoEstimado', width: 16 },
+    { header: 'Tara', key: 'tara', width: 10 },
+    { header: 'Neto Estimado', key: 'netoEstimado', width: 16 },
+    { header: 'Campo', key: 'campo', width: 18 },
+    { header: 'Grano', key: 'grano', width: 12 },
+    { header: 'Lote', key: 'lote', width: 18 },
+    { header: 'Cargo De', key: 'cargoDe', width: 15 },
+    { header: 'Silobolsa', key: 'silobolsa', width: 15 },
+    { header: 'Contratista', key: 'contratista', width: 15 },
+    { header: 'Tractor', key: 'tractor', width: 15 },
+    { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
+    { header: 'Comentarios', key: 'comentarios', width: 28 },
+    { header: 'Bruto Regulado', key: 'bruto', width: 16 },
+    { header: 'Neto', key: 'neto', width: 15 },
+    { header: 'CP', key: 'cp', width: 14 },
+    { header: 'Bruto LOTE - Bruto Regulado', key: 'difBrutoLoteBruto', width: 22 },
+    { header: 'Anulado', key: 'anulado', width: 10 },
+    { header: 'Confirmada CAMIONES', key: 'confirmada', width: 14 },
+  ];
+
+  // Función auxiliar para calcular difBrutoLoteBruto y armar fila
+  const addRowToSheet = (targetSheet, r) => {
+    const netoExport = r.anulado && typeof r.neto === 'number'
+      ? -Math.abs(r.neto)
+      : r.neto;
+    const nBrutoLote = Number(r.brutoLote);
+    const nBruto = Number(r.bruto);
+    const difBrutoLoteBruto =
+      (typeof r.brutoLote !== 'undefined' && r.brutoLote !== null && r.brutoLote !== '' &&
+       typeof r.bruto     !== 'undefined' && r.bruto     !== null && r.bruto     !== '' &&
+       !Number.isNaN(nBrutoLote) && !Number.isNaN(nBruto))
+        ? (nBrutoLote - nBruto)
+        : '';
+    const row = targetSheet.addRow({
+      ...r,
+      // Aplanamos arrays multi-valor para que el Excel los muestre legibles
+      lote:        flat(r.lote),
+      contratista: flat(r.contratista),
+      tractor:     flat(r.tractor),
+      neto: netoExport,
+      difBrutoLoteBruto,
+    });
+    if (r.anulado && netoExport != null) {
+      const cell = row.getCell('neto');
+      cell.font = { bold: true, color: { argb: 'FFCC0000' } };
+    }
+  };
+
+  registros.forEach(r => addRowToSheet(sheet, r));
+
+  // ── Hoja IMPRIMIR: subset de columnas para impresión ──
+  const sheetImprimir = workbook.addWorksheet('IMPRIMIR');
+  sheetImprimir.columns = [
+    { header: 'ID Ticket', key: 'idTicket', width: 10 },
+    { header: 'Fecha', key: 'fecha', width: 15 },
+    { header: 'Carga Para', key: 'cargaPara', width: 15 },
+    { header: 'Socio', key: 'socio', width: 15 },
+    { header: 'Transporte', key: 'transporte', width: 15 },
+    { header: 'Patentes', key: 'patentes', width: 15 },
+    { header: 'Chofer', key: 'chofer', width: 15 },
+    { header: 'Campo', key: 'campo', width: 18 },
+    { header: 'Grano', key: 'grano', width: 12 },
+    { header: 'Lote', key: 'lote', width: 18 },
+    { header: 'Silobolsa', key: 'silobolsa', width: 15 },
+    { header: 'Contratista', key: 'contratista', width: 15 },
+    { header: 'Tara', key: 'tara', width: 10 },
+    { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
+    { header: 'Bruto Regulado', key: 'bruto', width: 16 },
+    { header: 'Neto', key: 'neto', width: 15 },
+    { header: 'CP', key: 'cp', width: 14 },
+    { header: 'Comentarios', key: 'comentarios', width: 28 },
+  ];
+  sheetImprimir.getRow(1).font = { bold: true };
+  registros.forEach(r => addRowToSheet(sheetImprimir, r));
+
+  // ── Hoja 2: cargas para SOCIO, ordenadas por fecha y luego por campo ──
+  const registrosSocio = registros
+    .filter(r => r.cargaPara === 'SOCIO')
+    .sort((a, b) => {
+      const fechaCmp = (a.fecha || '').localeCompare(b.fecha || '');
+      if (fechaCmp !== 0) return fechaCmp;
+      return (a.campo || '').localeCompare(b.campo || '');
+    });
+
+  const sheetSocio = workbook.addWorksheet('Cargas SOCIO');
+  sheetSocio.columns = sheet.columns
+    .filter(c => !EXCLUIR_SOCIO.includes(c.key))
+    .map(c => ({ header: c.header, key: c.key, width: c.width }));
+  sheetSocio.getRow(1).font = { bold: true };
+  registrosSocio.forEach(r => addRowToSheet(sheetSocio, r));
+
+  // ── Hojas por CAMPO ──
+  // Se generan para TODOS los usuarios de observación. Como `registros` ya
+  // viene filtrado por el código del usuario (ver bloque de arriba), cada
+  // puesto obtiene únicamente las hojas de sus propios campos, mientras que
+  // el usuario GENERAL (12341) sigue viendo las de todos los campos.
+  {
+    // Genera un nombre de hoja válido para Excel: sin caracteres prohibidos
+    // ( : \\ / ? * [ ] ), máximo 31 caracteres y sin repetidos (Excel falla
+    // si dos hojas tienen el mismo nombre).
+    const nombresUsados = new Set();
+    const nombreHojaSeguro = (base) => {
+      let limpio = (base || 'Campo').replace(/[\\/?*\[\]:]/g, ' ').trim().substring(0, 31) || 'Campo';
+      let candidato = limpio;
+      let n = 2;
+      while (nombresUsados.has(candidato.toLowerCase())) {
+        const sufijo = ` (${n})`;
+        candidato = limpio.substring(0, 31 - sufijo.length) + sufijo;
+        n++;
+      }
+      nombresUsados.add(candidato.toLowerCase());
+      return candidato;
+    };
+
+    // Obtener campos únicos (excluir vacíos), ordenados alfabéticamente
+    const camposUnicos = [...new Set(
+      registros.map(r => (r.campo || '').trim()).filter(c => c !== '')
+    )].sort((a, b) => a.localeCompare(b));
+
+    for (const campoNombre of camposUnicos) {
+      const registrosCampo = registros
+        .filter(r => (r.campo || '').trim() === campoNombre)
+        .sort((a, b) => {
+          const fechaCmp = (a.fecha || '').localeCompare(b.fecha || '');
+          if (fechaCmp !== 0) return fechaCmp;
+          return (a.idTicket || 0) - (b.idTicket || 0);
+        });
+
+      const sheetCampo = workbook.addWorksheet(nombreHojaSeguro(campoNombre));
+      sheetCampo.columns = sheet.columns.map(c => ({ header: c.header, key: c.key, width: c.width }));
+      sheetCampo.getRow(1).font = { bold: true };
+      registrosCampo.forEach(r => addRowToSheet(sheetCampo, r));
+    }
+  }
+
+  // Total de toneladas (columna Neto) al final de cada hoja
+  workbook.worksheets.forEach(agregarTotalNeto);
+
+  // Configurar TODAS las hojas para impresión en A4
+  workbook.worksheets.forEach(configurarA4);
+
+  return workbook;
+}
+
 /* ---------------------------------------------
  * EXPORTAR EXCEL
  * -------------------------------------------*/
@@ -1231,159 +1405,7 @@ app.get(
 
       registros = registros.filter(r => withinRange(r.fecha, from, to));
 
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet('Registros');
-
-      sheet.columns = [
-        { header: 'ID Ticket', key: 'idTicket', width: 10 },
-        { header: 'Fecha', key: 'fecha', width: 15 },
-        { header: 'Usuario', key: 'usuario', width: 15 },
-        { header: 'Carga Para', key: 'cargaPara', width: 15 },
-        { header: 'Socio', key: 'socio', width: 15 },
-        { header: 'Pesada Para', key: 'pesadaPara', width: 15 },
-        { header: 'Transporte', key: 'transporte', width: 15 },
-        { header: 'Patentes', key: 'patentes', width: 15 },
-        { header: 'Chofer', key: 'chofer', width: 15 },
-        { header: 'Bruto Estimado', key: 'brutoEstimado', width: 16 },
-        { header: 'Tara', key: 'tara', width: 10 },
-        { header: 'Neto Estimado', key: 'netoEstimado', width: 16 },
-        { header: 'Campo', key: 'campo', width: 18 },
-        { header: 'Grano', key: 'grano', width: 12 },
-        { header: 'Lote', key: 'lote', width: 18 },
-        { header: 'Cargo De', key: 'cargoDe', width: 15 },
-        { header: 'Silobolsa', key: 'silobolsa', width: 15 },
-        { header: 'Contratista', key: 'contratista', width: 15 },
-        { header: 'Tractor', key: 'tractor', width: 15 },
-        { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
-        { header: 'Comentarios', key: 'comentarios', width: 28 },
-        { header: 'Bruto Regulado', key: 'bruto', width: 16 },
-        { header: 'Neto', key: 'neto', width: 15 },
-        { header: 'CP', key: 'cp', width: 14 },
-        { header: 'Bruto LOTE - Bruto Regulado', key: 'difBrutoLoteBruto', width: 22 },
-        { header: 'Anulado', key: 'anulado', width: 10 },
-        { header: 'Confirmada CAMIONES', key: 'confirmada', width: 14 },
-      ];
-
-      // Función auxiliar para calcular difBrutoLoteBruto y armar fila
-      const addRowToSheet = (targetSheet, r) => {
-        const netoExport = r.anulado && typeof r.neto === 'number'
-          ? -Math.abs(r.neto)
-          : r.neto;
-        const nBrutoLote = Number(r.brutoLote);
-        const nBruto = Number(r.bruto);
-        const difBrutoLoteBruto =
-          (typeof r.brutoLote !== 'undefined' && r.brutoLote !== null && r.brutoLote !== '' &&
-           typeof r.bruto     !== 'undefined' && r.bruto     !== null && r.bruto     !== '' &&
-           !Number.isNaN(nBrutoLote) && !Number.isNaN(nBruto))
-            ? (nBrutoLote - nBruto)
-            : '';
-        const row = targetSheet.addRow({
-          ...r,
-          // Aplanamos arrays multi-valor para que el Excel los muestre legibles
-          lote:        flat(r.lote),
-          contratista: flat(r.contratista),
-          tractor:     flat(r.tractor),
-          neto: netoExport,
-          difBrutoLoteBruto,
-        });
-        if (r.anulado && netoExport != null) {
-          const cell = row.getCell('neto');
-          cell.font = { bold: true, color: { argb: 'FFCC0000' } };
-        }
-      };
-
-      registros.forEach(r => addRowToSheet(sheet, r));
-
-      // ── Hoja IMPRIMIR: subset de columnas para impresión ──
-      const sheetImprimir = workbook.addWorksheet('IMPRIMIR');
-      sheetImprimir.columns = [
-        { header: 'ID Ticket', key: 'idTicket', width: 10 },
-        { header: 'Fecha', key: 'fecha', width: 15 },
-        { header: 'Carga Para', key: 'cargaPara', width: 15 },
-        { header: 'Socio', key: 'socio', width: 15 },
-        { header: 'Transporte', key: 'transporte', width: 15 },
-        { header: 'Patentes', key: 'patentes', width: 15 },
-        { header: 'Chofer', key: 'chofer', width: 15 },
-        { header: 'Campo', key: 'campo', width: 18 },
-        { header: 'Grano', key: 'grano', width: 12 },
-        { header: 'Lote', key: 'lote', width: 18 },
-        { header: 'Silobolsa', key: 'silobolsa', width: 15 },
-        { header: 'Contratista', key: 'contratista', width: 15 },
-        { header: 'Tara', key: 'tara', width: 10 },
-        { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
-        { header: 'Bruto Regulado', key: 'bruto', width: 16 },
-        { header: 'Neto', key: 'neto', width: 15 },
-        { header: 'CP', key: 'cp', width: 14 },
-        { header: 'Comentarios', key: 'comentarios', width: 28 },
-      ];
-      sheetImprimir.getRow(1).font = { bold: true };
-      registros.forEach(r => addRowToSheet(sheetImprimir, r));
-
-      // ── Hoja 2: cargas para SOCIO, ordenadas por fecha y luego por campo ──
-      const registrosSocio = registros
-        .filter(r => r.cargaPara === 'SOCIO')
-        .sort((a, b) => {
-          const fechaCmp = (a.fecha || '').localeCompare(b.fecha || '');
-          if (fechaCmp !== 0) return fechaCmp;
-          return (a.campo || '').localeCompare(b.campo || '');
-        });
-
-      const sheetSocio = workbook.addWorksheet('Cargas SOCIO');
-      sheetSocio.columns = sheet.columns
-        .filter(c => !EXCLUIR_SOCIO.includes(c.key))
-        .map(c => ({ header: c.header, key: c.key, width: c.width }));
-      sheetSocio.getRow(1).font = { bold: true };
-      registrosSocio.forEach(r => addRowToSheet(sheetSocio, r));
-
-      // ── Hojas por CAMPO ──
-      // Se generan para TODOS los usuarios de observación. Como `registros` ya
-      // viene filtrado por el código del usuario (ver bloque de arriba), cada
-      // puesto obtiene únicamente las hojas de sus propios campos, mientras que
-      // el usuario GENERAL (12341) sigue viendo las de todos los campos.
-      {
-        // Genera un nombre de hoja válido para Excel: sin caracteres prohibidos
-        // ( : \\ / ? * [ ] ), máximo 31 caracteres y sin repetidos (Excel falla
-        // si dos hojas tienen el mismo nombre).
-        const nombresUsados = new Set();
-        const nombreHojaSeguro = (base) => {
-          let limpio = (base || 'Campo').replace(/[\\/?*\[\]:]/g, ' ').trim().substring(0, 31) || 'Campo';
-          let candidato = limpio;
-          let n = 2;
-          while (nombresUsados.has(candidato.toLowerCase())) {
-            const sufijo = ` (${n})`;
-            candidato = limpio.substring(0, 31 - sufijo.length) + sufijo;
-            n++;
-          }
-          nombresUsados.add(candidato.toLowerCase());
-          return candidato;
-        };
-
-        // Obtener campos únicos (excluir vacíos), ordenados alfabéticamente
-        const camposUnicos = [...new Set(
-          registros.map(r => (r.campo || '').trim()).filter(c => c !== '')
-        )].sort((a, b) => a.localeCompare(b));
-
-        for (const campoNombre of camposUnicos) {
-          const registrosCampo = registros
-            .filter(r => (r.campo || '').trim() === campoNombre)
-            .sort((a, b) => {
-              const fechaCmp = (a.fecha || '').localeCompare(b.fecha || '');
-              if (fechaCmp !== 0) return fechaCmp;
-              return (a.idTicket || 0) - (b.idTicket || 0);
-            });
-
-          const sheetCampo = workbook.addWorksheet(nombreHojaSeguro(campoNombre));
-          sheetCampo.columns = sheet.columns.map(c => ({ header: c.header, key: c.key, width: c.width }));
-          sheetCampo.getRow(1).font = { bold: true };
-          registrosCampo.forEach(r => addRowToSheet(sheetCampo, r));
-        }
-      }
-
-      // Total de toneladas (columna Neto) al final de cada hoja
-      workbook.worksheets.forEach(agregarTotalNeto);
-
-      // Configurar TODAS las hojas para impresión en A4
-      workbook.worksheets.forEach(configurarA4);
+      const workbook = await construirLibroRegistros(registros);
 
       res.header(
         'Content-Type',

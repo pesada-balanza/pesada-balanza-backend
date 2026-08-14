@@ -43,6 +43,7 @@ module.exports = function crearAppMovil(deps) {
     notificar,
     resolverNombreCodigo,
     rangoCampana,
+    construirLibroRegistros,
   } = deps;
 
   const router = express.Router();
@@ -2665,8 +2666,55 @@ module.exports = function crearAppMovil(deps) {
         balanzaUnica: visibles.length === 1 ? visibles[0] : '',
         dias: navegacionDias(fecha, '/app/general'),
         kg,
+        hoy: hoyStr(),
         puedeCargar: !!s.codigoIngreso,
       });
+    } catch (err) {
+      return siguienteError(err, req, res);
+    }
+  });
+
+  /* =========================================================================
+   * EXPORTAR A EXCEL
+   * -------------------------------------------------------------------------
+   * El mismo archivo que da el botón "Exportar a Excel" de la web: las mismas
+   * hojas (Registros, IMPRIMIR, Cargas SOCIO y una por campo) armadas por la
+   * misma función, `construirLibroRegistros`. No hay una segunda versión del
+   * reporte que se pueda desincronizar.
+   *
+   * Lo único que cambia es QUÉ registros entran, y eso lo decide el código con
+   * el que se entró: GENERAL saca todas las balanzas, y un código de ver
+   * registros saca la suya y nada más. Es el mismo criterio que el resumen que
+   * se está mirando, así que el Excel dice lo mismo que la pantalla.
+   * ======================================================================= */
+  router.get('/excel', exigirApp, async (req, res) => {
+    try {
+      const s = sesionApp(req);
+      const desde = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.desde || '')) ? req.query.desde : hoyStr();
+      const hasta = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.hasta || '')) ? req.query.hasta : desde;
+      // Si vienen al revés, se dan vuelta: es más útil que un archivo vacío.
+      const d = desde <= hasta ? desde : hasta;
+      const h = desde <= hasta ? hasta : desde;
+
+      const filtro = { fecha: { $gte: d, $lte: h } };
+      if (!s.esGeneral) {
+        const visibles = balanzasVisibles(s);
+        if (!visibles.length) {
+          return pantallaError(res, 'Sin permiso', 'Este código no tiene registros para exportar.', '/app/general');
+        }
+        filtro.codigoIngreso = { $in: visibles };
+      }
+
+      const registros = await colRegistros().find(filtro).sort({ idTicket: 1 }).toArray();
+      const libro = await construirLibroRegistros(registros);
+
+      // Nombre con el rango adentro: en el teléfono los archivos se acumulan en
+      // Descargas y "registros.xlsx" repetido no se distingue de la semana pasada.
+      const nombre = d === h ? 'registros-' + d + '.xlsx' : 'registros-' + d + '-a-' + h + '.xlsx';
+      res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.attachment(nombre);
+      await libro.xlsx.write(res);
+      return res.end();
     } catch (err) {
       return siguienteError(err, req, res);
     }
