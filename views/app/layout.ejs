@@ -12,10 +12,10 @@
   <link rel="manifest" href="/app/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/app/icono.svg">
   <link rel="icon" href="/app/icono.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/estatico/app.css">
+  <link rel="stylesheet" href="/app/estatico/app.css?v=<%= versionApp %>">
   <%# Se carga acá, y no al final, porque los scripts de cada pantalla usan App
       en cuanto se dibujan. Es un archivo chico y el service worker lo cachea. %>
-  <script src="/app/estatico/app.js"></script>
+  <script src="/app/estatico/app.js?v=<%= versionApp %>"></script>
 </head>
 <body<%= typeof oscuro !== 'undefined' && oscuro ? ' class="oscuro"' : '' %> data-puede-cargar="<%= typeof puedeCargar !== 'undefined' && puedeCargar ? '1' : '0' %>">
   <%# El cartelito de avisos va arriba (es position:fixed) para que ya exista

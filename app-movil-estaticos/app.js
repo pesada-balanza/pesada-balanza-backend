@@ -834,10 +834,32 @@
    *   que    cómo se lo nombra en los avisos ("el PDF", "el Excel").
    *   prepararSolo  si es false, no se baja al abrir la pantalla: se espera al
    *          primer toque. Para archivos pesados o que casi nadie pide.
+   *   preferirBajar  el botón dice "Bajar", no "Compartir": en la computadora
+   *          se descarga y punto. Solo en el iPhone y el iPad, donde descargar
+   *          no funciona, se usa el menú de compartir.
    *
    * Devuelve { preparar, olvidar }: `olvidar` tira lo bajado, para cuando
    * cambia lo que se eligió y el archivo que estaba listo ya no corresponde.
    */
+  /**
+   * ¿Es un iPhone o un iPad? Es el único lugar donde bajar un archivo no
+   * funciona: el navegador abre la vista previa en vez de guardarlo, y con la
+   * app agregada a la pantalla de inicio encima la reemplaza y no se puede
+   * volver. Ahí hay que usar el menú de compartir.
+   *
+   * En todo lo demás —Windows, Mac, Android— bajar el archivo es lo correcto y
+   * es lo que la gente espera de un botón que dice "Bajar el Excel".
+   *
+   * El iPad moderno se hace pasar por Mac, así que además se mira si la
+   * pantalla es táctil.
+   */
+  function esIPhoneOIPad() {
+    var ua = navigator.userAgent || '';
+    if (/iP(hone|od|ad)/.test(ua)) return true;
+    return /Mac/.test(navigator.platform || '') && (navigator.maxTouchPoints || 0) > 1;
+  }
+  App.esIPhoneOIPad = esIPhoneOIPad;
+
   App.compartir = function (op) {
     var boton = op.boton;
     if (!boton) return { preparar: function () {}, olvidar: function () {} };
@@ -867,6 +889,22 @@
         archivo = new File([blob], nombre, { type: tipo });
       } catch (e) {
         archivo = null; // navegador viejo sin File()
+      }
+
+      // Un botón que dice "Bajar" tiene que bajar. En la computadora —Edge,
+      // Chrome, el Safari de la Mac— el menú de compartir del sistema existe,
+      // pero no es lo que se pidió: en la Mac ni siquiera ofrece guardar el
+      // archivo. Así que se descarga, que es lo que ya funcionaba.
+      //
+      // La excepción es el iPhone y el iPad, donde descargar no funciona: ahí
+      // el menú de compartir es la única forma de sacar el archivo.
+      if (op.preferirBajar && !esIPhoneOIPad()) {
+        if (guardarComoArchivo(blob, nombre)) {
+          App.brindis('Se descargó ' + que + '.');
+        } else {
+          App.brindis('Este navegador no pudo guardar ' + que + '.', 'rojo');
+        }
+        return;
       }
 
       if (archivo && navigator.canShare && navigator.share &&

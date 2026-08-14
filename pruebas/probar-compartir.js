@@ -198,10 +198,17 @@ async function main() {
    * abrirla de nuevo. En la computadora no pasaba, por eso se comprueba acá con
    * un navegador de verdad y no mirando el HTML.
    * ═════════════════════════════════════════════════════════════════════ */
-  console.log('\n── El Excel se entrega sin sacar a nadie de la app');
+  console.log('\n── El Excel en el iPhone: menú de compartir, sin sacar a nadie de la app');
+
+  // El error que apareció: el botón era un enlace común al archivo y, con la app
+  // agregada a la pantalla de inicio, la reemplazaba por la vista previa del
+  // .xlsx sin forma de volver. Había que cerrar la app y abrirla de nuevo.
+  const UA_IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) ' +
+    'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 
   const ctx3 = await browser.newContext({
     viewport: { width: 390, height: 844 },
+    userAgent: UA_IPHONE,
     extraHTTPHeaders: { 'X-Forwarded-Proto': 'https' },
     acceptDownloads: true,
   });
@@ -213,7 +220,6 @@ async function main() {
       body: JSON.stringify({ code: '12341' }),
     });
   });
-  // Un teléfono que sabe compartir archivos, como el iPhone.
   await pg3.addInitScript(() => {
     window.__compartido = null;
     navigator.canShare = function (d) { return !!(d && d.files && d.files.length); };
@@ -241,61 +247,100 @@ async function main() {
   await pg3.waitForTimeout(800);
 
   const excel = await pg3.evaluate(() => window.__compartido);
-  ok('se entregó el Excel al sistema', !!excel, JSON.stringify(excel));
+  ok('el iPhone recibe el archivo por el menú de compartir', !!excel, JSON.stringify(excel));
   if (excel) {
     ok('es un xlsx', /spreadsheetml/.test(excel.tipo || ''), excel.tipo);
     ok('con el nombre y las fechas adentro', /^registros-\d{4}-\d{2}-\d{2}\.xlsx$/.test(excel.nombre), excel.nombre);
     ok('y pesa algo', excel.tamano > 3000, excel.tamano);
   }
 
-  // Lo que importa: la app sigue donde estaba.
   ok('LA APP NO SE MOVIÓ: sigue en el resumen', pg3.url() === urlAntes, pg3.url());
   ok('y la pantalla sigue viva (el botón responde)',
     (await pg3.$('#abrir-excel')) !== null && (await pg3.$('#bajar-excel')) !== null);
 
-  // En el mismo toque, que es lo que exige el Safari del iPhone.
   const alToque = await pg3.evaluate(() => {
     window.__compartido = null;
     document.getElementById('bajar-excel').click();
     return window.__compartido !== null;
   });
-  ok('se comparte en el mismo toque', alToque === true);
-
-  // Y en una computadora, que no sabe compartir archivos: se descarga.
-  const ctx4 = await browser.newContext({
-    viewport: { width: 1280, height: 900 },
-    extraHTTPHeaders: { 'X-Forwarded-Proto': 'https' },
-    acceptDownloads: true,
-  });
-  const pg4 = await ctx4.newPage();
-  await pg4.goto(BASE + '/app/ingreso');
-  await pg4.evaluate(async () => {
-    await fetch('/app/api/ingreso', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: '12341' }),
-    });
-  });
-  await pg4.addInitScript(() => {
-    try { delete navigator.share; } catch (e) {}
-    try { delete navigator.canShare; } catch (e) {}
-    navigator.share = undefined;
-    navigator.canShare = undefined;
-  });
-  await pg4.goto(BASE + '/app/general', { waitUntil: 'networkidle' });
-  const urlPc = pg4.url();
-  await pg4.click('#abrir-excel');
-  await pg4.waitForTimeout(1200);
-  const bajadaExcel = pg4.waitForEvent('download', { timeout: 8000 }).catch(() => null);
-  await pg4.click('#bajar-excel');
-  const excelBajado = await bajadaExcel;
-  ok('en la computadora se descarga', !!excelBajado, 'no se disparó la descarga');
-  if (excelBajado) {
-    ok('con el nombre correcto', /^registros-\d{4}-\d{2}-\d{2}\.xlsx$/.test(excelBajado.suggestedFilename()),
-      excelBajado.suggestedFilename());
-  }
-  ok('y la pantalla tampoco se movió', pg4.url() === urlPc, pg4.url());
-  await ctx4.close();
+  ok('se comparte en el mismo toque, que es lo que exige Safari', alToque === true);
   await ctx3.close();
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * LA COMPUTADORA: SE DESCARGA, AUNQUE SEPA COMPARTIR
+   * -------------------------------------------------------------------------
+   * Edge en Windows y el Safari de la Mac SÍ tienen menú de compartir de
+   * sistema. Si el botón lo usa, en la Mac ni siquiera aparece la opción de
+   * guardar el archivo y en Edge no funciona. Un botón que dice "Bajar" tiene
+   * que bajar: el menú de compartir queda solo para el iPhone y el iPad.
+   * ═════════════════════════════════════════════════════════════════════ */
+  console.log('\n── El Excel en la computadora: se descarga, aunque sepa compartir');
+
+  async function excelEnComputadora(nombre, opciones) {
+    const c = await browser.newContext(Object.assign({
+      viewport: { width: 1280, height: 900 },
+      extraHTTPHeaders: { 'X-Forwarded-Proto': 'https' },
+      acceptDownloads: true,
+    }, opciones || {}));
+    const pg = await c.newPage();
+    await pg.goto(BASE + '/app/ingreso');
+    await pg.evaluate(async () => {
+      await fetch('/app/api/ingreso', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: '12341' }),
+      });
+    });
+    await pg.addInitScript(opciones && opciones.sabeCompartir ? () => {
+      // Edge / Safari de escritorio: el menú de compartir existe.
+      window.__compartido = null;
+      navigator.canShare = function (d) { return !!(d && d.files && d.files.length); };
+      navigator.share = function (d) {
+        window.__compartido = { nombre: d.files[0].name };
+        return Promise.resolve();
+      };
+    } : () => {
+      window.__compartido = null;
+      try { delete navigator.share; } catch (e) {}
+      try { delete navigator.canShare; } catch (e) {}
+      navigator.share = undefined;
+      navigator.canShare = undefined;
+    });
+    await pg.goto(BASE + '/app/general', { waitUntil: 'networkidle' });
+    const url0 = pg.url();
+    await pg.click('#abrir-excel');
+    await pg.waitForTimeout(1200);
+    const esperaDescarga = pg.waitForEvent('download', { timeout: 8000 }).catch(() => null);
+    await pg.click('#bajar-excel');
+    const bajado = await esperaDescarga;
+    const compartido = await pg.evaluate(() => window.__compartido);
+
+    ok(nombre + ': se descarga el archivo', !!bajado, 'no se disparó la descarga');
+    if (bajado) {
+      ok(nombre + ': con el nombre correcto',
+        /^registros-\d{4}-\d{2}-\d{2}\.xlsx$/.test(bajado.suggestedFilename()),
+        bajado.suggestedFilename());
+    }
+    ok(nombre + ': NO abre el menú de compartir', !compartido, JSON.stringify(compartido));
+    ok(nombre + ': la pantalla no se movió', pg.url() === url0, pg.url());
+    await c.close();
+  }
+
+  // Edge en Windows, que fue el que dejó de funcionar.
+  await excelEnComputadora('Edge', {
+    sabeCompartir: true,
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ' +
+      'Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
+  });
+
+  // El Safari de la Mac, donde el menú de compartir no ofrecía guardar.
+  await excelEnComputadora('Safari de Mac', {
+    sabeCompartir: true,
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 ' +
+      '(KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+  });
+
+  // Un navegador que no sabe compartir: se descarga igual.
+  await excelEnComputadora('sin compartir', { sabeCompartir: false });
 
   console.log('\n── Sin señal, el botón queda apagado');
   await ctx.setOffline(true);

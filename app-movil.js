@@ -48,6 +48,21 @@ module.exports = function crearAppMovil(deps) {
 
   const router = express.Router();
 
+  /**
+   * La versión va a TODAS las pantallas, para que pidan los archivos con ella
+   * en la dirección (app.js?v=pesada-app-v17).
+   *
+   * Sin esto, la primera vez que se abre la app después de subir cambios queda
+   * el HTML nuevo con el app.js viejo: la pantalla se pide a la red, pero los
+   * archivos salen de lo que el teléfono tenía guardado. Si el HTML nuevo usa
+   * algo que el js viejo no tiene, un botón falla con un error que no dice nada
+   * de lo que pasó de verdad.
+   */
+  router.use((req, res, next) => {
+    res.locals.versionApp = versionDelServiceWorker();
+    next();
+  });
+
   /* =========================================================================
    * ACCESO A COLECCIONES
    * ======================================================================= */

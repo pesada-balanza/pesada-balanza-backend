@@ -14,7 +14,7 @@
 // Al subir cambios hay que subir este número: así el teléfono descarta las
 // pantallas guardadas y toma las nuevas. Las pesadas sin subir NO se tocan:
 // viven en localStorage y este archivo no lo mira nunca.
-var VERSION = 'pesada-app-v16';
+var VERSION = 'pesada-app-v17';
 
 // Dos copias separadas a propósito:
 //  - FIJOS: css, js, ícono. No dependen de quién esté usando la app.
@@ -24,11 +24,14 @@ var VERSION = 'pesada-app-v16';
 var CACHE_FIJOS = VERSION + '-fijos';
 var CACHE_PANTALLAS = VERSION + '-pantallas';
 
+// Con la versión en la dirección, el HTML nuevo nunca queda con el js viejo.
+function conVersion(url) { return url + '?v=' + VERSION; }
+
 var ESENCIALES = [
-  '/app/estatico/app.css',
-  '/app/estatico/app.js',
-  '/app/estatico/ticket.css',
-  '/app/estatico/ticket.js',
+  conVersion('/app/estatico/app.css'),
+  conVersion('/app/estatico/app.js'),
+  conVersion('/app/estatico/ticket.css'),
+  conVersion('/app/estatico/ticket.js'),
   '/app/manifest.webmanifest',
   '/app/icono.svg',
   // Pantalla para seguir un ticket sin señal. Se guarda desde el arranque
@@ -55,11 +58,10 @@ function esCascara(pathname) {
 }
 
 /**
- * Pantallas que NO se guardan nunca. El buscador está acá porque sus resultados
- * dependen de lo que hay en el servidor en ese momento: mostrar sin señal la
- * respuesta de una búsqueda vieja sería mentirle al balancero. Sin conexión se
- * le dice que hace falta internet. El Excel, por lo mismo y porque es un
- * archivo: guardarlo dejaría planillas viejas ocupando el teléfono.
+ * Pantallas que NO se guardan nunca: sus datos dependen de lo que hay en el
+ * servidor en ese momento, y mostrarlos viejos sería mentirle al balancero. Sin
+ * conexión se dice que hace falta internet. El Excel además es un archivo:
+ * guardarlo dejaría planillas viejas ocupando el teléfono.
  */
 var SIN_GUARDAR = ['/app/buscar', '/app/excel'];
 
@@ -116,7 +118,7 @@ self.addEventListener('activate', function (ev) {
     caches
       .open(CACHE_FIJOS)
       .then(function (cache) {
-        return cache.match('/app/estatico/app.js');
+        return cache.match(conVersion('/app/estatico/app.js'));
       })
       .then(function (estaCompleta) {
         if (!estaCompleta) return null; // la nueva no sirve: se deja lo de antes
@@ -166,7 +168,6 @@ function esDeLaApp(url) {
 function pantallaNoGuardada(pathname) {
   var esElCodigo = pathname === '/app/ingreso';
   var esElBuscador = pathname === '/app/buscar';
-  var esElExcel = pathname === '/app/excel';
 
   var titulo = 'Esta pantalla necesita internet';
   var detalle = 'Desde el patio se puede seguir cargando sin señal: el camión, la tara final y la regulada.';
@@ -179,9 +180,6 @@ function pantallaNoGuardada(pathname) {
     titulo = 'El buscador necesita internet';
     detalle = 'Los tickets de días anteriores están en el servidor, no en el teléfono. Sin señal se ' +
       'puede seguir cargando en el patio y ver los tickets de este teléfono.';
-  } else if (esElExcel) {
-    titulo = 'El Excel necesita internet';
-    detalle = 'La planilla la arma el servidor. Cuando vuelva la señal, el botón funciona igual.';
   }
 
   return new Response(

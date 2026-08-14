@@ -241,7 +241,12 @@ async function main() {
   ok('separa los archivos fijos de las pantallas, para poder tirar solo las pantallas',
     /CACHE_FIJOS/.test(fuenteSw) && /CACHE_PANTALLAS/.test(fuenteSw));
   ok('antes de borrar la copia vieja comprueba que la nueva esté completa',
-    /cache\.match\('\/app\/estatico\/app\.js'\)/.test(fuenteSw) && /if \(!estaCompleta\) return null/.test(fuenteSw));
+    /cache\.match\(conVersion\('\/app\/estatico\/app\.js'\)\)/.test(fuenteSw) &&
+    /if \(!estaCompleta\) return null/.test(fuenteSw));
+  // El HTML nuevo con el js viejo rompía la app la primera vez que se abría
+  // después de subir cambios. Los archivos van con la versión en la dirección.
+  ok('los archivos se guardan con la versión en la dirección',
+    /function conVersion\(url\)/.test(fuenteSw) && /'\?v=' \+ VERSION/.test(fuenteSw));
   ok('si la descarga queda a medias NO toma el relevo (addAll + skipWaiting juntos)',
     /addAll\([\s\S]{0,400}skipWaiting\(\)/.test(fuenteSw));
 

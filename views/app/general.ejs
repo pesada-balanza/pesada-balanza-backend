@@ -172,6 +172,10 @@
         tipo: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         que: 'el Excel',
         titulo: 'Registros de balanza',
+        // El botón dice "Bajar": en la computadora se descarga, como siempre.
+        // El menú de compartir se usa solo en el iPhone y el iPad, que es donde
+        // descargar no funciona.
+        preferirBajar: true,
         // No se baja al abrir la pantalla: el Excel pesa y no todos lo piden.
         // Se empieza a preparar recién cuando se abre la caja, así al tocar
         // "Bajar el Excel" ya está listo y el iPhone lo comparte en el mismo

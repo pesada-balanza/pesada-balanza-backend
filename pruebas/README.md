@@ -18,7 +18,7 @@ node pruebas/correr.js
 Tarda un par de minutos y termina con un resumen. Si todo está bien:
 
 ```
-  TODO BIEN — 856 comprobaciones
+  TODO BIEN — 866 comprobaciones
 ```
 
 Si algo se rompió, lista exactamente qué comprobación falló y en qué archivo.
@@ -60,7 +60,7 @@ CHROMIUM_PATH=/ruta/al/chrome node pruebas/correr.js
 | `probar-apagado.js` | Con `APP_MOVIL` apagado, `/app` da 404 en todas sus direcciones, la web carga tickets igual que siempre y no se crea ninguna colección nueva. |
 | `probar-sin-senal.js` | En modo avión: cargar una pesada, verla con el chip `SIN SUBIR`, imprimir, y que al volver la señal se suba sola sin duplicarse. |
 | `probar-cadena.js` | El ticket **completo** sin señal: camión, tara final, imprimir y regulada, y que al volver la conexión llegue un solo registro con los números bien. |
-| `probar-compartir.js` | El botón de compartir entrega un PDF al sistema, en el mismo toque del dedo (que es lo que exige el Safari del iPhone), y descarga el archivo cuando el teléfono no sabe compartir. Lo mismo con el **Excel**, y ahí lo que se comprueba sobre todo es que **la app no se mueva**: con un enlace común el iPhone la reemplazaba por la vista previa del archivo y había que cerrarla para volver. |
+| `probar-compartir.js` | El botón de compartir entrega un PDF al sistema, en el mismo toque del dedo (que es lo que exige el Safari del iPhone), y descarga el archivo cuando el teléfono no sabe compartir. Con el **Excel** se comprueban las dos mitades del problema: en el iPhone, que la app **no se mueva** (con un enlace común la reemplazaba por la vista previa del archivo y había que cerrarla); y en **Edge y el Safari de la Mac**, que se **descargue** y que **no** se abra el menú de compartir del sistema, que es lo que había roto la computadora. |
 | `probar-pdf.js` | El PDF: que sea válido byte a byte, que mida 19 × 4,5 cm exactos, que los acentos salgan bien, que los textos largos se recorten y que **no aparezca el código de la balanza**. |
 | `probar-arreglos.js` | La navegación: el alto real de los botones, que el botón **Salir** avise antes de salir y no salga si se dice que no, y el cambio de campo en la regulada rehaciendo granos y lotes hasta guardar. |
 | `probar-corregir.js` | **Corregir los datos de un ticket**: que el balancero no pueda por ningún camino (ni la pantalla ni la API) y que GENERAL sí; el recorrido completo pide → corrige → el pedido queda `CORREGIDO` solo; que la tara recalcule los netos y los brutos no se toquen; la auditoría; y las reglas de la web (máximo 2, hasta 1 día, nada anulado, y que no cambiar nada no gaste una corrección). |

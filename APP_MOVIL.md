@@ -407,25 +407,56 @@ El archivo se llama `registros-2026-08-14.xlsx` (o
 acumulan en Descargas y un `registros.xlsx` repetido no se distingue del de la
 semana pasada.
 
-### Por qué no es un enlace
+### Cómo llega el archivo
 
-El botón **no navega al archivo**: lo baja a memoria y lo entrega al menú de
-compartir del teléfono, igual que "Compartir el PDF" del ticket.
+El botón **nunca navega al archivo**: lo baja a memoria y de ahí lo entrega. Qué
+hace con él depende del aparato, y la diferencia importa:
 
-No es un detalle de estilo. Con un enlace común, en el iPhone y con la app
-agregada a la pantalla de inicio, el archivo **reemplazaba la app** por la vista
-previa del `.xlsx` y no quedaba forma de volver: había que cerrarla y abrirla de
-nuevo. En la computadora no pasaba, así que se comprueba con un navegador de
-verdad (`probar-compartir.js`) y no mirando el HTML: se toca el botón y se
-verifica que la pantalla siga donde estaba.
+| Dónde | Qué hace | Por qué |
+| --- | --- | --- |
+| **Computadora** (Edge, Chrome, Safari de Mac) | lo **descarga** | es lo que se espera de un botón que dice "Bajar", y es lo que siempre funcionó |
+| **iPhone y iPad** | abre el **menú de compartir** | es el único lugar donde descargar no funciona |
 
-El archivo se empieza a preparar al abrir el desde–hasta, así al tocar "Bajar el
-Excel" ya está listo y Safari lo comparte **en el mismo toque**, que es lo que
-exige. En las computadoras, que no saben compartir archivos, se descarga.
+Las dos reglas salieron de romperlo:
 
-**Sin señal no se exporta**: la planilla la arma el servidor. La app lo dice con
-un cartel y el service worker **no guarda** el archivo, para no dejar planillas
-viejas ocupando el teléfono ni entregar una que ya no coincide con el sistema.
+- Con un **enlace común**, en el iPhone con la app agregada a la pantalla de
+  inicio el archivo **reemplazaba la app** por la vista previa del `.xlsx` y no
+  quedaba forma de volver: había que cerrarla y abrirla.
+- Usando el **menú de compartir en todos lados**, la computadora quedó peor que
+  antes: Edge y el Safari de la Mac también tienen menú de compartir del
+  sistema, y en la Mac ni siquiera ofrece guardar el archivo.
+
+Por eso se prueba con un navegador de verdad (`probar-compartir.js`) y no
+mirando el HTML: en el iPhone se comprueba que la pantalla siga donde estaba, y
+en Edge y en el Safari de la Mac que se **descargue** y que **no** se abra el
+menú de compartir.
+
+En el iPhone el archivo se empieza a preparar al abrir el desde–hasta, así al
+tocar "Bajar el Excel" ya está listo y Safari lo comparte **en el mismo toque**,
+que es lo que exige.
+
+**Sin señal no se exporta**: la planilla la arma el servidor. La app lo dice al
+tocar el botón, y el service worker **no guarda** el archivo, para no dejar
+planillas viejas ocupando el teléfono ni entregar una que ya no coincide con el
+sistema.
+
+---
+
+## Los archivos van con la versión en la dirección
+
+`app.js?v=pesada-app-v17`, y lo mismo el css y los del ticket. La versión sale
+del propio `sw.js`, así que se escribe en un solo lugar.
+
+Está por un error concreto: la primera vez que se abría la app después de subir
+cambios, quedaba el **HTML nuevo con el `app.js` viejo**. La pantalla se pide a
+la red, pero los archivos salen de lo que el teléfono tenía guardado, que
+todavía es de la versión anterior. Si el HTML nuevo usa algo que el js viejo no
+tiene, un botón falla con un error que no dice nada de lo que pasó de verdad
+—apareció como *"No se pudo preparar el PDF"* en el botón del Excel—.
+
+Con la versión en la dirección, el HTML nuevo pide un archivo que no está
+guardado y se baja fresco: el HTML y el js nunca son de dos versiones
+distintas.
 
 ---
 
