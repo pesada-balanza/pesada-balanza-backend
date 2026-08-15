@@ -202,6 +202,28 @@ async function main() {
 
   r = await ir('GET', '/app/general/pedidos');
   ok('en la lista aparece como Corregido', /Corregido/.test(r.texto));
+
+  /* ── El que pidió la corrección tiene que enterarse ───────────────────── */
+  // Sin el cartel veía los datos nuevos y nada que dijera que cambiaron. Si el
+  // ticket ya estaba impreso y en la mano del chofer, no se daba cuenta.
+  cookies = {};
+  await ir('POST', '/app/api/ingreso', { code: QUIMILI }, { desde: '10.8.0.3' });
+  r = await ir('GET', '/app/registro/' + id);
+  ok('el balancero ve que GENERAL corrigió el ticket',
+    /GENERAL corrigió el ticket/.test(r.texto), r.estado);
+  ok('y qué se cambió, en castellano',
+    /Cambió .*la tara/.test(r.texto), (r.texto.match(/Cambió [^<]*/) || [''])[0]);
+  ok('sin nombrar los netos, que se recalculan solos',
+    !/netoEstimado/.test(r.texto) && !/Cambió[^<]*el neto/.test(r.texto),
+    (r.texto.match(/Cambió [^<]*/) || [''])[0]);
+  ok('con el motivo que él mismo había puesto', /tara 15880/.test(r.texto));
+  // El pedido quedó cerrado, así que si hace falta puede pedir otra cosa.
+  ok('y puede volver a pedir si todavía hay algo mal',
+    /Pedir corrección a GENERAL/.test(r.texto));
+
+  // Se vuelve a GENERAL: lo que sigue son sus pantallas.
+  cookies = {};
+  await ir('POST', '/app/api/ingreso', { code: GENERAL }, { desde: '10.8.0.4' });
   ok('y ya no está entre los pendientes', !/tara 15880[\s\S]{0,400}Rechazar/.test(r.texto));
 
   /* ═══════════════════════════════════════════════════════════════════════

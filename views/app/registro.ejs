@@ -39,6 +39,20 @@
           <span class="aviso-detalle">El ticket sigue vigente. Motivo del pedido: “<%= pedido.motivo %>”</span>
         </div>
       </div>
+    <% } else if (pedido && pedido.estado === 'CORREGIDO') { %>
+      <%# El que pidió la corrección tiene que enterarse de que se hizo. Sin
+          esto veía los datos nuevos y nada que le dijera que cambiaron: si el
+          ticket ya estaba impreso y en la mano del chofer, no se daba cuenta. %>
+      <div class="aviso">
+        <div class="aviso-col">
+          <span class="aviso-titulo">GENERAL corrigió el ticket</span>
+          <span class="aviso-detalle">
+            <% if (pedido.respuesta) { %>Cambió <%= pedido.respuesta %>.<% } %>
+            <% if (pedido.cuandoSeResolvio) { %><%= pedido.cuandoSeResolvio %> ·<% } %>
+            Se había pedido por: “<%= pedido.motivo %>”
+          </span>
+        </div>
+      </div>
     <% } %>
 
     <div class="tarjeta">

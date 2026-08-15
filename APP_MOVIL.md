@@ -542,6 +542,30 @@ Al guardar, el pedido queda **`CORREGIDO`** solo, con constancia de quién y de 
 campos se cambiaron: GENERAL no tiene que corregir y además cerrarlo a mano. En la
 lista de resueltos sale con el chip verde "Corregido".
 
+### El que pidió la corrección se entera
+
+En el ticket aparece el cartel **"GENERAL corrigió el ticket"**, con qué cambió,
+cuándo, y el motivo que había puesto quien lo pidió:
+
+> **GENERAL corrigió el ticket**
+> Cambió la tara y las observaciones. 15/08 10:03 · Se había pedido por: "la tara
+> está mal, es 15880"
+
+Va al lado del de "GENERAL rechazó el pedido", que ya existía. Sin esto, el
+balancero abría el ticket, veía los datos nuevos y **nada que le dijera que
+cambiaron**: si el ticket ya estaba impreso y en la mano del chofer, no se
+enteraba.
+
+Los campos se cuentan en castellano —"la tara y las observaciones", no
+`tara, netoEstimado`— porque esto lo lee el balancero, no es un registro
+técnico; la auditoría ya guarda todo con detalle. **Los netos no se nombran**:
+no se corrigen, se recalculan solos al cambiar la tara, y nombrarlos haría
+parecer que se tocaron a mano.
+
+Este cartel es lo único que el balancero ve de sus pedidos, y alcanza: **la
+bandeja de pedidos es de GENERAL** —él la resuelve— y el estado de cada pedido
+viaja con su ticket, que es donde el balancero lo va a mirar.
+
 **Sin señal no se corrige**: es una decisión que necesita servidor y no se encola.
 La pantalla lo dice.
 

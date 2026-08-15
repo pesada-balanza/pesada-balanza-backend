@@ -1854,6 +1854,12 @@ module.exports = function crearAppMovil(deps) {
               motivo: pedido.motivo || '',
               pedidoPor: pedido.pedidoPor || '',
               hora: pedido.creadoEn ? horaCorta(pedido.creadoEn) : '',
+              // Para el cartel de "GENERAL corrigió": qué cambió y cuándo.
+              respuesta: pedido.respuesta || '',
+              resueltoPor: pedido.resueltoPor || '',
+              cuandoSeResolvio: pedido.resueltoEn
+                ? fechaCorta(ymd(pedido.resueltoEn)) + ' ' + horaCorta(pedido.resueltoEn)
+                : '',
             }
           : null,
         esGeneral: !!s.esGeneral,
@@ -1886,6 +1892,30 @@ module.exports = function crearAppMovil(deps) {
 
   const DIAS_PARA_CORREGIR = 1;
   const MAXIMO_CORRECCIONES = 2;
+
+  /**
+   * Cómo se llama cada campo cuando hay que contarle a alguien qué se cambió.
+   * Los netos no están a propósito: no se corrigen, se recalculan solos al
+   * cambiar la tara, y nombrarlos haría parecer que se tocaron a mano.
+   */
+  const NOMBRE_DEL_CAMPO = {
+    patentes: 'las patentes',
+    chofer: 'el chofer',
+    tara: 'la tara',
+    cargoDe: 'de dónde cargó',
+    silobolsa: 'el silobolsa',
+    contratista: 'el contratista',
+    tractor: 'el tractor',
+    comentarios: 'las observaciones',
+  };
+
+  /** "la tara y las observaciones" — para el cartel del ticket. */
+  function contarQueCambio(campos) {
+    const nombres = campos.map((c) => NOMBRE_DEL_CAMPO[c]).filter(Boolean);
+    if (!nombres.length) return '';
+    if (nombres.length === 1) return nombres[0];
+    return nombres.slice(0, -1).join(', ') + ' y ' + nombres[nombres.length - 1];
+  }
 
   /** El último paso cargado del ticket: desde ahí se cuenta el plazo. */
   function fechaDelUltimoPaso(r) {
@@ -2047,7 +2077,9 @@ module.exports = function crearAppMovil(deps) {
             estado: 'CORREGIDO',
             resueltoPor: 'GENERAL',
             resueltoEn: new Date(),
-            respuesta: 'Corregido: ' + Object.keys(despues).join(', '),
+            // En castellano y sin los netos: esto lo lee el balancero en el
+            // ticket, no es un registro técnico. La auditoría ya guarda todo.
+            respuesta: contarQueCambio(Object.keys(despues)),
           },
         }
       );
