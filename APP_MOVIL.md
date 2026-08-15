@@ -361,6 +361,32 @@ Las anulaciones y las ediciones de observaciones se registran en
 
 ---
 
+## "Para revisar" — quién puede abrir cada aviso
+
+El resumen del día muestra un bloque **"Para revisar"** con lo que necesita
+atención. El aviso y la pantalla que abre tienen que ir siempre juntos: si el
+aviso aparece, el botón "Ver" tiene que llevar a algún lado.
+
+| Aviso | Quién lo ve | Qué muestra |
+| --- | --- | --- |
+| **Sin regular de días anteriores** | cualquier código | los de **su** balanza; GENERAL, los de todas |
+| **Camiones repetidos en dos balanzas** | cualquier código | ídem (con una sola balanza no se dispara: hacen falta dos) |
+| **Pedidos de anulación o corrección** | **solo GENERAL** | la bandeja es suya y él los resuelve |
+
+Las dos primeras eran solo de GENERAL y el aviso salía para todos: un código de
+ver registros veía *"3 sin regular de días anteriores"*, tocaba **Ver** y le
+aparecía **"Sin permiso"**. Ahora las abre cualquiera, cada uno con lo suyo.
+
+Ojo con eso último: esas dos consultas **no filtraban por balanza**, porque solo
+entraba GENERAL, que las ve todas. Al abrirlas hubo que agregar el filtro; sin
+él, el código de Quimili vería los camiones de La Pradera.
+
+El aviso de pedidos va al revés: en vez de abrir la bandeja, **no se le muestra**
+a quien no la puede abrir. Resolver un pedido es de GENERAL —el balancero pide,
+no decide— así que la bandeja sigue cerrada y el aviso la acompaña.
+
+---
+
 ## Exportar a Excel
 
 El **mismo archivo** que da el botón "Exportar a Excel" de la web, ahora también

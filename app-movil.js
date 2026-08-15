@@ -2498,7 +2498,10 @@ module.exports = function crearAppMovil(deps) {
 
 
     const revisar = [];
-    if (pedidosPendientes.length) {
+    // Los pedidos los resuelve GENERAL y la bandeja es suya, así que el aviso
+    // es suyo también: a los demás les aparecía un "Ver" que terminaba en
+    // "Sin permiso". Las otras dos pantallas sí las abre cualquiera.
+    if (pedidosPendientes.length && s.esGeneral) {
       // Se distingue anulación de corrección: antes cualquier pedido se
       // anunciaba como "de anulación", y una corrección no es lo mismo.
       const anulaciones = pedidosPendientes.filter((p) => p.tipo === 'ANULACION').length;
@@ -2894,11 +2897,24 @@ module.exports = function crearAppMovil(deps) {
   });
 
   /** Camiones repetidos hoy en dos balanzas (ref. 7b, visto por GENERAL). */
-  router.get('/general/repetidos', exigirApp, exigirGeneral, async (req, res) => {
+  /**
+   * Las tres pantallas de "Para revisar" las puede abrir cualquier código, no
+   * solo GENERAL: el aviso aparece en el resumen de todos, así que cerrarlas
+   * dejaba un botón "Ver" que terminaba en "Sin permiso".
+   *
+   * Cada uno ve lo suyo. Antes no filtraban por balanza porque solo entraba
+   * GENERAL, que las ve todas; ahora que entra un código de una sola balanza,
+   * el filtro es obligatorio.
+   */
+  router.get('/general/repetidos', exigirApp, async (req, res) => {
     try {
+      const s = sesionApp(req);
       const fecha = hoyStr();
       const docs = await colRegistros()
-        .find({ fecha, anulado: { $ne: true } })
+        .find(Object.assign(
+          { fecha, anulado: { $ne: true } },
+          s.esGeneral ? {} : { codigoIngreso: { $in: balanzasVisibles(s) } }
+        ))
         .sort({ idTicket: 1 })
         .toArray();
 
@@ -2943,16 +2959,17 @@ module.exports = function crearAppMovil(deps) {
   });
 
   /** Camiones que quedaron sin regular de días anteriores (ref. 7c/8a). */
-  router.get('/general/sin-regular', exigirApp, exigirGeneral, async (req, res) => {
+  router.get('/general/sin-regular', exigirApp, async (req, res) => {
     try {
+      const s = sesionApp(req);
       const hoy = hoyStr();
       const docs = await colRegistros()
-        .find({
+        .find(Object.assign({
           pesadaPara: 'CAMIONES',
           anulado: { $ne: true },
           confirmada: { $ne: true },
           fechaTaraFinal: { $exists: true },
-        })
+        }, s.esGeneral ? {} : { codigoIngreso: { $in: balanzasVisibles(s) } }))
         .sort({ idTicket: 1 })
         .toArray();
 

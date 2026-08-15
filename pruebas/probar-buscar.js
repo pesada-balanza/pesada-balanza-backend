@@ -438,6 +438,80 @@ async function main() {
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
   ok('la versión subió', /pesada-app-v17/.test(r.texto));
 
+  /* ═══════════════════════════════════════════════════════════════════════
+   * "PARA REVISAR": EL AVISO Y LA PANTALLA TIENEN QUE IR JUNTOS
+   * -------------------------------------------------------------------------
+   * El aviso de "sin regular de días anteriores" aparece en el resumen de
+   * CUALQUIER código, pero las pantallas eran solo de GENERAL: el botón "Ver"
+   * terminaba en "Sin permiso". Ahora las abre cualquiera, cada uno con lo suyo.
+   * ═════════════════════════════════════════════════════════════════════ */
+  seccion('Para revisar: el aviso lleva a una pantalla que se puede abrir');
+
+  // Un camión de Quimili con la tara final de ayer y sin regular, y otro igual
+  // en la otra balanza, que el código de Quimili no tiene que ver.
+  meterTicket({
+    patentes: 'SR 111 QU', chofer: 'Sin Regular Quimili', codigoIngreso: '5684',
+    fecha: AYER, fechaTaraFinal: AYER, fechaRegulada: undefined,
+    pesadaPara: 'CAMIONES', neto: 0, confirmada: false,
+  });
+  meterTicket({
+    patentes: 'SR 222 AJ', chofer: 'Sin Regular Ajeno', codigoIngreso: '5679',
+    campo: 'El Mataco - SACHAYOJ - SE',
+    fecha: AYER, fechaTaraFinal: AYER, fechaRegulada: undefined,
+    pesadaPara: 'CAMIONES', neto: 0, confirmada: false,
+  });
+
+  cookies = {};
+  r = await ir('POST', '/app/api/ingreso', { code: VER_QUIMILI }, { desde: '10.9.3.1' });
+  ok('entra el código de ver registros', r.estado === 200, r.texto.slice(0, 150));
+
+  r = await ir('GET', '/app/general');
+  const avisa = /sin regular de días anteriores/.test(r.texto);
+  ok('el resumen avisa que hay camiones sin regular', avisa, r.estado);
+  ok('y el aviso apunta a la pantalla', /\/app\/general\/sin-regular/.test(r.texto));
+
+  r = await ir('GET', '/app/general/sin-regular');
+  ok('la pantalla ABRE (antes decía "Sin permiso")',
+    r.estado === 200 && !/Sin permiso/.test(r.texto), r.estado);
+  ok('muestra el camión de su balanza', /SR 111 QU/.test(r.texto));
+  ok('y NO el de la otra balanza', !/SR 222 AJ/.test(r.texto));
+
+  r = await ir('GET', '/app/general/repetidos');
+  ok('la de repetidos también abre', r.estado === 200 && !/Sin permiso/.test(r.texto), r.estado);
+  ok('y tampoco muestra la otra balanza', !/Ajeno Total/.test(r.texto));
+
+  // Los pedidos siguen siendo cosa de GENERAL: la bandeja es suya y él los
+  // resuelve. Entonces el aviso también es suyo — al resto no se le muestra un
+  // "Ver" que no puede abrir.
+  await baseFalsa.collection('app_pedidos').insertOne({
+    registroId: hoyQuimili._id, nro: hoyQuimili.nroApp, patentes: hoyQuimili.patentes,
+    codigoIngreso: '5684', tipo: 'ANULACION', motivo: 'se cargó dos veces',
+    pedidoPor: 'Mateo', estado: 'PENDIENTE', creadoEn: new Date(),
+  });
+
+  r = await ir('GET', '/app/general');
+  ok('al que solo mira NO se le avisa de los pedidos',
+    !/pedido de anulación/.test(r.texto), (r.texto.match(/\d+ pedidos? de [a-z]+/) || [''])[0]);
+  ok('y por lo tanto no hay ningún "Ver" que no se pueda abrir',
+    !/\/app\/general\/pedidos/.test(r.texto));
+
+  r = await ir('GET', '/app/general/pedidos');
+  ok('la bandeja sigue siendo solo de GENERAL', r.estado !== 200 || /Sin permiso/.test(r.texto), r.estado);
+
+  // GENERAL sí ve todo.
+  cookies = {};
+  await ir('POST', '/app/api/ingreso', { code: VER_TODO }, { desde: '10.9.3.2' });
+  r = await ir('GET', '/app/general');
+  ok('a GENERAL sí se le avisa de los pedidos', /pedido de anulación/.test(r.texto), r.estado);
+  ok('y el aviso lo lleva a la bandeja', /\/app\/general\/pedidos/.test(r.texto));
+
+  r = await ir('GET', '/app/general/sin-regular');
+  ok('GENERAL ve los sin regular de las dos balanzas',
+    /SR 111 QU/.test(r.texto) && /SR 222 AJ/.test(r.texto), r.estado);
+  r = await ir('GET', '/app/general/pedidos');
+  ok('y su bandeja abre con los botones',
+    r.estado === 200 && /se cargó dos veces/.test(r.texto) && /data-decidir="/.test(r.texto), r.estado);
+
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);
   console.log('════════════════════════════════════════');
