@@ -144,6 +144,25 @@ En los dos casos el botón del paso que falta lleva a la pantalla `/app/local`,
 que el teléfono dibuja solo con lo que tiene guardado. Al volver la señal, la
 pantalla normal vuelve sola.
 
+**La tarjeta del patio se actualiza con lo que hay en la cola.** Los camiones
+cargados sin señal se dibujan enteros con JavaScript, así que su paso avanza
+solo. Los que ya están en el servidor no: su tarjeta la dibujó el servidor y sin
+señal sale de lo guardado, **congelada en el estado que tenía la última vez que
+hubo internet**. Hay que corregirla a mano, y es lo que hace el final del patio:
+si para ese camión hay una tara final en la cola, la tarjeta pasa a "Falta
+regulada" con su botón, muestra la tara guardada y el chip "Sin subir"; si
+también hay una regulada, pasa a "Ticket completo".
+
+Sin eso, después de cargar la tara final sin señal la tarjeta seguía pidiendo la
+tara final: se podía cargar una y otra vez —solo se guardaba la primera, pero
+confundía— y **el botón para cargar la regulada no aparecía nunca**. Era el caso
+más común de verdad: el camión se carga con señal a la mañana y la señal se
+corta en el medio del día.
+
+Mientras el paso está en la cola, el botón va siempre a la pantalla local: el
+servidor todavía no sabe de esa tara, así que su pantalla no serviría. Cuando la
+cola sube, el patio se recarga solo y la tarjeta del servidor vuelve a mandar.
+
 Para que esto ande, la app deja preparado en el teléfono (cuando hay señal):
 números de ticket reservados, la lista de campos con su siembra y contratistas,
 y las pantallas que va a necesitar. Se hace de fondo, sin que nadie lo pida.

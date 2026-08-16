@@ -603,6 +603,160 @@ async function main() {
     JSON.stringify(colaFinalCtg));
 
   /* ═══════════════════════════════════════════════════════════════════════
+   * SEGUIR SIN SEÑAL UN CAMIÓN QUE YA ESTÁ EN EL SERVIDOR
+   * -------------------------------------------------------------------------
+   * El caso más común de verdad: el camión se cargó con señal, la señal se
+   * corta en el medio del día, y hay que cerrarle el ticket igual.
+   *
+   * Su tarjeta la dibuja el servidor, y sin señal sale de lo guardado —
+   * congelada en el estado que tenía la última vez que hubo internet—. Antes
+   * nada la actualizaba: después de cargar la tara final sin señal seguía
+   * diciendo "Falta tara final", se podía cargar de nuevo una y otra vez, y el
+   * botón para cargar la regulada NO APARECÍA NUNCA.
+   *
+   * Se prueba con DOS camiones porque así se trabaja: entran varios juntos, se
+   * les toma la tara de a uno y se vuelve al patio entre camión y camión.
+   * ═════════════════════════════════════════════════════════════════════ */
+  console.log('\n── Sin señal, un camión que ya estaba en el servidor');
+  await ctx.setOffline(false);
+  await pg.goto(BASE + '/app/ingreso', { waitUntil: 'networkidle' }).catch(() => {});
+  await pg.evaluate(async () => {
+    await fetch('/app/api/ingreso', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: '5679' }),
+    });
+  });
+
+  // Dos camiones cargados CON señal, como a la mañana.
+  const dosCamiones = await pg.evaluate(async () => {
+    const ids = [];
+    for (const patente of ['SV 111 AA', 'SV 222 BB']) {
+      const r = await fetch('/app/api/pesada', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patentes: patente, chofer: 'Chofer ' + patente, transporte: 'Transporte',
+          campo: 'Don Paco - ARBOL BLANCO - SE', cargaPara: 'AMH', socio: '',
+          brutoEstimado: 45000, tara: 0, comentarios: '',
+        }),
+      });
+      const j = await r.json();
+      ids.push(j.id);
+    }
+    return ids;
+  });
+  ok('se cargaron dos camiones con señal', dosCamiones.filter(Boolean).length === 2,
+    JSON.stringify(dosCamiones));
+
+  await pg.goto(BASE + '/app/patio', { waitUntil: 'networkidle' });
+  await esperar(2000); // que guarde la foto del patio
+
+  // ── Se corta la señal ──────────────────────────────────────────────────
+  await ctx.setOffline(true);
+  await pg.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await esperar(300);
+
+  async function estadoDeLaTarjeta(id) {
+    return pg.evaluate((camion) => {
+      const t = document.querySelector('[data-camion="' + camion + '"]');
+      if (!t) return null;
+      const btn = t.querySelector('[data-paso-btn]');
+      return {
+        chips: Array.from(t.querySelectorAll('.chip')).map((c) => c.textContent.trim()),
+        boton: btn ? btn.textContent.trim() : '',
+        destino: btn ? btn.getAttribute('href') : '',
+        texto: t.textContent,
+      };
+    }, id);
+  }
+
+  // Tara final del primer camión, sin señal.
+  await pg.goto(BASE + '/app/local?paso=tara-final&id=' + dosCamiones[0], { waitUntil: 'domcontentloaded' });
+  await esperar(900);
+  await pg.fill('#l-tara', '15000');
+  await pg.click('#l-guardar');
+  await esperar(1200);
+
+  await pg.goto(BASE + '/app/patio', { waitUntil: 'domcontentloaded' });
+  await esperar(1000);
+
+  const uno = await estadoDeLaTarjeta(dosCamiones[0]);
+  ok('la tarjeta del camión pasa a "Falta regulada"',
+    !!uno && uno.chips.indexOf('Falta regulada') !== -1, JSON.stringify(uno && uno.chips));
+  ok('y NO sigue pidiendo la tara final (se cargaba dos veces)',
+    !!uno && uno.chips.indexOf('Falta tara final') === -1, JSON.stringify(uno && uno.chips));
+  ok('el botón ahora es "Cargar regulada"', !!uno && uno.boton === 'Cargar regulada', uno && uno.boton);
+  ok('y lleva a la pantalla que el teléfono puede dibujar solo',
+    !!uno && uno.destino === '/app/local?paso=regulada&id=' + dosCamiones[0], uno && uno.destino);
+  ok('se ve que está sin subir', !!uno && uno.chips.indexOf('Sin subir') !== -1, JSON.stringify(uno && uno.chips));
+  ok('y la tara que se guardó, para no cargarla de memoria',
+    !!uno && /15\.000 kg · guardada en el teléfono/.test(uno.texto), '');
+
+  // El otro camión no se tocó: tiene que seguir esperando SU tara final.
+  const dos = await estadoDeLaTarjeta(dosCamiones[1]);
+  ok('el otro camión sigue esperando su tara final',
+    !!dos && dos.chips.indexOf('Falta tara final') !== -1 && dos.boton === 'Cargar tara final',
+    JSON.stringify(dos && dos.chips) + ' ' + (dos && dos.boton));
+  ok('y no aparece como sin subir, porque no se le cargó nada',
+    !!dos && dos.chips.indexOf('Sin subir') === -1, JSON.stringify(dos && dos.chips));
+
+  // ── Ahora sí, la regulada sin señal ────────────────────────────────────
+  await pg.goto(BASE + '/app/local?paso=regulada&id=' + dosCamiones[0], { waitUntil: 'domcontentloaded' });
+  await esperar(1000);
+  const laRegulada = await pg.evaluate(() => ({
+    seDibuja: !!document.getElementById('l-bruto'),
+    sinDatos: /No hay datos de este camión/.test((document.getElementById('l-cuerpo') || {}).textContent || ''),
+  }));
+  ok('la pantalla de regulada se dibuja sin señal', laRegulada.seDibuja && !laRegulada.sinDatos,
+    JSON.stringify(laRegulada));
+
+  await pg.selectOption('#l-campo', { label: 'Don Paco - ARBOL BLANCO - SE' }).catch(() => {});
+  await esperar(400);
+  const granos = await pg.$$eval('#l-grano option', (os) => os.map((o) => o.value).filter(Boolean));
+  if (granos.length) {
+    await pg.selectOption('#l-grano', granos[0]);
+    await esperar(400);
+    await pg.evaluate(() => {
+      const c = document.querySelector('#l-lotes input[type="checkbox"]');
+      if (c) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+  }
+  await pg.evaluate(() => {
+    const b = document.querySelector('[data-opciones="l-cargoDe"] .opcion');
+    if (b) b.click();
+  });
+  await pg.fill('#l-silo', '12').catch(() => {});
+  await pg.fill('#l-brutoLote', '46000');
+  await pg.fill('#l-bruto', '45000');
+  await pg.click('#l-guardar');
+  await esperar(1200);
+
+  const colaConRegulada = await pg.evaluate(() => JSON.parse(localStorage.getItem('pesada.cola') || '[]'));
+  ok('LA REGULADA SE PUDO CARGAR SIN SEÑAL',
+    colaConRegulada.some((c) => c.tipo === 'regulada' && c.refServidor),
+    JSON.stringify(colaConRegulada.map((c) => c.tipo)));
+
+  await pg.goto(BASE + '/app/patio', { waitUntil: 'domcontentloaded' });
+  await esperar(1000);
+  const completo = await estadoDeLaTarjeta(dosCamiones[0]);
+  ok('la tarjeta pasa a "Ticket completo"',
+    !!completo && completo.chips.indexOf('Ticket completo') !== -1, JSON.stringify(completo && completo.chips));
+  ok('y ya no ofrece cargar ningún paso', !!completo && completo.boton === '', completo && completo.boton);
+
+  // ── Vuelve la señal: todo sube y el servidor queda bien ───────────────
+  await ctx.setOffline(false);
+  await pg.evaluate(() => window.dispatchEvent(new Event('online')));
+  await esperar(3000);
+
+  const seguido = baseFalsa.collection('registros').docs.find((d) => d.patentes === 'SV 111 AA');
+  ok('en el servidor quedó la tara final que se cargó sin señal',
+    !!seguido && seguido.tara === 15000, seguido && seguido.tara);
+  ok('y la regulada', !!seguido && Number(seguido.bruto) === 45000, seguido && seguido.bruto);
+  ok('con el neto bien calculado (45.000 − 15.000)',
+    !!seguido && Number(seguido.neto) === 30000, seguido && seguido.neto);
+  ok('sin gastar modificaciones', !!seguido && (seguido.modificaciones || 0) === 0,
+    seguido && seguido.modificaciones);
+
+  /* ═══════════════════════════════════════════════════════════════════════
    * LA VERSIÓN DE LA APP, A LA VISTA
    * -----------------------------------------------------------------------
    * Para no tener que adivinar si un teléfono quedó con una versión vieja

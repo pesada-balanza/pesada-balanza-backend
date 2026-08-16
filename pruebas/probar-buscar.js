@@ -436,7 +436,7 @@ async function main() {
   r = await ir('GET', '/app/sw.js');
   ok('el service worker no guarda /app/buscar', /SIN_GUARDAR/.test(r.texto) && /'\/app\/buscar'/.test(r.texto));
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
-  ok('la versión subió', /pesada-app-v17/.test(r.texto));
+  ok('la versión subió', /pesada-app-v18/.test(r.texto));
 
   /* ═══════════════════════════════════════════════════════════════════════
    * "PARA REVISAR": EL AVISO Y LA PANTALLA TIENEN QUE IR JUNTOS

@@ -72,8 +72,10 @@
         </div>
       <% } %>
 
+      <%# `data-camion` y las marcas de abajo las usa el JS del final para
+          actualizar la tarjeta con los pasos guardados sin señal. %>
       <% datos.camiones.forEach(function (c) { %>
-        <div class="tarjeta">
+        <div class="tarjeta" data-camion="<%= c.id %>">
           <div class="fila-base">
             <span class="dato"><%= c.patentes %></span>
             <span class="mono-chico">#<%= c.nro %></span>
@@ -91,9 +93,9 @@
               <span class="chip chip-ambar">Ticket sin imprimir</span>
             <% } %>
             <% if (c.paso === 'TARA_FINAL') { %>
-              <span class="chip">Falta tara final</span>
+              <span class="chip" data-chip-paso>Falta tara final</span>
             <% } else { %>
-              <span class="chip">Falta regulada</span>
+              <span class="chip" data-chip-paso>Falta regulada</span>
             <% } %>
             <% if (c.pedido && c.pedido.tipo === 'ANULACION') { %>
               <span class="chip chip-ambar">Anulación pedida</span>
@@ -109,11 +111,11 @@
           <%# Un botón grande con el paso que falta. Sin señal, el mismo botón
               lleva a la pantalla que el teléfono puede dibujar solo. %>
           <% if (c.paso === 'TARA_FINAL') { %>
-            <a class="btn" style="min-height:52px" href="/app/tara-final/<%= c.id %>"
+            <a class="btn" style="min-height:52px" href="/app/tara-final/<%= c.id %>" data-paso-btn
                data-con-senal="/app/tara-final/<%= c.id %>"
                data-sin-senal="/app/local?paso=tara-final&id=<%= c.id %>">Cargar tara final</a>
           <% } else { %>
-            <a class="btn" style="min-height:52px" href="/app/regulada/<%= c.id %>"
+            <a class="btn" style="min-height:52px" href="/app/regulada/<%= c.id %>" data-paso-btn
                data-con-senal="/app/regulada/<%= c.id %>"
                data-sin-senal="/app/local?paso=regulada&id=<%= c.id %>">Cargar regulada</a>
           <% } %>
@@ -240,5 +242,75 @@
       '</div>';
   }
   contenedor.innerHTML = html;
+
+  /* Camiones que YA ESTÁN EN EL SERVIDOR con un paso guardado sin señal.
+   * Su tarjeta la dibuja el servidor y sin señal sale de lo guardado, congelada
+   * en el estado que tenía la última vez que hubo internet: sin esto, después
+   * de cargar la tara final seguía diciendo "Falta tara final" —se cargaba una
+   * y otra vez— y el botón de la regulada no aparecía nunca. Los cargados sin
+   * señal (arriba) ya se dibujan enteros desde la cola; estos hay que
+   * corregirlos.
+   * Mientras el paso esté en la cola el botón va SIEMPRE a la pantalla local:
+   * el servidor todavía no sabe de esa tara. Cuando la cola sube, el patio se
+   * recarga solo y vuelve a mandar la tarjeta del servidor. */
+  var pasosPorCamion = {};
+  for (var m = 0; m < pendientes.length; m++) {
+    var s = pendientes[m];
+    if (!s.refServidor) continue;
+    if (!pasosPorCamion[s.refServidor]) pasosPorCamion[s.refServidor] = {};
+    pasosPorCamion[s.refServidor][s.tipo] = s.datos || {};
+  }
+
+  function ponerChip(tarjeta, texto, clase) {
+    var chips = tarjeta.querySelector('.chips');
+    if (!chips) return;
+    var chip = document.createElement('span');
+    chip.className = clase || 'chip';
+    chip.textContent = texto;
+    chips.appendChild(chip);
+  }
+
+  for (var idCamion in pasosPorCamion) {
+    if (!Object.prototype.hasOwnProperty.call(pasosPorCamion, idCamion)) continue;
+    var tarjeta = document.querySelector('[data-camion="' + idCamion + '"]');
+    if (!tarjeta) continue;
+
+    var guardados = pasosPorCamion[idCamion];
+    var chipPaso = tarjeta.querySelector('[data-chip-paso]');
+    var boton = tarjeta.querySelector('[data-paso-btn]');
+
+    ponerChip(tarjeta, 'Sin subir', 'chip chip-ambar');
+
+    if (guardados['regulada']) {
+      // El ticket quedó completo en el teléfono: no falta ningún paso.
+      if (chipPaso) chipPaso.textContent = 'Ticket completo';
+      if (chipPaso) chipPaso.className = 'chip chip-verde';
+      if (boton) {
+        var aviso = document.createElement('span');
+        aviso.className = 'txt-chico';
+        aviso.textContent = 'Listo. Se sube solo cuando vuelva internet.';
+        boton.parentNode.replaceChild(aviso, boton);
+      }
+    } else if (guardados['tara-final']) {
+      if (chipPaso) chipPaso.textContent = 'Falta regulada';
+      if (boton) {
+        boton.textContent = 'Cargar regulada';
+        var aLaRegulada = '/app/local?paso=regulada&id=' + encodeURIComponent(idCamion);
+        boton.setAttribute('data-con-senal', aLaRegulada);
+        boton.setAttribute('data-sin-senal', aLaRegulada);
+        boton.href = aLaRegulada;
+      }
+      var tara = guardados['tara-final'].taraNueva;
+      if (tara) {
+        var linea = document.createElement('span');
+        linea.className = 'txt-chico';
+        linea.textContent = 'Tara final ' + App.miles(tara) + ' kg · guardada en el teléfono';
+        if (boton) tarjeta.insertBefore(linea, boton);
+      }
+    }
+  }
+
+  // Los enlaces se reacomodan al final: recién ahora están todos puestos.
+  acomodarEnlaces();
 })();
 </script>
