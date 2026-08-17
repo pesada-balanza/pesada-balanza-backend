@@ -744,6 +744,11 @@ async function main() {
 
   const docAnulado = baseFalsa.collection('registros').docs.find((d) => String(d._id) === idOtro);
   ok('el ticket queda marcado ANULADO (no se borra)', docAnulado.anulado === true && !!docAnulado.patentes);
+  // Cuando la anulación sale de un pedido, el motivo es el que escribió el
+  // balancero: se guarda igual que en la directa, así el ticket lo muestra
+  // venga de donde venga.
+  ok('el motivo del pedido queda en el registro',
+    !!docAnulado.motivoAnulacion && docAnulado.motivoAnulacion.length > 4, docAnulado.motivoAnulacion);
   ok('quedó copia completa en auditoría',
     baseFalsa.collection('registros_auditoria').docs.some((d) => d.tipoOperacion === 'ANULACION' && d.registroOriginal),
     '');
@@ -821,10 +826,40 @@ async function main() {
   r = await ir('GET', '/app/registro/' + idParaAnular);
   ok('GENERAL sí ve la opción de anular ahora', /id="modal-anular"/.test(r.texto));
 
-  r = await ir('POST', '/app/api/anular', { id: idParaAnular });
-  ok('GENERAL anula sin tipear ningún código', r.estado === 200, r.texto.slice(0, 180));
+  ok('el modal pide por qué se anula', /id="motivo-anular"/.test(r.texto));
+
+  // El motivo se exige: cuando GENERAL anula por su cuenta, si no se pide no
+  // queda escrito en ninguna parte por qué se anuló, y el número se quema.
+  // Ojo: /api/anular comparte con /api/ingreso el límite de 10 intentos por IP
+  // cada 15 minutos, así que estos dos rechazos se mandan desde otra IP para no
+  // gastar ese presupuesto y hacer fallar pruebas de más adelante.
+  r = await ir('POST', '/app/api/anular', { id: idParaAnular }, { desde: '10.4.9.1' });
+  ok('sin motivo NO anula', r.estado === 400 && /por qué se anula/.test(r.json.error),
+    r.texto.slice(0, 180));
+  r = await ir('POST', '/app/api/anular', { id: idParaAnular, motivo: 'no' }, { desde: '10.4.9.2' });
+  ok('un motivo de dos letras tampoco', r.estado === 400, r.texto.slice(0, 180));
+  ok('y el ticket sigue vigente',
+    baseFalsa.collection('registros').docs.find((d) => String(d._id) === idParaAnular).anulado !== true);
+
+  r = await ir('POST', '/app/api/anular', { id: idParaAnular, motivo: 'el camión no cargó nada' },
+    { desde: '10.4.9.3' });
+  ok('con el motivo escrito, GENERAL anula sin tipear ningún código',
+    r.estado === 200, r.texto.slice(0, 180));
   const anulado2 = baseFalsa.collection('registros').docs.find((d) => String(d._id) === idParaAnular);
   ok('el número queda quemado (el ticket no desaparece)', anulado2.anulado === true && !!anulado2.nroApp);
+  ok('el motivo queda en el registro', anulado2.motivoAnulacion === 'el camión no cargó nada',
+    anulado2.motivoAnulacion);
+
+  const audAnul = baseFalsa.collection('registros_auditoria').docs
+    .filter((a) => a.tipoOperacion === 'ANULACION' && String(a.registroId) === idParaAnular);
+  ok('y en la auditoría, con la copia del ticket',
+    audAnul.length === 1 && audAnul[0].motivo === 'el camión no cargó nada' && !!audAnul[0].registroOriginal,
+    JSON.stringify(audAnul[0] || {}).slice(0, 200));
+
+  // Y se ve en el ticket: el balancero abre el suyo y sabe por qué se anuló.
+  r = await ir('GET', '/app/registro/' + idParaAnular);
+  ok('el ticket anulado muestra el motivo',
+    /Ticket anulado/.test(r.texto) && /el camión no cargó nada/.test(r.texto), r.estado);
   cookies = cookiesBalanza;
 
   /* ═════════════════════════════════════════════════════════════════════

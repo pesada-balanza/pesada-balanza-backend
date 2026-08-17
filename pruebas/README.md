@@ -18,7 +18,7 @@ node pruebas/correr.js
 Tarda un par de minutos y termina con un resumen. Si todo está bien:
 
 ```
-  TODO BIEN — 910 comprobaciones
+  TODO BIEN — 918 comprobaciones
 ```
 
 Si algo se rompió, lista exactamente qué comprobación falló y en qué archivo.
@@ -56,7 +56,7 @@ CHROMIUM_PATH=/ruta/al/chrome node pruebas/correr.js
 
 | Archivo | Qué comprueba |
 | --- | --- |
-| `probar.js` | El recorrido completo: la web sigue funcionando, y en la app el ingreso, el nombre del día, los tres pasos con todas sus validaciones, la numeración, el ticket, el PDF, los pedidos de anulación, los permisos, **de quién queda cada ticket** (el campo no le cambia el dueño) y el **CTG** (plazo, formato, una sola vez, que no consuma modificaciones y que una balanza no cargue el de otra, y que un ticket con la **fecha de regulada adelantada** no aparezca en el aviso y avise que el dato está mal cargado). |
+| `probar.js` | El recorrido completo: la web sigue funcionando, y en la app el ingreso, el nombre del día, los tres pasos con todas sus validaciones, la numeración, el ticket, el PDF, los pedidos de anulación (y que **anular exija el motivo**, que quede en el registro y en la auditoría, y que se vea en el ticket), los permisos, **de quién queda cada ticket** (el campo no le cambia el dueño) y el **CTG** (plazo, formato, una sola vez, que no consuma modificaciones y que una balanza no cargue el de otra, y que un ticket con la **fecha de regulada adelantada** no aparezca en el aviso y avise que el dato está mal cargado). |
 | `probar-apagado.js` | Con `APP_MOVIL` apagado, `/app` da 404 en todas sus direcciones, la web carga tickets igual que siempre y no se crea ninguna colección nueva. |
 | `probar-sin-senal.js` | En modo avión: cargar una pesada, verla con el chip `SIN SUBIR`, imprimir, y que al volver la señal se suba sola sin duplicarse. |
 | `probar-cadena.js` | El ticket **completo** sin señal: camión, tara final, imprimir y regulada, y que al volver la conexión llegue un solo registro con los números bien. |

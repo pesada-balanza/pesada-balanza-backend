@@ -20,7 +20,11 @@
       <div class="aviso">
         <div class="aviso-col">
           <span class="aviso-titulo">Ticket anulado</span>
-          <span class="aviso-detalle">El número <%= r.nro %> no se vuelve a usar.</span>
+          <%# El motivo a la vista: si no, el balancero abre el ticket y no sabe
+              por qué se anuló. %>
+          <span class="aviso-detalle">
+            <% if (r.motivoAnulacion) { %>“<%= r.motivoAnulacion %>” · <% } %>El número <%= r.nro %> no se vuelve a usar.
+          </span>
         </div>
       </div>
     <% } %>
@@ -260,6 +264,15 @@
       </span>
     </div>
 
+    <%# Cuando la anulación sale de un pedido, el motivo lo escribió el
+        balancero. Acá GENERAL anula por su cuenta, así que el motivo lo escribe
+        él: si no, no queda en ninguna parte por qué se anuló este ticket. %>
+    <div class="campo">
+      <label class="etiqueta" for="motivo-anular">Por qué se anula</label>
+      <textarea id="motivo-anular" maxlength="500" rows="3"
+                placeholder="Ej: el camión no cargó, se pesó dos veces…"></textarea>
+    </div>
+
     <div id="error-anular" class="campo-error" style="min-height:16px"></div>
 
     <div class="botonera">
@@ -269,8 +282,8 @@
 
     <div class="hoja-nota">
       <span class="txt-chico">
-        Queda asentado quién anuló y cuándo. El ticket no desaparece: se marca ANULADO
-        en los registros y el número <%= r.nro %> no se vuelve a usar.
+        Queda asentado quién anuló, cuándo y por qué. El ticket no desaparece: se
+        marca ANULADO en los registros y el número <%= r.nro %> no se vuelve a usar.
       </span>
     </div>
   </div>
@@ -325,9 +338,16 @@
       errorAnular.innerHTML = 'Anular necesita internet.';
       return;
     }
+    // El motivo se exige acá también, no solo en el servidor: así el aviso sale
+    // en el momento y no después de un viaje de ida y vuelta.
+    var motivo = (document.getElementById('motivo-anular').value || '').trim();
+    if (motivo.length < 5) {
+      errorAnular.innerHTML = 'Escribí por qué se anula: queda asentado en los registros.';
+      return;
+    }
     App.enviar({
       url: '/app/api/anular',
-      datos: { id: idReg },
+      datos: { id: idReg, motivo: motivo },
       boton: this,
       alListo: function (res) { window.location.href = res.destino || '/app/patio'; },
       alFallar: function (msg) { errorAnular.innerHTML = App.esc(msg); }

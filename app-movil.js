@@ -1602,6 +1602,7 @@ module.exports = function crearAppMovil(deps) {
       fechaTaraFinal: r.fechaTaraFinal || '',
       fechaRegulada: r.fechaRegulada || '',
       anulado: !!r.anulado,
+      motivoAnulacion: r.motivoAnulacion || '',
       impreso: r.appImpreso === true,
       modificaciones: r.modificaciones || 0,
       cargadoPor: r.cargadoPor || r.usuario || '',
@@ -2387,6 +2388,13 @@ module.exports = function crearAppMovil(deps) {
       if (!original) return fallar(res, 404, 'No se encontró el ticket.');
       if (original.anulado) return fallar(res, 400, 'El ticket ya está anulado.');
 
+      // El motivo se pide siempre. Cuando la anulación sale de un pedido, el
+      // motivo lo escribió el balancero; acá GENERAL anula por su cuenta, así que
+      // si no se pide no queda escrito en ninguna parte por qué se anuló un
+      // ticket, y el número no se vuelve a usar nunca más.
+      const motivo = String(req.body.motivo || '').trim().slice(0, 500);
+      if (motivo.length < 5) return fallar(res, 400, 'Escribí por qué se anula el ticket.');
+
       // Copia completa antes de tocar nada (igual que la web).
       await colAuditoria().insertOne({
         tipoOperacion: 'ANULACION',
@@ -2395,13 +2403,16 @@ module.exports = function crearAppMovil(deps) {
         usuarioAnula: CODIGO_GENERAL_OBSERVACION,
         origen: 'app-movil',
         pedidoPor: s.codigoIngreso ? await nombreDelDia(s.codigoIngreso, hoyStr()) : '',
+        motivo,
         fechaOperacion: new Date(),
       });
 
-      // Soft-delete: solo se marca anulado, los datos no se sobrescriben.
+      // Soft-delete: solo se marca anulado, los datos no se sobrescriben. El
+      // motivo va también en el registro para que el ticket lo pueda mostrar sin
+      // ir a buscarlo a la auditoría.
       await colRegistros().updateOne(
         { _id },
-        { $set: { anulado: true, fechaAnulacion: new Date() } }
+        { $set: { anulado: true, fechaAnulacion: new Date(), motivoAnulacion: motivo } }
       );
 
       // Si había un pedido pendiente, se cierra solo.
@@ -2952,7 +2963,10 @@ module.exports = function crearAppMovil(deps) {
         });
         await colRegistros().updateOne(
           { _id: pedido.registroId },
-          { $set: { anulado: true, fechaAnulacion: new Date() } }
+          // El motivo es el que escribió el balancero al pedirla: se guarda en el
+          // registro igual que en la anulación directa, así el ticket muestra el
+          // por qué venga de donde venga.
+          { $set: { anulado: true, fechaAnulacion: new Date(), motivoAnulacion: pedido.motivo || '' } }
         );
       }
 

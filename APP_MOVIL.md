@@ -535,6 +535,28 @@ distintas.
 
 ---
 
+## Anular un ticket: siempre queda escrito por qué
+
+Un ticket anulado quema su número para siempre, así que el motivo se pide en los
+dos caminos:
+
+| Cómo se anula | De dónde sale el motivo |
+| --- | --- |
+| **El balancero la pide** y GENERAL la resuelve | lo escribió el balancero al pedirla |
+| **GENERAL anula por su cuenta**, sin que nadie se lo pidiera | lo escribe GENERAL en el momento |
+
+El segundo caso no lo pedía: se anulaba con una confirmación y nada más, así que
+no quedaba en ninguna parte por qué. Ahora el modal tiene un campo **"Por qué se
+anula"**, obligatorio, y el aviso sale en el momento sin esperar al servidor.
+
+El motivo va a **dos lugares**: a `registros_auditoria` junto con la copia
+completa del ticket, y al propio registro (`motivoAnulacion`) para que el ticket
+lo pueda mostrar sin ir a buscarlo a la auditoría. En el ticket aparece dentro
+del cartel "Ticket anulado" — el balancero abre el suyo y ve por qué se anuló, no
+solo que se anuló.
+
+---
+
 ## Corregir los datos de un ticket (solo GENERAL)
 
 El balancero **no corrige datos**. No es que se le venza un plazo: no puede.
