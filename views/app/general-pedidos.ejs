@@ -88,6 +88,11 @@
 <script>
 (function () {
   'use strict';
+
+  // Lo que hay pendiente cambia mientras la pantalla está abierta: al volver a
+  // ella se vuelve a pedir.
+  App.refrescarAlVolver();
+
   var botones = document.querySelectorAll('[data-decidir]');
   for (var i = 0; i < botones.length; i++) {
     (function (b) {

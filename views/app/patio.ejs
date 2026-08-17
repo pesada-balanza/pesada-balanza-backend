@@ -158,6 +158,9 @@
 (function () {
   'use strict';
 
+  // Al volver al patio se vuelve a pedir: los camiones cambian todo el día.
+  App.refrescarAlVolver();
+
   // Guardar la foto del patio: es lo que permite seguir un camión que ya está
   // en el servidor cuando después se corta la señal.
   App.guardarPatio(<%- JSON.stringify(datos) %>);

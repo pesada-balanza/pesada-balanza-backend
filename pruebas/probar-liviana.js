@@ -160,7 +160,12 @@ async function main() {
     ['/app/buscar?q=Chofer&rango=30', 'buscar con 100 resultados', 9],
     ['/app/api/tablas', 'tablas (campos, siembra, contratistas)', 5],
     ['/app/api/sugerencias', 'sugerencias', 3],
-    ['/app/estatico/app.js', 'app.js', 11],
+    // 12 KB desde que se agregó `refrescarAlVolver`: en el iPhone, volver a una
+    // pantalla no la vuelve a pedir, y se miraba el estado de hace rato sin
+    // forma de notarlo. Costó 0,2 KB comprimido, que se bajan una vez por
+    // versión. Si vuelve a quedar justo, conviene mirar qué se puede sacar
+    // antes de subirlo otra vez.
+    ['/app/estatico/app.js', 'app.js', 12],
     ['/app/estatico/app.css', 'app.css', 7],
     ['/app/estatico/ticket.js', 'ticket.js', 5],
     ['/app/estatico/ticket.css', 'ticket.css', 4],

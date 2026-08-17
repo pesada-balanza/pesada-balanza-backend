@@ -400,6 +400,24 @@ Ojo con eso: esas dos consultas **no filtraban por balanza**, porque solo entrab
 GENERAL, que las ve todas. Al abrirlas hubo que agregar el filtro; sin él, el
 código de Quimili vería los camiones de La Pradera.
 
+### Las pantallas de mirar se vuelven a pedir al volver a ellas
+
+El resumen del día, la bandeja de pedidos y el patio muestran **lo que hay
+ahora**. En el iPhone, con la app agregada a la pantalla de inicio, volver atrás
+o cambiar de app y volver **no vuelve a pedir la pantalla**: el sistema la
+restaura tal como estaba. Y ahí no hay barra de dirección ni "tirar para
+actualizar", así que no hay forma de notar que lo que se mira es de hace rato.
+
+Pasó de verdad: se pidió una corrección, se volvió al resumen de GENERAL, y el
+aviso no estaba — el pedido existía, la pantalla era de antes.
+
+Ahora esas tres pantallas se vuelven a pedir cuando el teléfono las restaura, y
+cuando se vuelve a la app después de 20 segundos afuera (menos que eso no, para
+no recargar por mirar una notificación).
+
+**Solo esas tres**, que no tienen formulario. En las pantallas de carga no se
+toca: un recargado ahí borraría lo que el balancero está tipeando.
+
 ### Los pedidos: mirar y resolver son cosas distintas
 
 **Ver** que hay un pedido esperando le corresponde a todo código que entra a

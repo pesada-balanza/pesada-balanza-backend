@@ -661,6 +661,26 @@
 
   App.conectarOpciones = conectarOpciones;
 
+  /**
+   * Volver a pedir la pantalla al volver a ella. En el iPhone, con la app en la
+   * pantalla de inicio, volver atrás o cambiar de app NO la vuelve a pedir: se
+   * mira el estado de hace rato y no hay forma de notarlo (sin barra de
+   * dirección ni "tirar para actualizar"). Solo en pantallas SIN formulario:
+   * recargar una de carga borraría lo tipeado.
+   */
+  App.refrescarAlVolver = function () {
+    var salio = 0;
+    function devuelta() { window.location.reload(); }
+    window.addEventListener('pageshow', function (ev) { if (ev && ev.persisted) devuelta(); });
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { salio = new Date().getTime(); return; }
+      var afuera = salio ? (new Date().getTime() - salio) / 1000 : 0;
+      salio = 0;
+      // 20 segundos: no se recarga por mirar una notificación y volver.
+      if (afuera >= 20 && hayConexion()) devuelta();
+    });
+  };
+
   /* ═══════════════════════════════════════════════════════════════════════
    * Foto del patio
    * -----------------------------------------------------------------------
@@ -796,10 +816,6 @@
 
   function guardarComoArchivo(blob, nombre) {
     try {
-      if (window.navigator.msSaveOrOpenBlob) {
-        window.navigator.msSaveOrOpenBlob(blob, nombre);
-        return true;
-      }
       var url = window.URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;

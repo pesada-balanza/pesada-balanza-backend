@@ -143,6 +143,11 @@
     <script>
     (function () {
       'use strict';
+
+      // Al volver a esta pantalla se vuelve a pedir: si no, se mira el estado de
+      // hace rato. Acá no hay formulario, así que no se pierde nada.
+      App.refrescarAlVolver();
+
       var abrir = document.getElementById('abrir-excel');
       var caja = document.getElementById('caja-excel');
       var cerrar = document.getElementById('cerrar-excel');
