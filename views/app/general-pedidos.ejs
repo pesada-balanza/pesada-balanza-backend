@@ -4,7 +4,9 @@
   <div class="enc">
     <div class="enc-col">
       <a href="/app/general" class="volver"><span class="flecha">‹</span><span class="texto">Resumen</span></a>
-      <span class="etiqueta">General</span>
+      <%# "General" solo cuando entró GENERAL: el que mira una balanza ve los
+          pedidos de su balanza, no la bandeja de nadie. %>
+      <% if (puedeResolver) { %><span class="etiqueta">General</span><% } %>
       <span class="t-pantalla">Pedidos</span>
     </div>
     <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
@@ -18,7 +20,7 @@
     <% if (!pendientes.length) { %>
       <div class="tarjeta" style="gap:6px">
         <span class="cuerpo-fuerte">No hay pedidos pendientes</span>
-        <span class="txt">Cuando un balancero pida anular o corregir, aparece acá.</span>
+        <span class="txt">Cuando se pida anular o corregir un ticket, aparece acá.</span>
       </div>
     <% } %>
 
@@ -38,18 +40,24 @@
 
         <a class="btn btn-borde-suave" style="min-height:48px; font-size:14px" href="/app/registro/<%= p.registroId %>">Ver el ticket</a>
 
-        <%# Un pedido de corrección se resuelve corrigiendo. Antes acá lo único
-            que se podía hacer era rechazarlo: el circuito quedaba cortado. %>
-        <% if (p.tipo === 'CORRECCION' && p.sePuedeCorregir) { %>
-          <a class="btn" href="/app/corregir/<%= p.registroId %>">Corregir los datos</a>
-        <% } %>
-
-        <div class="botonera-fila">
-          <% if (p.tipo === 'ANULACION') { %>
-            <button type="button" class="btn btn-rojo" data-decidir="<%= p.id %>" data-decision="ANULAR">Anular</button>
+        <%# Resolver es de GENERAL. Los demás ven el pedido y en qué está: si les
+            aparecieran los botones, tocarlos daría un error. %>
+        <% if (puedeResolver) { %>
+          <%# Un pedido de corrección se resuelve corrigiendo. Antes acá lo único
+              que se podía hacer era rechazarlo: el circuito quedaba cortado. %>
+          <% if (p.tipo === 'CORRECCION' && p.sePuedeCorregir) { %>
+            <a class="btn" href="/app/corregir/<%= p.registroId %>">Corregir los datos</a>
           <% } %>
-          <button type="button" class="btn btn-borde-suave" data-decidir="<%= p.id %>" data-decision="RECHAZAR">Rechazar</button>
-        </div>
+
+          <div class="botonera-fila">
+            <% if (p.tipo === 'ANULACION') { %>
+              <button type="button" class="btn btn-rojo" data-decidir="<%= p.id %>" data-decision="ANULAR">Anular</button>
+            <% } %>
+            <button type="button" class="btn btn-borde-suave" data-decidir="<%= p.id %>" data-decision="RECHAZAR">Rechazar</button>
+          </div>
+        <% } else { %>
+          <span class="txt-aux">Esperando que GENERAL lo resuelva.</span>
+        <% } %>
       </div>
     <% }); %>
 

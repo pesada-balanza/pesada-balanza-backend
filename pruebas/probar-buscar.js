@@ -480,37 +480,66 @@ async function main() {
   ok('la de repetidos también abre', r.estado === 200 && !/Sin permiso/.test(r.texto), r.estado);
   ok('y tampoco muestra la otra balanza', !/Ajeno Total/.test(r.texto));
 
-  // Los pedidos siguen siendo cosa de GENERAL: la bandeja es suya y él los
-  // resuelve. Entonces el aviso también es suyo — al resto no se le muestra un
-  // "Ver" que no puede abrir.
+  // Los pedidos: el que mira una balanza tiene que ENTERARSE de que hay uno
+  // esperando —es lo que hay para revisar— aunque resolverlo sea de GENERAL.
   await baseFalsa.collection('app_pedidos').insertOne({
     registroId: hoyQuimili._id, nro: hoyQuimili.nroApp, patentes: hoyQuimili.patentes,
     codigoIngreso: '5684', tipo: 'ANULACION', motivo: 'se cargó dos veces',
     pedidoPor: 'Mateo', estado: 'PENDIENTE', creadoEn: new Date(),
   });
+  await baseFalsa.collection('app_pedidos').insertOne({
+    registroId: ajeno._id, nro: ajeno.nroApp, patentes: ajeno.patentes,
+    codigoIngreso: '5679', tipo: 'ANULACION', motivo: 'pedido de otra balanza',
+    pedidoPor: 'Otro', estado: 'PENDIENTE', creadoEn: new Date(),
+  });
 
   r = await ir('GET', '/app/general');
-  ok('al que solo mira NO se le avisa de los pedidos',
-    !/pedido de anulación/.test(r.texto), (r.texto.match(/\d+ pedidos? de [a-z]+/) || [''])[0]);
-  ok('y por lo tanto no hay ningún "Ver" que no se pueda abrir',
-    !/\/app\/general\/pedidos/.test(r.texto));
+  ok('al que mira su balanza se le avisa del pedido',
+    /pedido de anulación/.test(r.texto), (r.texto.match(/\d+ pedidos? de [a-zá-ú]+/i) || [''])[0]);
+  ok('y el aviso lleva a la bandeja', /\/app\/general\/pedidos/.test(r.texto));
 
   r = await ir('GET', '/app/general/pedidos');
-  ok('la bandeja sigue siendo solo de GENERAL', r.estado !== 200 || /Sin permiso/.test(r.texto), r.estado);
+  ok('la bandeja abre', r.estado === 200 && !/Sin permiso/.test(r.texto), r.estado);
+  ok('ve el pedido de SU balanza', /se cargó dos veces/.test(r.texto));
+  ok('y NO el de la otra', !/pedido de otra balanza/.test(r.texto));
+  // Ojo: "data-decidir" también está en el script de la pantalla; lo que se
+  // busca es un BOTÓN, o sea el atributo con su valor.
+  ok('pero no le aparecen los botones de resolver',
+    !/data-decidir="/.test(r.texto), (r.texto.match(/data-decidir="[^"]*"/) || [''])[0]);
+  ok('se le dice que lo resuelve GENERAL', /Esperando que GENERAL lo resuelva/.test(r.texto));
 
-  // GENERAL sí ve todo.
+  // Y por la puerta de atrás tampoco resuelve.
+  const pendiente = baseFalsa.collection('app_pedidos').docs.find((p) => p.motivo === 'se cargó dos veces');
+  r = await ir('POST', '/app/api/pedido/' + String(pendiente._id) + '/resolver',
+    { decision: 'ANULAR', respuesta: '' });
+  ok('resolver sigue siendo solo de GENERAL', r.estado !== 200, r.estado + ' ' + r.texto.slice(0, 120));
+  ok('el pedido quedó pendiente',
+    baseFalsa.collection('app_pedidos').docs.find((p) => p.motivo === 'se cargó dos veces').estado === 'PENDIENTE');
+
+  // El código con el que se CARGA en la balanza no tiene bandeja: el balancero
+  // ve el estado de lo que pidió en su ticket.
+  cookies = {};
+  await ir('POST', '/app/api/ingreso', { code: QUIMILI }, { desde: '10.9.3.9' });
+  r = await ir('GET', '/app/general/pedidos');
+  ok('el código de cargar NO tiene bandeja de pedidos',
+    r.estado !== 200 || /Sin permiso/.test(r.texto), r.estado);
+
+  // GENERAL ve todo y sí resuelve.
   cookies = {};
   await ir('POST', '/app/api/ingreso', { code: VER_TODO }, { desde: '10.9.3.2' });
   r = await ir('GET', '/app/general');
-  ok('a GENERAL sí se le avisa de los pedidos', /pedido de anulación/.test(r.texto), r.estado);
-  ok('y el aviso lo lleva a la bandeja', /\/app\/general\/pedidos/.test(r.texto));
+  // GENERAL ve los dos, así que el texto va en plural: "2 pedidos de anulación".
+  ok('a GENERAL también se le avisa, y de los dos',
+    /2 pedidos de anulación/.test(r.texto),
+    (r.texto.match(/\d+ pedidos? de [a-zá-ú]+/i) || [''])[0]);
 
   r = await ir('GET', '/app/general/sin-regular');
   ok('GENERAL ve los sin regular de las dos balanzas',
     /SR 111 QU/.test(r.texto) && /SR 222 AJ/.test(r.texto), r.estado);
   r = await ir('GET', '/app/general/pedidos');
-  ok('y su bandeja abre con los botones',
-    r.estado === 200 && /se cargó dos veces/.test(r.texto) && /data-decidir="/.test(r.texto), r.estado);
+  ok('su bandeja trae los pedidos de las dos balanzas',
+    /se cargó dos veces/.test(r.texto) && /pedido de otra balanza/.test(r.texto), r.estado);
+  ok('y sí tiene los botones', /data-decidir="/.test(r.texto));
 
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);

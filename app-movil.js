@@ -2428,6 +2428,35 @@ module.exports = function crearAppMovil(deps) {
     return propio ? [propio] : [];
   }
 
+  /**
+   * Los códigos que entran SOLO a mirar: GENERAL y los de ver registros de cada
+   * balanza. No cargan pesadas (no tienen `codigoIngreso`), y son los que ven el
+   * resumen del día.
+   *
+   * A ellos les corresponde ver los pedidos pendientes —es lo que hay para
+   * revisar— aunque resolverlos siga siendo solo de GENERAL. El código con el
+   * que se carga en la balanza no: el balancero ve el estado de lo que pidió en
+   * el ticket, no en una bandeja.
+   */
+  function soloMira(s) {
+    return !!s && !s.codigoIngreso;
+  }
+
+  /** Puerta de las pantallas de mirar. Responde 403, igual que exigirGeneral. */
+  function exigirQueSoloMire(req, res, next) {
+    if (!soloMira(sesionApp(req))) {
+      if (/^\/api\//.test(req.path)) return fallar(res, 403, 'Este código no puede ver esto.');
+      return res.status(403).render('app/error', {
+        layout: 'app/layout',
+        titulo: 'Sin permiso',
+        mensaje: 'Esta pantalla es para los códigos que miran los registros. ' +
+          'Con el código de la balanza, el estado de lo que pediste está en el ticket.',
+        volver: '/app/patio',
+      });
+    }
+    return next();
+  }
+
   async function resumenDelDia(s, fecha) {
     const visibles = balanzasVisibles(s);
     const filtroBalanza = s.esGeneral ? {} : { codigoIngreso: { $in: visibles } };
@@ -2530,10 +2559,11 @@ module.exports = function crearAppMovil(deps) {
 
 
     const revisar = [];
-    // Los pedidos los resuelve GENERAL y la bandeja es suya, así que el aviso
-    // es suyo también: a los demás les aparecía un "Ver" que terminaba en
-    // "Sin permiso". Las otras dos pantallas sí las abre cualquiera.
-    if (pedidosPendientes.length && s.esGeneral) {
+    // El aviso lo ven los códigos que entran a mirar: GENERAL, todos; el de una
+    // balanza, los suyos (`pedidosPendientes` ya viene filtrado). Resolverlos
+    // sigue siendo de GENERAL, pero saber que hay algo esperando es justamente
+    // para lo que existe el bloque "Para revisar".
+    if (pedidosPendientes.length && soloMira(s)) {
       // Se distingue anulación de corrección: antes cualquier pedido se
       // anunciaba como "de anulación", y una corrección no es lo mismo.
       const anulaciones = pedidosPendientes.filter((p) => p.tipo === 'ANULACION').length;
@@ -2817,11 +2847,17 @@ module.exports = function crearAppMovil(deps) {
     }
   });
 
-  router.get('/general/pedidos', exigirApp, exigirGeneral, async (req, res) => {
+  // La abren los códigos que entran a mirar, cada uno con lo suyo.
+  router.get('/general/pedidos', exigirApp, exigirQueSoloMire, async (req, res) => {
     try {
-      const pendientes = await colPedidos().find({ estado: 'PENDIENTE' }).sort({ creadoEn: -1 }).toArray();
+      const s = sesionApp(req);
+      const deSuBalanza = s.esGeneral ? {} : { codigoIngreso: { $in: balanzasVisibles(s) } };
+      const pendientes = await colPedidos()
+        .find(Object.assign({ estado: 'PENDIENTE' }, deSuBalanza))
+        .sort({ creadoEn: -1 })
+        .toArray();
       const resueltos = await colPedidos()
-        .find({ estado: { $ne: 'PENDIENTE' } })
+        .find(Object.assign({ estado: { $ne: 'PENDIENTE' } }, deSuBalanza))
         .sort({ resueltoEn: -1 })
         .limit(10)
         .toArray();
@@ -2859,6 +2895,9 @@ module.exports = function crearAppMovil(deps) {
         titulo: 'Pedidos',
         pendientes: pendientes.map(armar),
         resueltos: resueltos.map(armar),
+        // Resolver es solo de GENERAL: al resto se le muestra el pedido y quién
+        // lo resuelve, sin botones que darían error al tocarlos.
+        puedeResolver: !!s.esGeneral,
       });
     } catch (err) {
       return siguienteError(err, req, res);

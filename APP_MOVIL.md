@@ -390,19 +390,31 @@ aviso aparece, el botón "Ver" tiene que llevar a algún lado.
 | --- | --- | --- |
 | **Sin regular de días anteriores** | cualquier código | los de **su** balanza; GENERAL, los de todas |
 | **Camiones repetidos en dos balanzas** | cualquier código | ídem (con una sola balanza no se dispara: hacen falta dos) |
-| **Pedidos de anulación o corrección** | **solo GENERAL** | la bandeja es suya y él los resuelve |
+| **Pedidos de anulación o corrección** | los códigos que **miran** | los de su balanza; GENERAL, los de todas |
 
 Las dos primeras eran solo de GENERAL y el aviso salía para todos: un código de
 ver registros veía *"3 sin regular de días anteriores"*, tocaba **Ver** y le
 aparecía **"Sin permiso"**. Ahora las abre cualquiera, cada uno con lo suyo.
 
-Ojo con eso último: esas dos consultas **no filtraban por balanza**, porque solo
-entraba GENERAL, que las ve todas. Al abrirlas hubo que agregar el filtro; sin
-él, el código de Quimili vería los camiones de La Pradera.
+Ojo con eso: esas dos consultas **no filtraban por balanza**, porque solo entraba
+GENERAL, que las ve todas. Al abrirlas hubo que agregar el filtro; sin él, el
+código de Quimili vería los camiones de La Pradera.
 
-El aviso de pedidos va al revés: en vez de abrir la bandeja, **no se le muestra**
-a quien no la puede abrir. Resolver un pedido es de GENERAL —el balancero pide,
-no decide— así que la bandeja sigue cerrada y el aviso la acompaña.
+### Los pedidos: mirar y resolver son cosas distintas
+
+**Ver** que hay un pedido esperando le corresponde a todo código que entra a
+mirar —GENERAL y el de ver registros de cada balanza—: es justamente lo que hay
+para revisar. **Resolverlo** es solo de GENERAL.
+
+Así que la bandeja (`/app/general/pedidos`) la abren los dos, cada uno con lo
+suyo, pero los botones de anular, rechazar y corregir **solo los ve GENERAL**; al
+resto le dice "Esperando que GENERAL lo resuelva". Las rutas que deciden siguen
+con `exigirGeneral`, así que tampoco se resuelve por la puerta de atrás.
+
+**El código con el que se carga en la balanza no tiene bandeja.** No es un olvido:
+el balancero ve el estado de lo que pidió **en el ticket** —"Anulación pedida",
+"GENERAL rechazó el pedido", "GENERAL corrigió el ticket"— que es donde lo va a
+mirar. La bandeja es para mirar el conjunto, no un ticket.
 
 ---
 
