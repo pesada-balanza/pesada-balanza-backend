@@ -5,6 +5,10 @@ GENERAL. Vive entera bajo `/app` y **no toca la web actual**.
 
 Diseño de referencia: `design_handoff_app_movil_balanza/`.
 
+Si lo que buscás es **cómo aplicar el modo sin señal a otro proceso** —remitos,
+entregas, controles— eso está aparte, en `REGISTRAR_SIN_SENAL.md`: el patrón sin
+las reglas propias de la balanza, con la lista de errores que costaron encontrar.
+
 ---
 
 ## Cómo se prende y se apaga
