@@ -106,10 +106,45 @@ async function main() {
   await new Promise((r) => setTimeout(r, 1200));
 
   /* ═════════════════════════════════════════════════════════════════════
-   * LA WEB ACTUAL SIGUE FUNCIONANDO
+   * LA WEB ANTERIOR ESTÁ CERRADA
+   * ---------------------------------------------------------------------
+   * Todo se usa desde /app. La web de antes no deja entrar a NINGÚN código,
+   * ni al de registrar, ni al de mirar, ni al de GENERAL.
    * ═══════════════════════════════════════════════════════════════════ */
-  seccion('La web actual (no se toca)');
+  seccion('La web anterior está cerrada');
+
   let r = await ir('GET', '/');
+  ok('la raíz no muestra el login', r.estado === 410, r.estado);
+  ok('explica que ahora se usa la app', /ya no se usa/i.test(r.texto));
+  ok('y lleva a la app', /href="\/app"/.test(r.texto));
+
+  for (const [code, quien] of [['5679', 'registrar'], ['1235', 'mirar'], ['12341', 'GENERAL']]) {
+    // El 410 sale antes de mirar el cuerpo, así que da igual cómo se manda.
+    r = await ir('POST', '/', { code, redirect: '/tabla' }, { desde: '10.3.9.' + code.slice(-1) });
+    ok('no entra con el código de ' + quien + ' (' + code + ')', r.estado === 410, r.estado);
+  }
+
+  for (const ruta of ['/tabla', '/registro', '/export', '/login/tabla']) {
+    r = await ir('GET', ruta);
+    ok('cerrada: ' + ruta, r.estado === 410, r.estado);
+  }
+
+  // La app, en cambio, sigue en pie: se comprueba en todo lo que viene abajo.
+  r = await ir('GET', '/app/ingreso');
+  ok('la app sigue disponible', r.estado === 200, r.estado);
+
+  /* ═════════════════════════════════════════════════════════════════════
+   * Y SI SE REABRE, SIGUE FUNCIONANDO IGUAL
+   * ---------------------------------------------------------------------
+   * La cobertura de la web no se borra: se abre con WEB_ANTERIOR=1 y se
+   * comprueba entera. Así el día que haga falta reabrirla se sabe que anda,
+   * y de paso se sigue verificando que la app y la web conviven en la misma
+   * colección con series de numeración separadas.
+   * ═══════════════════════════════════════════════════════════════════ */
+  seccion('La web anterior, abierta a mano (WEB_ANTERIOR=1)');
+  process.env.WEB_ANTERIOR = '1';
+
+  r = await ir('GET', '/');
   ok('GET / muestra el login', r.estado === 200 && /code/i.test(r.texto), r.estado);
 
   r = await ir('GET', '/login/registro');
@@ -607,6 +642,12 @@ async function main() {
 
   r = await ir('GET', '/exportar-excel');
   ok('el Excel de la web sigue exportando', r.estado === 200 || r.estado === 404, r.estado);
+
+  // Se vuelve a cerrar: lo que sigue tiene que andar con la web cerrada, que es
+  // como queda en el servidor.
+  delete process.env.WEB_ANTERIOR;
+  r = await ir('GET', '/tabla');
+  ok('al cerrarla de nuevo, la web deja de contestar', r.estado === 410, r.estado);
 
   /* ═════════════════════════════════════════════════════════════════════
    * EDITAR OBSERVACIONES (mismas reglas que la web)

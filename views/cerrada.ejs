@@ -1,0 +1,108 @@
+<%#
+  La web anterior está cerrada. Esta pantalla la ve cualquiera que entre a una
+  dirección de la web vieja: la raíz, Ver Registros, un enlace guardado.
+
+  No usa el layout de la web ni su CSS a propósito: si la web está cerrada, sus
+  archivos no tienen por qué hacer falta para explicar que está cerrada.
+%>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pesada de Balanza — ahora se usa desde la app</title>
+  <style>
+    :root {
+      --fondo: #f8f7f4;
+      --tarjeta: #ffffff;
+      --tinta: #1b1a17;
+      --gris: #5f5c55;
+      --borde: #e3e0d9;
+      --verde: #14532d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--fondo);
+      color: var(--tinta);
+      font: 400 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI",
+            "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    .caja {
+      width: 100%;
+      max-width: 30rem;
+      background: var(--tarjeta);
+      border: 1px solid var(--borde);
+      border-radius: 18px;
+      padding: 32px 28px;
+    }
+    .etiqueta {
+      display: block;
+      font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--gris);
+      margin-bottom: 10px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 26px;
+      line-height: 1.2;
+      font-weight: 600;
+      text-wrap: balance;
+    }
+    p { margin: 0 0 14px; color: var(--gris); }
+    p.ultimo { margin-bottom: 26px; }
+    .btn {
+      display: block;
+      text-align: center;
+      text-decoration: none;
+      background: var(--tinta);
+      color: #fff;
+      font-weight: 600;
+      font-size: 17px;
+      padding: 16px 20px;
+      border-radius: 14px;
+      min-height: 52px;
+    }
+    .btn:focus-visible { outline: 3px solid var(--verde); outline-offset: 2px; }
+    .nota {
+      margin: 22px 0 0;
+      padding-top: 18px;
+      border-top: 1px solid var(--borde);
+      font-size: 14px;
+      color: var(--gris);
+    }
+    .nota code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <main class="caja">
+    <span class="etiqueta">Pesada de Balanza</span>
+    <h1>Esta página ya no se usa</h1>
+    <p>
+      Cargar pesadas y ver los registros ahora se hace desde la app, con el mismo
+      código de siempre.
+    </p>
+    <p class="ultimo">
+      Si tenías esta dirección guardada, guardá la de la app en su lugar.
+    </p>
+
+    <a class="btn" href="<%= destino %>">Ir a la app</a>
+
+    <p class="nota">
+      La dirección es <code><%= destino %></code> al final de la de siempre. Desde
+      el teléfono conviene agregarla a la pantalla de inicio: abre como una app y
+      sigue funcionando sin señal.
+    </p>
+  </main>
+</body>
+</html>

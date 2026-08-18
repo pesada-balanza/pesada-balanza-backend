@@ -1105,6 +1105,60 @@ if (process.env.APP_MOVIL === '1') {
 }
 
 /* ---------------------------------------------
+ * LA WEB ANTERIOR ESTÁ CERRADA
+ * ---------------------------------------------
+ * Todo se hace desde la app (/app). La web de antes —cargar pesadas, Ver
+ * Registros, exportar— queda cerrada para TODOS los códigos, tanto los de
+ * registrar como los de mirar, incluido el 12341.
+ *
+ * Qué NO afecta, porque no pasa por acá:
+ *   · El reporte de las 19 hs por email. Lo dispara node-cron dentro de este
+ *     mismo servidor y lee la base directo; no entra por ninguna ruta ni usa
+ *     sesión.
+ *   · El reporte por WhatsApp. Corre en una PC aparte (whatsapp-worker/) y se
+ *     conecta a MongoDB con su propia MONGODB_URI; nunca le pide nada a la web.
+ *   · La app en /app, que se monta más arriba y queda intacta.
+ *
+ * Las sesiones abiertas quedan cortadas en el momento, porque el bloqueo es por
+ * ruta y no por login. Ojo: NO se destruye la sesión. La web y la app comparten
+ * el mismo objeto de sesión (la app usa su propio espacio, `req.session.app`),
+ * así que destruirla sacaría también a quien está trabajando en la app.
+ *
+ * Para volver a abrirla: `WEB_ANTERIOR=1` en Render. Se prende y se apaga sin
+ * subir código, igual que APP_MOVIL. Sin la variable, cerrada.
+ *
+ * Y una salvaguarda que importa: la web SOLO se cierra mientras la app esté
+ * disponible. Si alguien apaga la app con APP_MOVIL, la web vuelve sola. Esa
+ * variable es la llave de emergencia —"la app desaparece y la web sigue igual"—
+ * y si además cerrara la web dejaría el sistema entero a oscuras, que es justo
+ * lo que no tiene que pasar en el momento en que se usa una llave de emergencia.
+ * -------------------------------------------*/
+function webAnteriorAbierta() {
+  if (String(process.env.WEB_ANTERIOR || '').trim() === '1') return true;
+  // Sin app no hay a dónde mandar a nadie: la web queda como respaldo.
+  return process.env.APP_MOVIL !== '1';
+}
+
+console.log(
+  webAnteriorAbierta()
+    ? (process.env.APP_MOVIL === '1'
+        ? '[Web anterior] ABIERTA (WEB_ANTERIOR=1).'
+        : '[Web anterior] ABIERTA como respaldo: la app está apagada (APP_MOVIL).')
+    : '[Web anterior] CERRADA. Todo se usa desde /app. Para abrirla: WEB_ANTERIOR=1'
+);
+
+app.use((req, res, next) => {
+  if (webAnteriorAbierta()) return next();
+  // La app y sus archivos siguen: solo se cierra lo de afuera de /app.
+  if (req.path === '/app' || req.path.indexOf('/app/') === 0) return next();
+
+  return res.status(410).render('cerrada', {
+    layout: false,
+    destino: '/app',
+  });
+});
+
+/* ---------------------------------------------
  * RUTAS: LOGIN
  * -------------------------------------------*/
 app.get('/', (req, res) => {

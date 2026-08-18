@@ -11,6 +11,42 @@ las reglas propias de la balanza, con la lista de errores que costaron encontrar
 
 ---
 
+## La web anterior está cerrada
+
+Todo se usa desde `/app`. La web de antes —cargar pesadas, Ver Registros,
+exportar— **no deja entrar a ningún código**: ni a los de registrar, ni a los de
+mirar, ni al `12341`. Cualquier dirección fuera de `/app` responde una pantalla
+que explica el cambio y lleva a la app.
+
+| Variable | Qué pasa con la web anterior |
+| --- | --- |
+| sin definir | **cerrada** |
+| `WEB_ANTERIOR=1` | abierta, igual que antes |
+
+### Lo que NO se toca, y por qué
+
+Los dos reportes se siguen mandando, porque ninguno pasa por la web:
+
+- **El de las 19 hs por email**: lo dispara `node-cron` dentro de este mismo
+  servidor y lee la base directo. No entra por ninguna ruta ni usa sesión.
+- **El de WhatsApp**: corre en una PC aparte (`whatsapp-worker/`), se conecta a
+  MongoDB con su propia `MONGODB_URI` y nunca le pide nada a la web.
+
+### Dos detalles que cuestan encontrar después
+
+**La web vuelve sola si se apaga la app.** El cierre solo corre mientras
+`APP_MOVIL=1`. Si alguien apaga la app, la web se reabre como respaldo: esa
+variable es la llave de emergencia —"la app desaparece y la web sigue igual"— y
+si además cerrara la web dejaría todo a oscuras justo cuando se la usa.
+
+**No se destruyen las sesiones.** El corte es inmediato porque el bloqueo es por
+ruta, no por login: quien tenía la web abierta deja de poder hacer nada al
+instante. Pero la sesión no se borra, porque la web y la app **comparten el mismo
+objeto de sesión** (la app usa su propio espacio, `req.session.app`), y
+destruirla sacaría también a quien está trabajando en la app.
+
+---
+
 ## Cómo se prende y se apaga
 
 La app está detrás de una variable de entorno. Es una llave de luz:

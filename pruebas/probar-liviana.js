@@ -212,11 +212,21 @@ async function main() {
   /* ═══════════════════════════════════════════════════════════════════════
    * 2. LA WEB NO SE TOCA
    * ═════════════════════════════════════════════════════════════════════ */
+  // La web anterior está cerrada, así que se abre a mano para comprobar que
+  // sigue sin comprimir: el día que se reabra tiene que seguir igual que siempre.
   console.log('\n── La compresión es solo de la app: la web queda igual');
+  process.env.WEB_ANTERIOR = '1';
   const web = await pedir('/');
   ok('la web NO manda comprimido (sigue como siempre)', !web.codificacion,
     'content-encoding: ' + (web.codificacion || 'ninguno'));
-  ok('y la web carga bien', web.estado === 200 && web.texto.length > 500, web.estado + ' / ' + web.texto.length);
+  ok('y la web carga bien cuando está abierta',
+    web.estado === 200 && web.texto.length > 500, web.estado + ' / ' + web.texto.length);
+
+  delete process.env.WEB_ANTERIOR;
+  const cerrada = await pedir('/');
+  ok('cerrada, la web contesta 410 y no gasta nada de más',
+    cerrada.estado === 410 && cerrada.texto.length < 4000,
+    cerrada.estado + ' / ' + cerrada.texto.length);
   const tabla = await pedir('/tabla');
   ok('las otras pantallas de la web tampoco cambian', !tabla.codificacion,
     'content-encoding: ' + (tabla.codificacion || 'ninguno'));

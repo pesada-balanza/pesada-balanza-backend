@@ -329,7 +329,29 @@ async function main() {
   /* ═══════════════════════════════════════════════════════════════════════
    * LA WEB SIGUE IGUAL
    * ═════════════════════════════════════════════════════════════════════ */
-  seccion('La web no se tocó');
+  seccion('La web anterior: cerrada, y su Excel intacto si se reabre');
+
+  // Cerrada, no entra nadie: ni el código de mirar ni el de GENERAL.
+  cookies = {};
+  for (const code of [VER_QUIMILI, GENERAL]) {
+    const r2 = await fetch(BASE + '/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Forwarded-Proto': 'https',
+        'X-Forwarded-For': '10.7.9.' + code.slice(-1),
+      },
+      body: 'code=' + code + '&redirect=/tabla',
+      redirect: 'manual',
+    });
+    ok('la web anterior no deja entrar con ' + code, r2.status === 410, r2.status);
+  }
+  const exCerrado = await bajarExcel('/export');
+  ok('y su Excel tampoco se baja', exCerrado.estado === 410, exCerrado.estado);
+
+  // Se abre a mano para comprobar que el refactor no la rompió: el día que se
+  // reabra, su Excel tiene que dar lo mismo que antes.
+  process.env.WEB_ANTERIOR = '1';
 
   // El /export de la web usa su propia sesión: se entra como siempre.
   cookies = {};
@@ -359,6 +381,7 @@ async function main() {
     ok('y sigue respetando el permiso por balanza',
       pWeb.indexOf('QUI 111 AA') !== -1 && pWeb.indexOf('OTR 999 ZZ') === -1, pWeb.join(' | '));
   }
+  delete process.env.WEB_ANTERIOR;
 
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);
