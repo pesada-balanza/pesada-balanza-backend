@@ -9,6 +9,10 @@ aplicar a otro proceso: remitos, entregas, controles de campo, recepción de
 mercadería. Cualquier cosa que hoy se anota en papel porque en el lugar no hay
 señal.
 
+Hay un ejemplo de este patrón ya aplicado a un caso concreto —carga y despacho de
+combustible— en **`COMBUSTIBLES_ARRANQUE.md`**: sirve para ver qué preguntas
+aparecen al bajarlo a un proceso de verdad.
+
 ---
 
 ## El problema que resuelve
