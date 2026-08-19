@@ -1,0 +1,992 @@
+<title>Alta de Cuentas Combustible</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@700;900&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#F3F5F4;
+  --surface:#FFFFFF;
+  --surface-2:#E9EDEB;
+  --ink:#14201E;
+  --ink-2:#3D4A47;
+  --muted:#697874;
+  --rule:#D3DBD8;
+  --rule-strong:#B4C0BC;
+  --accent:#0E5C56;
+  --accent-ink:#0A4640;
+  --accent-soft:#DCEAE7;
+  --amber:#8E5C0C;
+  --amber-soft:#F7EDD8;
+  --danger:#8E2618;
+  --danger-soft:#F7E3DF;
+  --ok:#2C6537;
+  --ok-soft:#E2EFE4;
+  --chip-ink:#FFFFFF;
+
+  --f-display:"Chivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Literata",Georgia,"Times New Roman",serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+
+  --measure:64ch;
+  --pad:clamp(18px,4vw,44px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1615;
+    --surface:#16211F;
+    --surface-2:#1E2B29;
+    --ink:#E9EFED;
+    --ink-2:#C2CECB;
+    --muted:#8C9A96;
+    --rule:#2A3835;
+    --rule-strong:#3E4E4A;
+    --accent:#63C1B4;
+    --accent-ink:#8FD6CB;
+    --accent-soft:#12332F;
+    --amber:#DFAE60;
+    --amber-soft:#302514;
+    --danger:#EB9384;
+    --danger-soft:#37201C;
+    --ok:#82C290;
+    --ok-soft:#16301C;
+    --chip-ink:#0E1615;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1615;
+  --surface:#16211F;
+  --surface-2:#1E2B29;
+  --ink:#E9EFED;
+  --ink-2:#C2CECB;
+  --muted:#8C9A96;
+  --rule:#2A3835;
+  --rule-strong:#3E4E4A;
+  --accent:#63C1B4;
+  --accent-ink:#8FD6CB;
+  --accent-soft:#12332F;
+  --amber:#DFAE60;
+  --amber-soft:#302514;
+  --danger:#EB9384;
+  --danger-soft:#37201C;
+  --ok:#82C290;
+  --ok-soft:#16301C;
+  --chip-ink:#0E1615;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:16px;
+  line-height:1.62;
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:940px;margin:0 auto;padding:var(--pad)}
+
+/* ---------- masthead ---------- */
+.mast{
+  border-bottom:3px solid var(--ink);
+  padding-bottom:20px;
+  display:flex;flex-direction:column;gap:14px;
+}
+.eyebrow{
+  font-family:var(--f-mono);font-size:11px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--accent);
+}
+h1{
+  font-family:var(--f-display);font-weight:900;
+  font-size:clamp(30px,6.2vw,54px);line-height:1.02;
+  letter-spacing:-.022em;margin:0;text-wrap:balance;
+}
+.standfirst{
+  font-size:clamp(16px,2.1vw,19px);color:var(--ink-2);
+  max-width:var(--measure);margin:0;
+}
+.mast-meta{
+  display:flex;flex-wrap:wrap;gap:8px 22px;
+  font-family:var(--f-mono);font-size:11.5px;color:var(--muted);
+  letter-spacing:.04em;text-transform:uppercase;
+}
+
+/* ---------- generic sections ---------- */
+section{margin-top:52px;display:flex;flex-direction:column;gap:18px}
+h2{
+  font-family:var(--f-display);font-weight:900;
+  font-size:clamp(21px,3.3vw,30px);line-height:1.14;
+  letter-spacing:-.014em;margin:0;text-wrap:balance;
+}
+h3{
+  font-family:var(--f-display);font-weight:700;
+  font-size:17px;line-height:1.25;margin:0;letter-spacing:-.005em;
+}
+p{margin:0;max-width:var(--measure)}
+.lede{font-size:17.5px;color:var(--ink-2)}
+a{color:var(--accent-ink);text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}
+a:hover{text-decoration-thickness:2px}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+strong{font-weight:600;color:var(--ink)}
+code{
+  font-family:var(--f-mono);font-size:.875em;
+  background:var(--surface-2);color:var(--ink);
+  padding:1.5px 5px;border-radius:3px;
+  border:1px solid var(--rule);
+  overflow-wrap:break-word;
+}
+
+/* ---------- outcome grid ---------- */
+.outcomes{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+.oc{
+  background:var(--surface);border:1px solid var(--rule);
+  border-top:3px solid var(--accent);
+  padding:15px 16px;display:flex;flex-direction:column;gap:6px;
+}
+.oc-k{
+  font-family:var(--f-mono);font-size:10.5px;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+}
+.oc-v{font-family:var(--f-display);font-weight:700;font-size:16px;line-height:1.22}
+.oc-n{font-size:13.5px;color:var(--ink-2);line-height:1.5}
+
+/* ---------- panels ---------- */
+.panel{
+  border:1px solid var(--rule);border-left:5px solid var(--accent);
+  background:var(--surface);padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.panel.warn{border-left-color:var(--amber);background:var(--amber-soft)}
+.panel.stop{border-left-color:var(--danger);background:var(--danger-soft)}
+.panel.good{border-left-color:var(--ok);background:var(--ok-soft)}
+.panel-h{
+  font-family:var(--f-mono);font-size:11px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--accent);
+}
+.panel.warn .panel-h{color:var(--amber)}
+.panel.stop .panel-h{color:var(--danger)}
+.panel.good .panel-h{color:var(--ok)}
+.panel p,.panel li{max-width:none}
+
+/* ---------- steps ---------- */
+.step{
+  background:var(--surface);border:1px solid var(--rule);
+  margin-top:22px;overflow:hidden;
+}
+.step-head{
+  display:flex;gap:16px;align-items:flex-start;
+  padding:18px 20px;border-bottom:1px solid var(--rule);
+  background:var(--surface-2);
+}
+.step-num{
+  flex:none;width:38px;height:38px;border-radius:50%;
+  background:var(--accent);color:var(--chip-ink);
+  font-family:var(--f-mono);font-weight:600;font-size:15px;
+  display:flex;align-items:center;justify-content:center;
+  font-variant-numeric:tabular-nums;
+}
+.step-titles{display:flex;flex-direction:column;gap:3px;min-width:0}
+.step-title{font-family:var(--f-display);font-weight:900;font-size:clamp(18px,2.6vw,23px);line-height:1.14;letter-spacing:-.012em}
+.step-where{font-family:var(--f-mono);font-size:12px;color:var(--muted);overflow-wrap:break-word}
+.step-body{padding:20px;display:flex;flex-direction:column;gap:18px}
+
+.block{display:flex;flex-direction:column;gap:9px}
+.block-h{
+  font-family:var(--f-mono);font-size:10.5px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+  padding-bottom:5px;border-bottom:1px solid var(--rule);
+}
+ol.clicks{margin:0;padding-left:0;list-style:none;counter-reset:cl;display:flex;flex-direction:column;gap:11px}
+ol.clicks>li{
+  counter-increment:cl;position:relative;padding-left:32px;
+}
+ol.clicks>li::before{
+  content:counter(cl);position:absolute;left:0;top:2px;
+  font-family:var(--f-mono);font-size:11px;font-weight:600;
+  color:var(--accent);border:1px solid var(--rule-strong);
+  width:21px;height:21px;border-radius:3px;
+  display:flex;align-items:center;justify-content:center;
+  font-variant-numeric:tabular-nums;
+}
+ul.plain{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+ul.plain li::marker{color:var(--accent)}
+ul.tick{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+ul.tick>li{position:relative;padding-left:28px}
+ul.tick>li::before{
+  content:"";position:absolute;left:0;top:.42em;
+  width:13px;height:13px;border:1.5px solid var(--rule-strong);
+  border-radius:2px;background:var(--surface);
+}
+
+.kv{
+  font-family:var(--f-mono);font-size:13px;
+  background:var(--surface-2);border:1px solid var(--rule);
+  padding:12px 14px;display:flex;flex-direction:column;gap:5px;
+  overflow-x:auto;
+}
+.kv b{font-weight:600;color:var(--accent-ink)}
+
+pre{
+  font-family:var(--f-mono);font-size:12.5px;line-height:1.6;
+  background:var(--surface-2);border:1px solid var(--rule);
+  padding:14px;margin:0;overflow-x:auto;color:var(--ink);
+}
+pre .hl{background:var(--accent-soft);border-bottom:2px solid var(--accent);padding:0 2px;font-weight:600}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;border:1px solid var(--rule);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);
+  font-size:10.5px;font-weight:600;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink-2);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:none}
+td.mono,th.mono{font-family:var(--f-mono);font-size:12.5px;overflow-wrap:break-word}
+.tag{
+  display:inline-block;font-family:var(--f-mono);font-size:10px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;padding:2.5px 7px;border-radius:2px;
+  white-space:nowrap;
+}
+.tag.secret{background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger)}
+.tag.open{background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok)}
+
+details{border:1px solid var(--rule);background:var(--surface);padding:0}
+summary{
+  cursor:pointer;padding:13px 16px;font-family:var(--f-display);
+  font-weight:700;font-size:15px;list-style:none;display:flex;gap:9px;align-items:center;
+}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+";font-family:var(--f-mono);color:var(--accent);font-weight:600}
+details[open] summary::before{content:"–"}
+details[open] summary{border-bottom:1px solid var(--rule)}
+.details-body{padding:16px;display:flex;flex-direction:column;gap:12px}
+
+footer{
+  margin-top:60px;padding-top:22px;border-top:3px solid var(--ink);
+  font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:8px;
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">Registro de combustible · Puesta en marcha</div>
+  <h1>Alta de cuentas sin tocar la balanza</h1>
+  <p class="standfirst">Cómo crear el repositorio, la base de datos, el servicio y los avisos de la app de
+  combustible usando las mismas cuentas que ya tenés, de modo que la balanza siga funcionando exactamente
+  igual. Escrito para seguir paso a paso, sin saber programar.</p>
+  <div class="mast-meta">
+    <span>6 pasos</span>
+    <span>Tiempo estimado: 1 a 2 horas</span>
+    <span>No requiere programar</span>
+  </div>
+</header>
+
+<section>
+  <h2>Qué vas a tener cuando termines</h2>
+  <p class="lede">Cinco recursos nuevos, cada uno separado de su equivalente en la balanza. La misma cuenta
+  en cada servicio, pero recursos distintos: eso es lo que hace que un error en combustible no pueda llegar
+  a los tickets de pesaje.</p>
+
+  <div class="outcomes">
+    <div class="oc">
+      <div class="oc-k">GitHub</div>
+      <div class="oc-v">Repositorio nuevo</div>
+      <div class="oc-n">Donde vive el código de combustible. Historia propia, separada de la de balanza.</div>
+    </div>
+    <div class="oc">
+      <div class="oc-k">MongoDB Atlas</div>
+      <div class="oc-v">Base nueva + usuario acotado</div>
+      <div class="oc-n">Mismo clúster, base <code>combustible</code>, con un usuario que sólo puede entrar ahí.</div>
+    </div>
+    <div class="oc">
+      <div class="oc-k">Render</div>
+      <div class="oc-v">Servicio nuevo</div>
+      <div class="oc-n">Su propia dirección web, sus propias variables y sus propios registros de error.</div>
+    </div>
+    <div class="oc">
+      <div class="oc-k">Gmail</div>
+      <div class="oc-v">Contraseña de aplicación nueva</div>
+      <div class="oc-n">Mismo correo remitente, permiso separado que se puede anular sin afectar el otro.</div>
+    </div>
+    <div class="oc">
+      <div class="oc-k">WhatsApp</div>
+      <div class="oc-v">Un worker, dos bases</div>
+      <div class="oc-n">El mismo número y la misma PC mandan los dos reportes. Es el único paso que toca algo que ya funciona.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h">La regla de oro</div>
+    <p><strong>Crear cosas nuevas es seguro. Editar cosas existentes no.</strong> En los pasos 1 a 4 solamente
+    vas a <em>crear</em>: un repositorio, una base, un usuario, un servicio, una contraseña. Ninguna de esas
+    acciones modifica nada de lo que ya está andando. El único paso donde se toca algo existente es el 5
+    (WhatsApp), y por eso ese paso lleva copia de respaldo y prueba aparte.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Antes de empezar</h2>
+  <p>Tené esto a mano antes del primer clic. Si te falta algo de la lista, conseguilo primero: interrumpir
+  a mitad de camino es lo que genera configuraciones a medio hacer.</p>
+  <ul class="tick">
+    <li><strong>Usuario y contraseña de las cuatro cuentas</strong>: GitHub, MongoDB Atlas, Render y la casilla
+    de Gmail que hoy manda los avisos de balanza.</li>
+    <li><strong>El teléfono con el segundo factor</strong> de Google y de GitHub, si los tenés activados
+    (para Gmail lo vas a necesitar sí o sí).</li>
+    <li><strong>Un administrador de contraseñas</strong> o, en su defecto, un cuaderno físico. Vas a generar
+    tres secretos nuevos y no conviene que queden en un chat ni en un mail.</li>
+    <li><strong>Acceso a la PC de la oficina</strong> donde corre el worker de WhatsApp (para el paso 5).</li>
+    <li><strong>La planilla maestra de depósitos</strong> completada con lo que falta: el tanque de 60 mil de
+    La Pradera, las cisternas, y qué depósito tiene contador.</li>
+  </ul>
+
+  <div class="panel warn">
+    <div class="panel-h">Sobre las pantallas de cada sitio</div>
+    <p>GitHub, Atlas y Render cambian el diseño de sus pantallas varias veces por año. Los nombres de los
+    botones que menciono son los actuales, pero si no encontrás uno exacto, buscá el que diga algo
+    equivalente: lo que importa es el resultado de cada paso, no el color del botón. Cada paso termina con
+    un bloque <strong>«Cómo sabés que salió bien»</strong>: si eso se cumple, el paso está hecho, aunque
+    hayas llegado por otro camino.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Los seis pasos</h2>
+  <p class="lede">El orden importa: cada paso usa algo que produjo el anterior. El 2 genera la dirección de
+  la base que el 4 necesita; el 3 genera la contraseña que el 4 necesita. No saltees.</p>
+
+  <!-- ============ PASO 1 ============ -->
+  <article class="step">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      <div class="step-titles">
+        <div class="step-title">GitHub: crear el repositorio de combustible</div>
+        <div class="step-where">github.com · con la cuenta dueña de pesada-balanza</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <div class="block">
+        <div class="block-h">Para qué sirve</div>
+        <p>El repositorio es la carpeta donde vive el código y donde queda guardado cada cambio con fecha y
+        autor. La app de combustible necesita el suyo, aparte del de balanza, para que un error de un lado
+        no pueda pisar el otro.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Qué hacer</div>
+        <ol class="clicks">
+          <li>Entrá a <code>github.com</code> e iniciá sesión con la cuenta que hoy es dueña de
+          <code>pesada-balanza/pesada-balanza-backend</code>.</li>
+          <li>Arriba a la derecha, tocá el signo <strong>+</strong> y elegí <strong>New repository</strong>
+          (repositorio nuevo).</li>
+          <li>En <strong>Owner</strong> (dueño) elegí <code>pesada-balanza</code>, el mismo que el de balanza.
+          Esto es importante: si queda a nombre de otro usuario, después Render y los permisos se complican.</li>
+          <li>En <strong>Repository name</strong> escribí <code>pesada-combustible-backend</code>. Sin
+          espacios, sin acentos, todo en minúscula.</li>
+          <li>En <strong>Description</strong> podés poner: «Registro de carga y despacho de combustible en los campos».</li>
+          <li>Elegí <strong>Private</strong> (privado). Nunca público: aunque el código no tenga contraseñas,
+          sí tiene los nombres de los campos y la lógica del negocio.</li>
+          <li>Marcá <strong>Add a README file</strong>. Dejá el resto como viene.</li>
+          <li>Tocá <strong>Create repository</strong>.</li>
+        </ol>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Un paso extra que se olvida siempre</div>
+        <p>Para que yo pueda trabajar en ese repositorio desde Claude, hay que darle acceso. Andá a
+        <code>claude.ai</code> → configuración de la integración con GitHub, y agregá
+        <code>pesada-combustible-backend</code> a la lista de repositorios permitidos. Si no lo hacés, el
+        repositorio existe pero yo no lo veo, y vas a pensar que algo falló.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Cómo sabés que salió bien</div>
+        <ul class="tick">
+          <li>Entrando a <code>github.com/pesada-balanza/pesada-combustible-backend</code> ves una página con
+          un archivo <code>README.md</code> y un cartel que dice <strong>Private</strong>.</li>
+          <li>Entrando a <code>github.com/pesada-balanza/pesada-balanza-backend</code>, la balanza sigue igual:
+          mismos archivos, mismo último cambio, misma fecha.</li>
+        </ul>
+      </div>
+
+      <div class="panel good">
+        <div class="panel-h">Por qué esto no afecta la balanza</div>
+        <p>Crear un repositorio nunca modifica otro. Son carpetas independientes con historias independientes.
+        Una cuenta de GitHub puede tener cuantos repositorios quiera sin costo ni límite práctico.</p>
+      </div>
+
+      <div class="panel stop">
+        <div class="panel-h">No hagas esto</div>
+        <ul class="plain">
+          <li>No uses el botón <strong>Fork</strong> ni <strong>Import repository</strong> sobre el de balanza:
+          arrastraría toda su historia y quedarían atados.</li>
+          <li>No renombres ni archives el repositorio de balanza «para ordenar». Renombrarlo rompe la conexión
+          con Render y la app se cae.</li>
+        </ul>
+      </div>
+
+    </div>
+  </article>
+
+  <!-- ============ PASO 2 ============ -->
+  <article class="step">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <div class="step-titles">
+        <div class="step-title">MongoDB: base nueva y usuario que sólo entra ahí</div>
+        <div class="step-where">cloud.mongodb.com · mismo clúster que balanza</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <div class="block">
+        <div class="block-h">Para qué sirve</div>
+        <p>Un <strong>clúster</strong> es el servidor de bases de datos. Adentro puede haber muchas
+        <strong>bases</strong>, y cada base tiene sus <strong>colecciones</strong> (el equivalente a las
+        planillas). Hoy la balanza usa una base con la colección <code>registros</code>. Vamos a crear al
+        lado una base <code>combustible</code>, en el mismo clúster, y —esto es lo importante— un usuario
+        que <em>físicamente no puede</em> leer ni escribir la base de balanza.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Parte A · Crear la base</div>
+        <ol class="clicks">
+          <li>Entrá a <code>cloud.mongodb.com</code> e iniciá sesión.</li>
+          <li>En el panel del clúster, tocá <strong>Browse Collections</strong> (ver colecciones).</li>
+          <li>Tocá <strong>+ Create Database</strong> (crear base de datos).</li>
+          <li>En <strong>Database name</strong> escribí exactamente <code>combustible</code>, todo minúscula,
+          sin acento.</li>
+          <li>En <strong>Collection name</strong> escribí <code>movimientos</code>. Mongo exige una primera
+          colección para poder crear la base; ésta es la que después va a guardar recepciones y despachos.</li>
+          <li>Tocá <strong>Create</strong>.</li>
+        </ol>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Parte B · Crear el usuario acotado</div>
+        <ol class="clicks">
+          <li>En el menú de la izquierda, entrá a <strong>Database Access</strong> (dentro de
+          <em>Security</em>).</li>
+          <li>Tocá <strong>+ Add New Database User</strong>.</li>
+          <li>Método de autenticación: <strong>Password</strong>.</li>
+          <li>En <strong>Username</strong> escribí <code>combustible_app</code>.</li>
+          <li>En la contraseña, tocá <strong>Autogenerate Secure Password</strong> y después
+          <strong>Copy</strong>. <strong>Pegala ya mismo en tu administrador de contraseñas</strong>: esta
+          pantalla no la vuelve a mostrar.</li>
+          <li>Bajá hasta <strong>Database User Privileges</strong> y elegí
+          <strong>Specific Privileges</strong> (privilegios específicos). No elijas «Atlas admin» ni
+          «Read and write to any database»: eso le daría acceso a la base de balanza y perderías toda la
+          protección.</li>
+          <li>En el permiso, elegí el rol <strong>readWrite</strong> y en <strong>Database</strong> escribí
+          <code>combustible</code>. El campo de colección dejalo vacío, así abarca todas las colecciones
+          de esa base.</li>
+          <li>Tocá <strong>Add User</strong>.</li>
+        </ol>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Parte C · Armar la dirección de conexión</div>
+        <p>Es el dato más delicado de toda la guía, así que vamos despacio. La dirección de conexión es un
+        texto largo que le dice a la app dónde está la base y con qué usuario entrar.</p>
+        <ol class="clicks">
+          <li>Volvé al clúster y tocá <strong>Connect</strong> → <strong>Drivers</strong>.</li>
+          <li>Copiá el texto que aparece. Se ve parecido a esto:</li>
+        </ol>
+        <pre>mongodb+srv://combustible_app:&lt;db_password&gt;@cluster0.ab12cde.mongodb.net/?retryWrites=true&amp;w=majority</pre>
+        <p>Hay que hacerle <strong>dos cambios</strong>:</p>
+        <ul class="plain">
+          <li>Reemplazar <code>&lt;db_password&gt;</code> —incluidos los signos <code>&lt;</code> y
+          <code>&gt;</code>— por la contraseña que copiaste en la parte B.</li>
+          <li>Escribir <code>combustible</code> entre la barra <code>/</code> y el signo de pregunta
+          <code>?</code>. <strong>Éste es el cambio que más se olvida</strong>, y si falta, la app escribe en
+          una base equivocada.</li>
+        </ul>
+        <p>Queda así (marcado lo que agregaste):</p>
+        <pre>mongodb+srv://combustible_app:<span class="hl">TU_CONTRASEÑA</span>@cluster0.ab12cde.mongodb.net/<span class="hl">combustible</span>?retryWrites=true&amp;w=majority</pre>
+        <p>Guardá ese texto completo en el administrador de contraseñas. Lo vas a pegar en el paso 4.</p>
+      </div>
+
+      <div class="panel warn">
+        <div class="panel-h">Si la contraseña tiene símbolos raros</div>
+        <p>Si la contraseña generada tiene <code>@</code>, <code>:</code>, <code>/</code>, <code>?</code>,
+        <code>#</code> o <code>%</code>, la dirección de conexión se corta y da un error confuso. La solución
+        más simple es volver a la parte B, editar el usuario y poner una contraseña larga sólo con letras y
+        números (24 caracteres o más). Es igual de segura y evita el problema.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Cómo sabés que salió bien</div>
+        <ul class="tick">
+          <li>En <strong>Browse Collections</strong> ves dos bases: la de balanza como estaba, y
+          <code>combustible</code> con una colección <code>movimientos</code> vacía.</li>
+          <li>En <strong>Database Access</strong> ves el usuario nuevo <code>combustible_app</code>, y al lado
+          dice que su permiso es sobre <code>combustible</code> únicamente.</li>
+          <li>El usuario que ya usaba la balanza sigue en la lista, sin cambios.</li>
+        </ul>
+      </div>
+
+      <div class="panel good">
+        <div class="panel-h">Por qué esto no afecta la balanza</div>
+        <p>Las bases dentro de un clúster están aisladas: la colección <code>movimientos</code> de
+        combustible y la colección <code>registros</code> de balanza no pueden chocar ni mezclarse, aunque se
+        llamaran igual. Y la protección fuerte es el usuario acotado: si mañana la app de combustible tiene
+        un error de programación, o alguien se hace de esa contraseña, <strong>no hay forma de que toque los
+        tickets de pesaje</strong>, porque ese usuario no tiene permiso para verlos.</p>
+      </div>
+
+      <div class="panel stop">
+        <div class="panel-h">No hagas esto</div>
+        <ul class="plain">
+          <li><strong>No toques Network Access.</strong> Ahí está la lista de direcciones autorizadas que hoy
+          permite que Render se conecte. Si borrás una entrada, la balanza deja de conectarse en el momento.
+          Sólo mirá que exista; no agregues ni quites nada.</li>
+          <li><strong>No edites ni borres el usuario existente</strong> de balanza, ni le cambies la contraseña.</li>
+          <li><strong>No renombres la base de balanza.</strong> Su nombre está escrito en la dirección de
+          conexión que usa Render; si lo cambiás, la app arranca y no encuentra ningún registro.</li>
+        </ul>
+      </div>
+
+      <details>
+        <summary>Ojo con el plan gratuito de Atlas</summary>
+        <div class="details-body">
+          <p>Si el clúster es del plan gratuito (M0), el espacio de 512 MB y el límite de colecciones se
+          <strong>comparten</strong> entre todas las bases del clúster. Para combustible el volumen es muy
+          bajo —un movimiento es un renglón de texto— así que en la práctica no aprieta. Pero conviene
+          saberlo: si algún día el clúster se llena, se llena para las dos apps a la vez. La señal de alarma
+          es el indicador de espacio usado en el panel del clúster; si pasa el 70%, hay que pensar en pasar a
+          un plan pago o separar los clústeres.</p>
+        </div>
+      </details>
+
+    </div>
+  </article>
+
+  <!-- ============ PASO 3 ============ -->
+  <article class="step">
+    <div class="step-head">
+      <div class="step-num">3</div>
+      <div class="step-titles">
+        <div class="step-title">Gmail: contraseña de aplicación nueva</div>
+        <div class="step-where">myaccount.google.com · la casilla que hoy manda los avisos</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <div class="block">
+        <div class="block-h">Para qué sirve</div>
+        <p>Google no deja que un programa entre a una casilla con la contraseña normal. Hay que generar una
+        <strong>contraseña de aplicación</strong>: 16 letras que sirven sólo para que ese programa mande
+        correos. La balanza ya tiene una. Vamos a generar otra, distinta, para combustible.</p>
+        <p>¿Por qué otra y no la misma? Porque así son independientes: si mañana anulás la de combustible
+        —o se filtra— los avisos de balanza siguen andando sin que toques nada.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Qué hacer</div>
+        <ol class="clicks">
+          <li>Entrá a <code>myaccount.google.com</code> con la casilla que hoy figura como remitente de los
+          avisos de balanza.</li>
+          <li>Andá a <strong>Seguridad</strong>. Verificá que la <strong>Verificación en dos pasos</strong>
+          esté <strong>activada</strong>. Si no lo está, activala primero: sin eso, Google no ofrece
+          contraseñas de aplicación.</li>
+          <li>En el buscador de la misma página escribí <strong>contraseñas de aplicación</strong>, o entrá
+          directo a <code>myaccount.google.com/apppasswords</code>.</li>
+          <li>En el nombre de la aplicación escribí <code>Combustible Render</code>, para reconocerla después.</li>
+          <li>Tocá <strong>Crear</strong>.</li>
+          <li>Google muestra <strong>16 letras en cuatro grupos</strong>. Copialas y guardalas en el
+          administrador de contraseñas. <strong>Se muestran una sola vez.</strong> Cuando las uses en el paso
+          4, escribilas <strong>todas juntas, sin espacios</strong>.</li>
+        </ol>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Cómo sabés que salió bien</div>
+        <ul class="tick">
+          <li>En la lista de contraseñas de aplicación aparecen <strong>dos</strong>: la que ya existía para
+          balanza y la nueva, <code>Combustible Render</code>.</li>
+          <li>Tenés las 16 letras guardadas en un lugar seguro.</li>
+        </ul>
+      </div>
+
+      <div class="panel stop">
+        <div class="panel-h">No hagas esto</div>
+        <ul class="plain">
+          <li><strong>No anules la contraseña de aplicación existente</strong> aunque no recuerdes para qué
+          era. Es la que usa la balanza para mandar los avisos y el reporte diario. Si la anulás, los correos
+          dejan de salir en silencio: nadie recibe un error, simplemente no llegan.</li>
+          <li>No desactives la verificación en dos pasos: anula todas las contraseñas de aplicación de golpe.</li>
+        </ul>
+      </div>
+
+      <details>
+        <summary>Si Google no te ofrece la opción de contraseñas de aplicación</summary>
+        <div class="details-body">
+          <p>Pasa en tres casos: la verificación en dos pasos está apagada; la cuenta tiene el
+          <em>Programa de Protección Avanzada</em> activado; o es una cuenta de Google Workspace (empresa) y
+          el administrador bloqueó esta función. En los dos últimos casos no hay vuelta: hay que pedirle al
+          administrador que lo habilite, o mandar los correos por otro servicio de envío en lugar de Gmail.
+          Avisame si te encontrás con esto y vemos la alternativa.</p>
+        </div>
+      </details>
+
+    </div>
+  </article>
+
+  <!-- ============ PASO 4 ============ -->
+  <article class="step">
+    <div class="step-head">
+      <div class="step-num">4</div>
+      <div class="step-titles">
+        <div class="step-title">Render: servicio nuevo con sus propias variables</div>
+        <div class="step-where">dashboard.render.com · misma cuenta que balanza</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <div class="block">
+        <div class="block-h">Para qué sirve</div>
+        <p>Render es la computadora alquilada que tiene la app prendida y accesible desde internet. La
+        balanza tiene un servicio ahí. Combustible va a tener el suyo: su propia dirección web, sus propias
+        variables y sus propios registros de error. Un servicio que se cae no arrastra al otro.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Parte A · Crear el servicio</div>
+        <ol class="clicks">
+          <li>Entrá a <code>dashboard.render.com</code>.</li>
+          <li>Tocá <strong>New +</strong> → <strong>Web Service</strong>.</li>
+          <li>Elegí el repositorio <code>pesada-combustible-backend</code>. Si no aparece en la lista, tocá
+          <strong>Configure account</strong> (o <em>Edit permissions</em>) y autorizá a Render a ver ese
+          repositorio. Es un permiso que se agrega; no le quita nada al de balanza.</li>
+          <li><strong>Name</strong>: <code>pesada-combustible-backend</code>.</li>
+          <li><strong>Region</strong>: elegí <strong>la misma que usa el servicio de balanza</strong>. Fijate
+          en el servicio existente qué región dice y copiala: así queda cerca de la base de datos y responde
+          más rápido.</li>
+          <li><strong>Branch</strong>: <code>main</code>.</li>
+          <li><strong>Runtime</strong> o <strong>Language</strong>: <code>Node</code>.</li>
+          <li><strong>Build Command</strong>: <code>npm install</code>.</li>
+          <li><strong>Start Command</strong>: <code>npm start</code>.</li>
+          <li><strong>Instance Type</strong>: leé la advertencia de abajo antes de elegir.</li>
+        </ol>
+      </div>
+
+      <div class="panel warn">
+        <div class="panel-h">Esto sí puede afectar a la balanza: leelo</div>
+        <p>Es el único enganche real entre los dos servicios. El plan gratuito de Render da una cantidad
+        limitada de horas de servicio gratis por mes <strong>por cuenta</strong> —del orden de 750— y esas
+        horas se <strong>reparten entre todos los servicios gratuitos</strong>. Si hoy la balanza está en
+        plan gratuito y agregás un segundo servicio gratuito, los dos comen del mismo pozo y pueden empezar
+        a dormirse o cortarse antes de fin de mes.</p>
+        <p>Además, un servicio gratuito <strong>se duerme</strong> cuando nadie lo usa por un rato, y al
+        despertar tarda hasta un minuto en responder. Para una app que un operario abre en el depósito con
+        señal mala, ese minuto es inaceptable.</p>
+        <p><strong>Recomendación:</strong> antes de crear el servicio, mirá en <em>Billing</em> qué plan tiene
+        hoy la balanza. Si es gratuito, poné al menos uno de los dos en plan pago —el más barato alcanza— o
+        vas a degradar el que hoy funciona bien. Confirmá los números y los precios vigentes en la página de
+        facturación de Render, porque los planes cambian.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Parte B · Cargar las variables de entorno</div>
+        <p>Las <strong>variables de entorno</strong> son los datos secretos y de configuración que la app
+        necesita pero que no se escriben en el código. Se cargan en <strong>Environment</strong>, de a una,
+        con <strong>Add Environment Variable</strong>: a la izquierda el nombre (tal cual, en mayúsculas), a
+        la derecha el valor.</p>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>Nombre</th><th>Qué valor va</th><th class="mono">Tipo</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">MONGODB_URI</td>
+                <td>La dirección de conexión completa que armaste en el paso 2, parte C — la que tiene
+                <code>/combustible</code> antes del signo de pregunta.</td>
+                <td><span class="tag secret">Secreto</span></td>
+              </tr>
+              <tr>
+                <td class="mono">SESSION_SECRET</td>
+                <td>Un texto largo al azar, 32 caracteres o más, sólo letras y números. Generalo con tu
+                administrador de contraseñas (la función de «generar contraseña»). No lo reutilices del de
+                balanza y no hace falta que lo recuerdes: se usa una sola vez acá.</td>
+                <td><span class="tag secret">Secreto</span></td>
+              </tr>
+              <tr>
+                <td class="mono">EMAIL_USER</td>
+                <td>La casilla de Gmail remitente. La misma que usa balanza.</td>
+                <td><span class="tag open">Normal</span></td>
+              </tr>
+              <tr>
+                <td class="mono">EMAIL_PASS</td>
+                <td>Las 16 letras del paso 3, <strong>todas juntas, sin espacios</strong>.</td>
+                <td><span class="tag secret">Secreto</span></td>
+              </tr>
+              <tr>
+                <td class="mono">EMAIL_TO</td>
+                <td>Los destinatarios del reporte de combustible, separados por coma y sin espacios. Es una
+                lista nueva, distinta de la de balanza: falta que la definas.</td>
+                <td><span class="tag open">Normal</span></td>
+              </tr>
+              <tr>
+                <td class="mono">APP_MOVIL</td>
+                <td><code>0</code> por ahora. Es el interruptor que deja la app instalada pero apagada
+                mientras se construye. Cuando esté lista se cambia a <code>1</code> y se prende sin volver a
+                subir código.</td>
+                <td><span class="tag open">Normal</span></td>
+              </tr>
+              <tr>
+                <td class="mono">AVISOS_POR_TICKET</td>
+                <td><code>0</code> por ahora. Prende o apaga el aviso por cada movimiento registrado.
+                Arrancar apagado evita inundar de correos mientras se prueba.</td>
+                <td><span class="tag open">Normal</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Cuando termines de cargarlas, tocá <strong>Create Web Service</strong> (o <strong>Save</strong>,
+        si ya lo habías creado).</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Cómo sabés que salió bien</div>
+        <ul class="tick">
+          <li>En el panel de Render ves <strong>dos servicios</strong>: el de balanza en estado
+          <strong>Live</strong>, con su última fecha de despliegue sin cambios, y el de combustible nuevo.</li>
+          <li>El servicio nuevo tiene su propia dirección web, del estilo
+          <code>pesada-combustible-backend.onrender.com</code>.</li>
+          <li>En <strong>Logs</strong> del servicio nuevo no hay errores de conexión a la base. Si dice algo
+          como <em>authentication failed</em>, la contraseña de la dirección de conexión está mal; si dice
+          <em>timeout</em>, es Network Access en Atlas.</li>
+        </ul>
+        <p>Todavía no vas a ver una app funcionando: el repositorio está casi vacío. Lo que importa en este
+        paso es que el servicio exista, arranque y llegue a la base.</p>
+      </div>
+
+      <div class="panel stop">
+        <div class="panel-h">No hagas esto</div>
+        <ul class="plain">
+          <li><strong>No abras el servicio de balanza para «ver cómo está configurado» y guardes algo.</strong>
+          Mirar no rompe nada, pero un <em>Save</em> distraído en sus variables o en su rama sí. Si necesitás
+          copiar un valor, copialo y salí con <em>Cancel</em>.</li>
+          <li><strong>No cambies la rama del servicio de balanza.</strong> Hoy apunta a una rama de trabajo, no
+          a <code>main</code>: si alguien la mueve a <code>main</code>, la app móvil de balanza desaparece.
+          Es una fragilidad conocida que hay que arreglar aparte, con calma, no de paso.</li>
+          <li>No reutilices el <code>SESSION_SECRET</code> de balanza.</li>
+        </ul>
+      </div>
+
+    </div>
+  </article>
+
+  <!-- ============ PASO 5 ============ -->
+  <article class="step">
+    <div class="step-head">
+      <div class="step-num">5</div>
+      <div class="step-titles">
+        <div class="step-title">WhatsApp: un worker que lee las dos bases</div>
+        <div class="step-where">La PC de la oficina · carpeta whatsapp-worker</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <div class="panel warn">
+        <div class="panel-h">Este es el único paso que toca algo que ya funciona</div>
+        <p>Los pasos 1 a 4 sólo crearon cosas nuevas. Acá vamos a modificar el programa que hoy manda el
+        reporte diario de balanza por WhatsApp a las 19:00. Elegiste la opción de <strong>un solo worker con
+        el mismo número leyendo las dos bases</strong>, y es la decisión correcta: whatsapp-web.js ata una
+        sesión a un número, y dos programas peleándose el mismo número se desconectan mutuamente.</p>
+        <p>Pero como se toca algo que anda, este paso lleva <strong>respaldo antes</strong> y
+        <strong>prueba después</strong>. No lo hagas un viernes a la tarde.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Parte A · Respaldo, antes de cualquier cosa</div>
+        <ol class="clicks">
+          <li>En la PC de la oficina, ubicá la carpeta <code>whatsapp-worker</code>.</li>
+          <li>Copiala y pegala al lado. Renombrá la copia como
+          <code>whatsapp-worker-RESPALDO-2026-08-19</code> (con la fecha del día).</li>
+          <li>Verificá que la copia pese lo mismo y tenga los mismos archivos adentro.</li>
+        </ol>
+        <p>Con eso, volver atrás es cambiar el nombre de dos carpetas. No hace falta entender nada de
+        programación para revertir.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Parte B · Agregar la segunda base a la configuración</div>
+        <ol class="clicks">
+          <li>Dentro de <code>whatsapp-worker</code>, abrí el archivo <code>.env</code> con el Bloc de notas.
+          Es el archivo de configuración; hoy tiene una línea que arranca con <code>MONGODB_URI=</code>.</li>
+          <li><strong>No toques esa línea.</strong> Es la que hace andar el reporte de balanza.</li>
+          <li>Al final del archivo, agregá una línea nueva:</li>
+        </ol>
+        <div class="kv"><span><b>MONGODB_URI_COMBUSTIBLE</b>=(pegá acá la dirección de conexión del paso 2, parte C)</span></div>
+        <ol class="clicks" start="4">
+          <li>Guardá y cerrá.</li>
+        </ol>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Parte C · El cambio de código</div>
+        <p>Esta parte la hago yo, no vos. Lo dejo escrito para que sepas qué se va a hacer y puedas revisar
+        que se respetó:</p>
+        <ul class="plain">
+          <li>El reporte de balanza queda <strong>exactamente como está</strong>. No se le cambia ni el
+          horario, ni el formato, ni los destinatarios.</li>
+          <li>El reporte de combustible se agrega como un <strong>mensaje aparte</strong>, no mezclado en el
+          mismo. Así se lee mejor y, sobre todo, si el nuevo falla el viejo ya salió.</li>
+          <li>Todo el bloque nuevo va <strong>encerrado en su propio control de errores</strong>: si la base
+          de combustible no responde, el programa anota el error y sigue. La regla es que el reporte de
+          balanza no puede caerse por culpa del de combustible <em>nunca</em>.</li>
+          <li>La sesión de WhatsApp no se toca: <strong>no hay que volver a escanear el QR</strong>.</li>
+        </ul>
+      </div>
+
+      <div class="block">
+        <div class="block-h">Cómo sabés que salió bien</div>
+        <ul class="tick">
+          <li>El primer día después del cambio, a las 19:00, <strong>llega el reporte de balanza como
+          siempre</strong>. Esto es lo que hay que verificar primero y es más importante que lo nuevo.</li>
+          <li>Llega también el mensaje de combustible (al principio va a venir vacío o con cero movimientos:
+          está bien, la app todavía no carga nada).</li>
+          <li>El panel de control del worker —en el navegador de esa PC, en el puerto que indica su README—
+          muestra la línea conectada y sin errores.</li>
+        </ul>
+      </div>
+
+      <div class="panel stop">
+        <div class="panel-h">No hagas esto</div>
+        <ul class="plain">
+          <li><strong>No pongas a correr un segundo worker</strong> con el mismo número, ni en esa PC ni en
+          otra. Se desconectan entre ellos y perdés los dos reportes.</li>
+          <li><strong>No borres la carpeta de sesión</strong> (<code>.wwebjs_auth</code>): es lo que evita
+          tener que escanear el QR de nuevo.</li>
+          <li>No cambies la línea <code>MONGODB_URI</code> existente por la nueva. Hay que <em>agregar</em>
+          una línea, no reemplazarla.</li>
+        </ul>
+      </div>
+
+    </div>
+  </article>
+
+  <!-- ============ PASO 6 ============ -->
+  <article class="step">
+    <div class="step-head">
+      <div class="step-num">6</div>
+      <div class="step-titles">
+        <div class="step-title">Verificar que la balanza quedó intacta</div>
+        <div class="step-where">Al final de todo · 10 minutos</div>
+      </div>
+    </div>
+    <div class="step-body">
+
+      <div class="block">
+        <div class="block-h">Para qué sirve</div>
+        <p>Los pasos anteriores están diseñados para no tocar la balanza, pero «diseñado para no romper» y
+        «comprobado que no rompió» son dos cosas distintas. Esta lista se hace una sola vez, al final, y
+        cierra el tema.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-h">La lista</div>
+        <ul class="tick">
+          <li><strong>La app abre.</strong> Entrá a la dirección de balanza, iniciá sesión con un código real
+          y abrí la pantalla de registros. Tienen que aparecer los tickets de siempre.</li>
+          <li><strong>Los datos están completos.</strong> Fijate que el ticket más reciente que vos conocés
+          siga ahí, con sus pesos. Si ves la lista pero vacía, la dirección de conexión de balanza se tocó.</li>
+          <li><strong>El servicio está sano.</strong> En Render, el servicio de balanza dice <strong>Live</strong>
+          y su última fecha de despliegue es la de antes de que empezaras. Si aparece un despliegue nuevo de
+          hoy, algo se guardó sin querer: avisame.</li>
+          <li><strong>El correo sale.</strong> Esperá el reporte diario por mail. Si ese día no llega, la
+          contraseña de aplicación de balanza se anuló.</li>
+          <li><strong>El WhatsApp sale.</strong> A las 19:00, el reporte de balanza llega como siempre.</li>
+        </ul>
+        <p>No hace falta cargar un ticket de prueba para verificar: no conviene ensuciar los datos reales con
+        registros inventados. Con ver que la lista carga y el último ticket está, alcanza.</p>
+      </div>
+
+      <div class="panel good">
+        <div class="panel-h">Si los cinco puntos dan bien</div>
+        <p>La configuración quedó firme y separada. Podés empezar a construir combustible sin miedo a que un
+        error del lado nuevo llegue a los tickets de pesaje, los correos o los WhatsApp que hoy funcionan.</p>
+      </div>
+
+    </div>
+  </article>
+</section>
+
+<section>
+  <h2>Dónde guardar cada dato</h2>
+  <p class="lede">Al terminar vas a tener siete datos nuevos. Tres son secretos y no van en un documento
+  compartido, ni en un mail, ni en un chat: van en un administrador de contraseñas, y su copia de trabajo
+  vive en las variables de Render.</p>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>Dato</th><th>Dónde se genera</th><th>Dónde tiene que vivir</th><th class="mono">Tipo</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Dirección del repositorio</td><td class="mono">Paso 1</td><td>Anotalo donde quieras, no es secreto</td><td><span class="tag open">Normal</span></td></tr>
+        <tr><td>Nombre de la base</td><td class="mono">Paso 2A</td><td>Es <code>combustible</code>, no hace falta anotarlo</td><td><span class="tag open">Normal</span></td></tr>
+        <tr><td>Usuario de la base</td><td class="mono">Paso 2B</td><td>Es <code>combustible_app</code></td><td><span class="tag open">Normal</span></td></tr>
+        <tr><td>Contraseña de la base</td><td class="mono">Paso 2B</td><td>Administrador de contraseñas</td><td><span class="tag secret">Secreto</span></td></tr>
+        <tr><td>Dirección de conexión completa</td><td class="mono">Paso 2C</td><td>Administrador de contraseñas + variable en Render + archivo <code>.env</code> del worker</td><td><span class="tag secret">Secreto</span></td></tr>
+        <tr><td>Contraseña de aplicación de Gmail</td><td class="mono">Paso 3</td><td>Administrador de contraseñas + variable en Render</td><td><span class="tag secret">Secreto</span></td></tr>
+        <tr><td>Clave de sesiones</td><td class="mono">Paso 4B</td><td>Sólo la variable en Render. No hace falta recordarla</td><td><span class="tag secret">Secreto</span></td></tr>
+        <tr><td>Dirección web del servicio</td><td class="mono">Paso 4</td><td>Compartila con quien vaya a probar la app</td><td><span class="tag open">Normal</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel stop">
+    <div class="panel-h">Sobre los secretos</div>
+    <p>No me pases ninguno de los tres secretos por chat, y no los escribas en este documento. Yo no los
+    necesito: se cargan directamente en Render y en el archivo de configuración del worker, y desde ahí la
+    app los lee sola. Si alguno se filtró alguna vez, la solución es rehacerlo —usuario nuevo en Atlas,
+    contraseña de aplicación nueva en Google— no cambiarlo de lugar.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Cómo volver atrás</h2>
+  <p>Cada paso se deshace por separado, y ninguno deja rastro en la balanza.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Si querés deshacer</th><th>Qué hacés</th><th>Qué pasa con la balanza</th></tr></thead>
+      <tbody>
+        <tr><td>El repositorio</td><td>GitHub → Settings del repo nuevo → Delete repository</td><td>Nada. No están conectados.</td></tr>
+        <tr><td>El usuario de la base</td><td>Atlas → Database Access → borrar <code>combustible_app</code></td><td>Nada. Es un usuario aparte.</td></tr>
+        <tr><td>La base</td><td>Atlas → Browse Collections → borrar la base <code>combustible</code></td><td>Nada, siempre que borres <em>esa</em> base y no la otra. Leé dos veces el nombre antes de confirmar.</td></tr>
+        <tr><td>El servicio de Render</td><td>Render → servicio nuevo → Settings → Delete service</td><td>Nada. Y si estaba en plan pago, deja de facturarse.</td></tr>
+        <tr><td>La contraseña de Gmail</td><td>Google → contraseñas de aplicación → anular <code>Combustible Render</code></td><td>Nada, siempre que anules esa y no la otra.</td></tr>
+        <tr><td>El cambio del worker</td><td>Renombrar la carpeta modificada y volver a poner el nombre original a la de respaldo</td><td>Vuelve a como estaba. Por eso el respaldo del paso 5A es obligatorio.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Lo que sigue después</h2>
+  <p>Con esto queda la casa armada, vacía y aislada. Antes de escribir la primera pantalla faltan
+  definiciones que cambian el diseño, no el color de un botón:</p>
+  <ul class="plain">
+    <li><strong>La lista de labores</strong>, porque cada despacho tiene que imputarse a una y hay que saber
+    de dónde sale y quién la mantiene.</li>
+    <li><strong>Los destinatarios</strong> del reporte de combustible, por correo y por WhatsApp.</li>
+    <li><strong>Los datos que faltan en la planilla de depósitos</strong>: medir el tanque de 60 mil de La
+    Pradera, listar las cisternas, y decir cuál tiene contador y si funciona.</li>
+    <li><strong>El nombre del despachante</strong> de cada depósito, y los códigos de acceso definitivos.</li>
+  </ul>
+</section>
+
+<footer>
+  <p>Guía de puesta en marcha del registro de combustible · preparada sobre la configuración vigente de
+  la app de balanza (GitHub, MongoDB Atlas, Render, Gmail y el worker de WhatsApp de la oficina).</p>
+  <p>Los nombres de los botones corresponden a las pantallas actuales de cada servicio y pueden cambiar.
+  Ante la duda, guiate por el bloque «Cómo sabés que salió bien» de cada paso.</p>
+</footer>
+
+</div>

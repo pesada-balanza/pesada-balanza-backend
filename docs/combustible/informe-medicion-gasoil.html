@@ -1,0 +1,775 @@
+<title>Medición del Gasoil en Campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@700;900&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#F3F5F4;
+  --surface:#FFFFFF;
+  --surface-2:#E9EDEB;
+  --ink:#14201E;
+  --ink-2:#3D4A47;
+  --muted:#697874;
+  --rule:#D3DBD8;
+  --rule-strong:#B4C0BC;
+  --accent:#0E5C56;
+  --accent-ink:#0A4640;
+  --accent-soft:#DCEAE7;
+  --amber:#8E5C0C;
+  --amber-soft:#F7EDD8;
+  --danger:#8E2618;
+  --danger-soft:#F7E3DF;
+  --ok:#2C6537;
+  --ok-soft:#E2EFE4;
+  --bar:#0E5C56;
+  --bar-track:#DCE3E1;
+  --chip-ink:#FFFFFF;
+
+  --f-display:"Chivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Literata",Georgia,"Times New Roman",serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --measure:66ch;
+  --pad:clamp(18px,4vw,44px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1615; --surface:#16211F; --surface-2:#1E2B29;
+    --ink:#E9EFED; --ink-2:#C2CECB; --muted:#8C9A96;
+    --rule:#2A3835; --rule-strong:#3E4E4A;
+    --accent:#63C1B4; --accent-ink:#8FD6CB; --accent-soft:#12332F;
+    --amber:#DFAE60; --amber-soft:#302514;
+    --danger:#EB9384; --danger-soft:#37201C;
+    --ok:#82C290; --ok-soft:#16301C;
+    --bar:#63C1B4; --bar-track:#26332F;
+    --chip-ink:#0E1615;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1615; --surface:#16211F; --surface-2:#1E2B29;
+  --ink:#E9EFED; --ink-2:#C2CECB; --muted:#8C9A96;
+  --rule:#2A3835; --rule-strong:#3E4E4A;
+  --accent:#63C1B4; --accent-ink:#8FD6CB; --accent-soft:#12332F;
+  --amber:#DFAE60; --amber-soft:#302514;
+  --danger:#EB9384; --danger-soft:#37201C;
+  --ok:#82C290; --ok-soft:#16301C;
+  --bar:#63C1B4; --bar-track:#26332F;
+  --chip-ink:#0E1615;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:var(--f-body);font-size:16px;line-height:1.62;-webkit-text-size-adjust:100%}
+.wrap{max-width:960px;margin:0 auto;padding:var(--pad)}
+
+.mast{border-bottom:3px solid var(--ink);padding-bottom:20px;display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--f-display);font-weight:900;font-size:clamp(30px,6.2vw,54px);
+  line-height:1.02;letter-spacing:-.022em;margin:0;text-wrap:balance}
+.standfirst{font-size:clamp(16px,2.1vw,19px);color:var(--ink-2);max-width:var(--measure);margin:0}
+.mast-meta{display:flex;flex-wrap:wrap;gap:8px 22px;font-family:var(--f-mono);
+  font-size:11.5px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+
+section{margin-top:52px;display:flex;flex-direction:column;gap:18px}
+h2{font-family:var(--f-display);font-weight:900;font-size:clamp(21px,3.3vw,30px);
+  line-height:1.14;letter-spacing:-.014em;margin:0;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:700;font-size:17.5px;line-height:1.25;margin:0}
+p{margin:0;max-width:var(--measure)}
+.lede{font-size:17.5px;color:var(--ink-2)}
+a{color:var(--accent-ink);text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}
+a:hover{text-decoration-thickness:2px}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+strong{font-weight:600;color:var(--ink)}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);color:var(--ink);
+  padding:1.5px 5px;border-radius:3px;border:1px solid var(--rule);overflow-wrap:break-word}
+ul.plain{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:9px;max-width:var(--measure)}
+ul.plain li::marker{color:var(--accent)}
+ol.num{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px;max-width:var(--measure)}
+ol.num li::marker{font-family:var(--f-mono);font-size:.85em;color:var(--accent)}
+
+/* hallazgo principal */
+.finding{background:var(--surface);border:1px solid var(--rule);border-top:4px solid var(--accent);
+  padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+.finding-k{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent)}
+.finding-h{font-family:var(--f-display);font-weight:900;font-size:clamp(19px,3vw,26px);
+  line-height:1.18;letter-spacing:-.014em;text-wrap:balance}
+.figrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:2px;
+  background:var(--rule);border:1px solid var(--rule)}
+.fig{background:var(--surface);padding:14px 15px;display:flex;flex-direction:column;gap:3px}
+.fig-n{font-family:var(--f-mono);font-weight:600;font-size:clamp(20px,3.4vw,27px);
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.fig-l{font-size:12.5px;color:var(--muted);line-height:1.4}
+.fig.bad .fig-n{color:var(--danger)}
+.fig.good .fig-n{color:var(--ok)}
+.fig.warn .fig-n{color:var(--amber)}
+
+.panel{border:1px solid var(--rule);border-left:5px solid var(--accent);background:var(--surface);
+  padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.panel.warn{border-left-color:var(--amber);background:var(--amber-soft)}
+.panel.stop{border-left-color:var(--danger);background:var(--danger-soft)}
+.panel.good{border-left-color:var(--ok);background:var(--ok-soft)}
+.panel-h{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent)}
+.panel.warn .panel-h{color:var(--amber)}
+.panel.stop .panel-h{color:var(--danger)}
+.panel.good .panel-h{color:var(--ok)}
+.panel p,.panel li{max-width:none}
+
+.tw{overflow-x:auto;border:1px solid var(--rule);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:600px}
+caption{text-align:left;font-family:var(--f-mono);font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);padding:11px 13px;border-bottom:1px solid var(--rule);
+  background:var(--surface-2)}
+th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--rule);vertical-align:middle}
+thead th{background:var(--surface-2);font-family:var(--f-mono);font-size:10.5px;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-family:var(--f-mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.hi td{background:var(--amber-soft)}
+tr.tot td{background:var(--surface-2);font-weight:600}
+.barcell{min-width:88px;width:88px}
+.track{display:block;height:7px;background:var(--bar-track);border-radius:1px;overflow:hidden}
+.fill{display:block;height:100%;width:var(--w);background:var(--bar)}
+
+.tag{display:inline-block;font-family:var(--f-mono);font-size:10px;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;padding:2.5px 7px;border-radius:2px;white-space:nowrap}
+.tag.si{background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok)}
+.tag.no{background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger)}
+.tag.tal{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber)}
+
+.phase{background:var(--surface);border:1px solid var(--rule);margin-top:20px;overflow:hidden}
+.phase-head{display:flex;gap:15px;align-items:flex-start;padding:17px 20px;
+  border-bottom:1px solid var(--rule);background:var(--surface-2)}
+.phase-n{flex:none;padding:3px 11px;background:var(--accent);color:var(--chip-ink);
+  font-family:var(--f-mono);font-weight:600;font-size:12px;letter-spacing:.06em}
+.phase-t{font-family:var(--f-display);font-weight:900;font-size:clamp(17px,2.5vw,22px);
+  line-height:1.16;letter-spacing:-.012em}
+.phase-s{font-size:13.5px;color:var(--muted);margin-top:2px}
+.phase-body{padding:20px;display:flex;flex-direction:column;gap:16px}
+
+details{border:1px solid var(--rule);background:var(--surface)}
+summary{cursor:pointer;padding:13px 16px;font-family:var(--f-display);font-weight:700;
+  font-size:15px;list-style:none;display:flex;gap:9px;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+";font-family:var(--f-mono);color:var(--accent);font-weight:600}
+details[open] summary::before{content:"–"}
+details[open] summary{border-bottom:1px solid var(--rule)}
+.details-body{padding:16px;display:flex;flex-direction:column;gap:13px}
+
+footer{margin-top:60px;padding-top:22px;border-top:3px solid var(--ink);font-size:14px;
+  color:var(--muted);display:flex;flex-direction:column;gap:9px}
+footer p{max-width:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">Registro de combustible · Informe técnico</div>
+  <h1>Medición del gasoil en campo</h1>
+  <p class="standfirst">Qué tan bien —o mal— se mide hoy en los nueve tanques, qué sensores y
+  caudalímetros valen la pena, cada cuánto medir con varilla, y en qué orden gastar la plata.
+  Todos los números están calculados con las medidas reales de tus tanques.</p>
+  <div class="mast-meta">
+    <span>9 tanques · 215.474 L</span>
+    <span>3 fases de inversión</span>
+    <span>Precios indicativos, a cotizar</span>
+  </div>
+</header>
+
+<section>
+  <div class="finding">
+    <div class="finding-k">El hallazgo que cambia el orden de prioridades</div>
+    <div class="finding-h">El problema no es que falte un sensor. El problema es la varilla —
+    y el contador roto del surtidor.</div>
+    <p>Con marcas cada 5 cm, en <strong>EL BUFALO</strong> una sola lectura tiene ±434 litros de
+    incertidumbre. Una conciliación usa dos lecturas, así que el ruido sube a <strong>±614 litros</strong>.
+    Si ese tanque mueve 20.000 litros al mes, el umbral a partir del cual la industria investiga un
+    faltante es de unos 692 litros. <strong>El ruido de tu medición es casi del tamaño del faltante
+    que querrías detectar.</strong></p>
+    <p>Dicho de otro modo: hoy, en los tanques grandes, <strong>no podés detectar un robo del tamaño
+    que sería preocupante — y por el mismo motivo, tampoco podés descartarlo.</strong> Cualquier
+    discusión sobre faltantes en EL BUFALO o EL WICHI es, con los datos actuales, indecidible.</p>
+    <div class="figrow">
+      <div class="fig bad"><span class="fig-n">±614 L</span><span class="fig-l">Ruido de conciliación hoy en EL BUFALO, con varilla de 5 cm</span></div>
+      <div class="fig good"><span class="fig-n">±246 L</span><span class="fig-l">El mismo tanque con una varilla marcada cada 1 cm</span></div>
+      <div class="fig warn"><span class="fig-n">±695 L</span><span class="fig-l">Lo que daría el sensor electrónico más vendido del rubro</span></div>
+    </div>
+    <p>Ese tercer número es el más incómodo del informe: el <strong>Piusi OCIO</strong>, que es el
+    medidor de nivel estándar para tanques de gasoil, tiene una precisión de ±40 mm. En EL BUFALO
+    eso son ±695 litros — <strong>peor que la varilla actual, y cuatro veces peor que una varilla
+    marcada al centímetro</strong>. Comprarlo te da comodidad y alarmas de nivel. No te da precisión.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Tus nueve tanques, con números reales</h2>
+  <p class="lede">La clave para entender todo lo que sigue: en un tanque acostado, un centímetro de
+  varilla <strong>no vale siempre lo mismo</strong>. Abajo el gasoil ocupa una franja angosta; a media
+  altura la superficie es lo más ancha posible. El volumen por centímetro varía tres o cuatro veces
+  entre el fondo y el medio, y el máximo está justo a media carga — que es donde suelen estar
+  los tanques.</p>
+  <p>La cuenta es simple y conviene sabérsela: <strong>litros por centímetro = diámetro (m) × largo
+  (m) × 10</strong>.</p>
+
+  <div class="tw">
+    <table>
+      <caption>Precisión de la medición con varilla, a media carga · calculado con las medidas del Excel de tanques</caption>
+      <thead>
+        <tr>
+          <th>Tanque</th>
+          <th class="n">Capacidad</th>
+          <th class="n">L por cm</th>
+          <th class="n" colspan="2">Error de 1 lectura<br>varilla de 5 cm</th>
+          <th class="n">Conciliación<br>varilla 5 cm</th>
+          <th class="n">Conciliación<br>varilla 1 cm</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="hi">
+          <td>EL BUFALO</td><td class="n">31.111</td><td class="n">174</td>
+          <td class="n">±434</td><td class="barcell"><span class="track"><span class="fill" style="--w:100%"></span></span></td>
+          <td class="n">±614</td><td class="n">±246</td>
+        </tr>
+        <tr class="hi">
+          <td>EL WICHI</td><td class="n">29.845</td><td class="n">152</td>
+          <td class="n">±380</td><td class="barcell"><span class="track"><span class="fill" style="--w:88%"></span></span></td>
+          <td class="n">±537</td><td class="n">±215</td>
+        </tr>
+        <tr>
+          <td>LA PURIFICADA · grande</td><td class="n">22.455</td><td class="n">125</td>
+          <td class="n">±314</td><td class="barcell"><span class="track"><span class="fill" style="--w:72%"></span></span></td>
+          <td class="n">±443</td><td class="n">±177</td>
+        </tr>
+        <tr>
+          <td>EL C1 · cisterna 1</td><td class="n">19.682</td><td class="n">111</td>
+          <td class="n">±278</td><td class="barcell"><span class="track"><span class="fill" style="--w:64%"></span></span></td>
+          <td class="n">±394</td><td class="n">±158</td>
+        </tr>
+        <tr>
+          <td>LA PRADERA · 20 mil</td><td class="n">20.358</td><td class="n">108</td>
+          <td class="n">±270</td><td class="barcell"><span class="track"><span class="fill" style="--w:62%"></span></span></td>
+          <td class="n">±382</td><td class="n">±153</td>
+        </tr>
+        <tr>
+          <td>EL C1 · cisterna 2</td><td class="n">15.237</td><td class="n">99</td>
+          <td class="n">±247</td><td class="barcell"><span class="track"><span class="fill" style="--w:57%"></span></span></td>
+          <td class="n">±350</td><td class="n">±140</td>
+        </tr>
+        <tr>
+          <td>LA UNION</td><td class="n">11.366</td><td class="n">83</td>
+          <td class="n">±208</td><td class="barcell"><span class="track"><span class="fill" style="--w:48%"></span></span></td>
+          <td class="n">±294</td><td class="n">±118</td>
+        </tr>
+        <tr>
+          <td>LA PURIFICADA · chico</td><td class="n">5.419</td><td class="n">47</td>
+          <td class="n">±117</td><td class="barcell"><span class="track"><span class="fill" style="--w:27%"></span></span></td>
+          <td class="n">±165</td><td class="n">±66</td>
+        </tr>
+        <tr>
+          <td>LA PRADERA · 60 mil</td><td class="n">~60.000</td><td class="n">?</td>
+          <td class="n" colspan="2">sin medir</td>
+          <td class="n">?</td><td class="n">?</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel warn">
+    <div class="panel-h">El tanque de 60 mil es el más importante y el que no sabemos medir</div>
+    <p>No tiene medidas en el Excel, así que no se puede calcular ni su capacidad real ni su tabla de
+    aforo. Y por ser el más grande, es donde la varilla miente más. Según el diámetro que tenga, van a
+    ser entre <strong>255 y 306 litros por centímetro</strong>: con marcas cada 5 cm eso da entre
+    ±637 y ±764 litros por lectura, y hasta <strong>±1.080 litros</strong> de ruido en una conciliación.
+    <strong>Medirlo es la tarea número uno de todo este informe.</strong></p>
+  </div>
+
+  <p>Una aclaración sobre la columna de la derecha: «varilla de 1 cm» supone que se lee con cuidado y
+  con un error real de ±1 cm. El salto de una varilla de 5 cm a una de 1 cm <strong>baja el ruido a
+  menos de la mitad, y no cuesta prácticamente nada</strong>. Es la mejor inversión de todo el
+  proyecto, y no tiene batería, ni energía, ni conectividad.</p>
+</section>
+
+<section>
+  <h2>La temperatura: el faltante que no existe</h2>
+  <p class="lede">Esto explica una parte grande de los faltantes que hoy no cierran, y casi nadie lo
+  tiene en cuenta. El gasoil <strong>se expande con el calor: un 0,083% por cada grado</strong>. No es
+  un detalle a esta escala.</p>
+
+  <div class="tw">
+    <table>
+      <caption>Litros que aparecen o desaparecen sólo por temperatura, con el tanque a media carga</caption>
+      <thead>
+        <tr><th>Tanque</th><th class="n">5 °C</th><th class="n">10 °C</th><th class="n">15 °C</th><th class="n">20 °C</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>LA PRADERA · 60 mil</td><td class="n">125</td><td class="n">249</td><td class="n">374</td><td class="n">498</td></tr>
+        <tr><td>EL BUFALO</td><td class="n">65</td><td class="n">129</td><td class="n">194</td><td class="n">258</td></tr>
+        <tr><td>EL WICHI</td><td class="n">62</td><td class="n">124</td><td class="n">186</td><td class="n">248</td></tr>
+        <tr><td>LA PURIFICADA · grande</td><td class="n">47</td><td class="n">93</td><td class="n">140</td><td class="n">186</td></tr>
+        <tr><td>LA PRADERA · 20 mil</td><td class="n">42</td><td class="n">84</td><td class="n">127</td><td class="n">169</td></tr>
+        <tr><td>EL C1 · cisterna 1</td><td class="n">41</td><td class="n">82</td><td class="n">123</td><td class="n">163</td></tr>
+        <tr><td>EL C1 · cisterna 2</td><td class="n">32</td><td class="n">63</td><td class="n">95</td><td class="n">126</td></tr>
+        <tr><td>LA UNION</td><td class="n">24</td><td class="n">47</td><td class="n">71</td><td class="n">94</td></tr>
+        <tr><td>LA PURIFICADA · chico</td><td class="n">11</td><td class="n">22</td><td class="n">34</td><td class="n">45</td></tr>
+        <tr class="tot"><td>Los nueve, a media carga</td><td class="n">447</td><td class="n">894</td><td class="n">1.341</td><td class="n">1.788</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>En Santiago del Estero y Chaco, la diferencia de temperatura del líquido entre una medición a las
+  7 de la mañana en julio y otra a las 4 de la tarde en enero <strong>pasa holgadamente los 20 grados</strong>.
+  En el tanque de 60 mil eso son casi <strong>500 litros a media carga</strong> — y cerca de mil si está
+  lleno — que aparecen y desaparecen <em>sin que nadie los haya tocado</em>.</p>
+
+  <div class="panel good">
+    <div class="panel-h">La solución cuesta cero</div>
+    <p><strong>Medí siempre a la misma hora, y anotá la hora.</strong> Preferentemente temprano a la
+    mañana, cuando el líquido está más frío y más estable. La expansión no crea ni destruye gasoil: si
+    comparás siempre mañana contra mañana, el efecto se cancela casi por completo. <strong>Lo que
+    arruina la conciliación es mezclar una medición de la mañana con una de la tarde</strong> — ahí el
+    efecto no se cancela, se suma como error.</p>
+  </div>
+
+  <div class="panel warn">
+    <div class="panel-h">Donde la temperatura hace más daño: la recepción del camión</div>
+    <p>El camión descarga litros a <em>su</em> temperatura, que viene caliente de la ruta, y vos los
+    medís en un tanque frío. En una descarga de 20.000 litros, 10 grados de diferencia son
+    <strong>166 litros</strong>. <strong>Es la explicación más común de un faltante en la recepción, y
+    hay que descartarla antes de sospechar del remito o del chofer.</strong></p>
+    <p>Si querés sacarte la temperatura de encima sin gastar: un termómetro de varilla sumergible y
+    aplicar a mano el factor <code>0,00083 × (temperatura − 15)</code> al volumen leído. Con una
+    columna más en la planilla, listo.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Cada cuánto medir con varilla</h2>
+  <p class="lede">No hay una norma que aplique directamente a un campo, así que esto combina lo que
+  exigen las guías del rubro con lo que tiene sentido para nueve tanques repartidos en tres provincias.</p>
+
+  <div class="tw">
+    <table>
+      <caption>Qué dice cada referencia</caption>
+      <thead><tr><th>Fuente</th><th>Frecuencia de medición</th><th>Conciliación</th></tr></thead>
+      <tbody>
+        <tr><td>EPA (Estados Unidos), control de inventario en tanques enterrados</td><td>todos los días de operación, con equipo que lea al menos a 3 mm</td><td>cada 30 días</td></tr>
+        <tr><td>API MPMS 3.1A, medición manual de petróleo</td><td>exige <strong>3 lecturas consecutivas que coincidan dentro de 3 mm</strong> para que la medición valga</td><td>—</td></tr>
+        <tr><td>Buenas prácticas de estaciones de servicio y flotas</td><td>diaria</td><td>diaria</td></tr>
+        <tr><td>Buenas prácticas de inventario agropecuario</td><td>controles semanales o quincenales en lo de alta rotación</td><td>trimestral</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Un punto que suele pasarse por alto: <strong>la norma petrolera no considera válida una sola
+  varillada.</strong> Pide tres lecturas seguidas que coincidan dentro de 3 mm. Eso ya dice que, en la
+  industria, «una varillada» no es una medición: es una muestra.</p>
+
+  <h3>Lo que recomiendo para tu caso</h3>
+  <ol class="num">
+    <li><strong>En cada recepción de camión: varillada antes y después, sin excepción.</strong> Es la
+    medición de mayor valor de todas, no cuesta nada y valida al proveedor. Ya está previsto en el
+    diseño del formulario de recepción, con los campos de litros según remito y litros medidos.</li>
+    <li><strong>Semanal en campaña</strong> (siembra, cosecha, alto consumo) <strong>y quincenal o
+    mensual fuera de campaña</strong>, tanque por tanque.</li>
+    <li><strong>Cierre mensual obligatorio de los nueve</strong>, con la cuenta
+    <code>stock inicial + recibido − despachado = stock final teórico</code> contra el stock final medido.</li>
+    <li><strong>La medición diaria no es realista con nueve tanques en tres provincias, y además no
+    aportaría señal.</strong> Con el ruido que tiene hoy la varilla, medir todos los días genera más
+    ruido, no más información. La medición diaria de la EPA tiene sentido en una estación de servicio
+    con un operador presente y un tanque enterrado a temperatura estable, no en un campo.</li>
+  </ol>
+
+  <h3>Qué diferencia es normal y qué hay que investigar</h3>
+  <p>La referencia más citada y la única con un número duro es la de la EPA: se sospecha una pérdida
+  cuando el faltante mensual supera <strong>el 1% del volumen movido más 492 litros</strong>. Ese
+  margen fijo está justamente ahí porque saben que la varilla tiene ruido.</p>
+
+  <div class="tw">
+    <table>
+      <caption>Umbral estilo EPA según cuánto mueve el tanque en el mes</caption>
+      <thead><tr><th class="n">Movimiento mensual</th><th class="n">Umbral</th><th class="n">Como % del movimiento</th></tr></thead>
+      <tbody>
+        <tr><td class="n">5.000 L</td><td class="n">542 L</td><td class="n">10,8%</td></tr>
+        <tr><td class="n">10.000 L</td><td class="n">592 L</td><td class="n">5,9%</td></tr>
+        <tr><td class="n">20.000 L</td><td class="n">692 L</td><td class="n">3,5%</td></tr>
+        <tr><td class="n">40.000 L</td><td class="n">892 L</td><td class="n">2,2%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h">Lo más importante de esta sección</div>
+    <p><strong>Mirá la tendencia, no el mes aislado.</strong> Un faltante del 0,8% todos los meses,
+    siempre en el mismo tanque, es mucho más sospechoso que un −3% en un mes suelto. El ruido de
+    medición se cancela con el tiempo; el robo y la fuga no. Con nueve tanques y doce meses tenés
+    108 datos: la señal está en la persistencia, no en la magnitud de un mes.</p>
+    <p>Propuesta concreta de umbrales: <strong>alerta al 1%</strong> del movimiento mensual;
+    <strong>investigación formal al 2%</strong>, o el umbral estilo EPA, el que sea mayor. Y una columna
+    en el reporte con el faltante acumulado de los últimos seis meses por tanque.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Los tres errores que casi todos olvidan</h2>
+  <p class="lede">Se suman a todo lo anterior, y cualquiera de los tres puede ser más grande que el
+  faltante que estás buscando.</p>
+
+  <div class="panel stop">
+    <div class="panel-h">1 · La tabla de aforo lineal</div>
+    <p>Calcular el contenido como <em>nivel ÷ diámetro × capacidad total</em> puede errar hasta el
+    <strong>20%</strong> en niveles parciales. Hay que usar la tabla geométrica, con la fórmula exacta
+    del segmento circular. <strong>Buena noticia: las tablas de aforo de tu Excel ya están bien
+    calculadas</strong> — se verificaron punto por punto contra la fórmula exacta y sólo tienen dos
+    errores de tipeo (EL BUFALO a 0,15 m y EL C1 (2) a 0,05 m). Lo que sí falta es la tabla del tanque
+    de 60 mil, y unificar las unidades: LA UNION está en centímetros y las otras ocho en metros, aunque
+    todos los encabezados digan «Cm».</p>
+    <p>Ojo con un detalle: una tabla puramente cilíndrica <strong>subestima</strong> el volumen real,
+    porque no cuenta los cabezales abombados de las puntas — normalmente entre 1% y 3% del total.</p>
+  </div>
+
+  <div class="panel stop">
+    <div class="panel-h">2 · El tanque que no está a nivel</div>
+    <p>En un tanque de 7,62 m como EL BUFALO, <strong>un solo grado de inclinación son unos 13 cm de
+    diferencia de nivel entre una punta y la otra</strong>. A 174 litros por centímetro, eso son más de
+    2.000 litros de diferencia según por dónde metas la varilla. Si el tanque está inclinado y la
+    varilla no entra siempre por la misma boca, aparecen faltantes fantasma enormes.
+    <strong>Verificar que los nueve estén nivelados, y usar siempre la misma boca.</strong></p>
+  </div>
+
+  <div class="panel stop">
+    <div class="panel-h">3 · El agua en el fondo</div>
+    <p>El agua se acumula abajo y la varilla la mide como si fuera gasoil. <strong>Un centímetro de agua
+    en EL BUFALO «genera» 174 litros de gasoil que no existen</strong> — y además te arruina las
+    inyectoras. Solución: pasta detectora de agua en la punta de la varilla, purga periódica del fondo,
+    y un filtro separador de agua a la salida.</p>
+  </div>
+</section>
+
+<section>
+  <h2>En qué orden gastar</h2>
+  <p class="lede">Tres fases. La primera cuesta casi nada y resuelve más que la tercera. No conviene
+  saltear: si empezás por los sensores, vas a estar midiendo con precisión un sistema cuyo error real
+  está en otra parte.</p>
+
+  <article class="phase">
+    <div class="phase-head">
+      <div class="phase-n">FASE 0</div>
+      <div>
+        <div class="phase-t">Lo que cuesta casi nada. Hacelo primero.</div>
+        <div class="phase-s">Semanas, no meses. Sin electrónica, sin energía, sin conectividad.</div>
+      </div>
+    </div>
+    <div class="phase-body">
+      <ol class="num">
+        <li><strong>Medir el tanque de 60 mil de LA PRADERA</strong> (largo y diámetro) y generar su
+        tabla de aforo. Es el más grande y el único sin datos.</li>
+        <li><strong>Corregir los dos errores de tipeo</strong> de las tablas de aforo y
+        <strong>unificar todo a centímetros</strong>.</li>
+        <li><strong>Verificar que los nueve tanques estén nivelados</strong> y corregir los que no.</li>
+        <li><strong>Cambiar las nueve varillas por varillas graduadas cada 1 cm</strong> — mejor cada
+        5 mm — en acero inoxidable o aluminio, con el cero verificado apoyando en el fondo.</li>
+        <li><strong>Escribir el protocolo y pegarlo en cada tanque:</strong> siempre la misma boca;
+        siempre a la misma hora, temprano; tres lecturas que coincidan dentro de 3 mm; anotar hora y
+        temperatura; pasta detectora de agua en cada medición.</li>
+        <li><strong>La planilla de conciliación mensual</strong>, con los umbrales de alerta e
+        investigación y la columna de tendencia a seis meses. Esto sale gratis del sistema que estamos
+        construyendo.</li>
+      </ol>
+      <div class="panel good">
+        <div class="panel-h">Impacto</div>
+        <p>Baja el ruido de la conciliación de <strong>±614 a ±246 litros</strong> en EL BUFALO, y en la
+        misma proporción en los demás. Es más mejora que la que te daría el sensor electrónico más
+        vendido del rubro, por una fracción ínfima del costo.</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="phase">
+    <div class="phase-head">
+      <div class="phase-n">FASE 1</div>
+      <div>
+        <div class="phase-t">El gasto que sí hay que hacer: los caudalímetros</div>
+        <div class="phase-s">Sin litros despachados no hay conciliación posible.</div>
+      </div>
+    </div>
+    <div class="phase-body">
+      <p>Los surtidores con el contador roto son la principal fuente de descontrol. La varilla sola no
+      alcanza: te dice cuánto hay, no cuánto salió ni para qué máquina. <strong>Y el sistema que estamos
+      construyendo se alimenta justamente de los litros despachados.</strong></p>
+      <div class="tw">
+        <table>
+          <caption>Opciones de caudalímetro · precios indicativos, hay que cotizar</caption>
+          <thead><tr><th>Modelo</th><th>Tipo</th><th class="n">Precisión</th><th>Energía</th><th>Precio orientativo</th><th class="n">Veredicto</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Piusi K33 / K44</td><td>disco nutante mecánico</td><td class="n">±1%</td>
+              <td>ninguna</td><td>K44 listado en ARS 543.000 en Argentina</td><td class="n"><span class="tag si">Recomendado</span></td>
+            </tr>
+            <tr>
+              <td>Gespasa MGE-40 / MGE-110</td><td>engranajes ovalados, digital</td><td class="n">±0,5%</td>
+              <td>pila de botón, ~4 años</td><td>no confirmado</td><td class="n"><span class="tag si">Recomendado</span></td>
+            </tr>
+            <tr>
+              <td>Piusi K24</td><td>turbina digital</td><td class="n">±1%</td>
+              <td>batería de litio</td><td>~USD 146</td><td class="n"><span class="tag si">Recomendado</span></td>
+            </tr>
+            <tr>
+              <td>Fill-Rite 900 digital</td><td>disco nutante</td><td class="n">±1,25%</td>
+              <td>batería</td><td>—</td><td class="n"><span class="tag tal">Aceptable</span></td>
+            </tr>
+            <tr>
+              <td>Fill-Rite 901C</td><td>disco nutante mecánico</td><td class="n">±2%</td>
+              <td>ninguna</td><td>~USD 290</td><td class="n"><span class="tag tal">Aceptable</span></td>
+            </tr>
+            <tr>
+              <td>GPI 01A31GM</td><td>turbina económica</td><td class="n">±5%</td>
+              <td>2 pilas AAA</td><td>—</td><td class="n"><span class="tag no">No comprar</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel stop">
+        <div class="panel-h">Por qué el barato no sirve</div>
+        <p>El GPI de ±5% en un tanque que mueve 20.000 litros al mes mete <strong>±1.000 litros</strong>
+        de error. Es más ruido del que tenés hoy con la varilla: te empeora el control y encima
+        te hace creer que lo mejoraste.</p>
+      </div>
+      <p>La ventaja decisiva del <strong>disco nutante mecánico</strong> para el campo: no lleva
+      electrónica ni batería, y su diseño tolera óxido y partículas que trabarían otros medidores. El
+      de <strong>engranajes ovalados</strong> es el más preciso de la gama económica y su pila dura unos
+      cuatro años.</p>
+    </div>
+  </article>
+
+  <article class="phase">
+    <div class="phase-head">
+      <div class="phase-n">FASE 2</div>
+      <div>
+        <div class="phase-t">Sensores de nivel, sólo en dos o tres tanques</div>
+        <div class="phase-s">Después de medir tres meses con la Fase 0 y 1 andando.</div>
+      </div>
+    </div>
+    <div class="phase-body">
+      <p>Medí tres meses. <strong>Si las diferencias caen dentro del 1%, no tenías un problema de robo:
+      tenías un problema de medición, y ya lo resolviste.</strong> Si no cierran, entonces sí conviene
+      electrónica, y sólo en los tanques grandes o problemáticos.</p>
+      <div class="tw">
+        <table>
+          <caption>Sensores de nivel · el error está traducido a litros en EL BUFALO, para comparar peras con peras</caption>
+          <thead><tr><th>Tecnología</th><th class="n">Precisión</th><th class="n">En EL BUFALO</th><th>Energía</th><th>Precio orientativo</th><th class="n">Veredicto</th></tr></thead>
+          <tbody>
+            <tr class="hi">
+              <td>Varilla graduada a 1 cm</td><td class="n">±1 cm</td><td class="n">±174 L</td>
+              <td>ninguna</td><td>costo de una regla</td><td class="n"><span class="tag si">Base obligatoria</span></td>
+            </tr>
+            <tr>
+              <td>Magnetoestrictiva<br>Veeder-Root Mag Plus</td><td class="n">±0,76 mm</td><td class="n">±13 L</td>
+              <td>permanente</td><td>USD 422 la sonda de 1,63 m; la de 3 m y la consola sin cotizar</td>
+              <td class="n"><span class="tag tal">La más precisa</span></td>
+            </tr>
+            <tr>
+              <td>Radar sin contacto<br>E+H Micropilot FMR20</td><td class="n">±2 mm</td><td class="n">±35 L</td>
+              <td>12/24 V — anda con solar</td><td>desde USD 1.211</td>
+              <td class="n"><span class="tag si">Mejor relación</span></td>
+            </tr>
+            <tr>
+              <td>Sumergible piezorresistivo<br>4-20 mA genérico</td><td class="n">0,2 – 0,5%</td><td class="n">±60 – 155 L</td>
+              <td>12/24 V — anda con solar</td><td>no confirmado</td><td class="n"><span class="tag si">Buena opción</span></td>
+            </tr>
+            <tr>
+              <td>Capacitiva<br>Technoton DUT-E</td><td class="n">±1%</td><td class="n">±311 L</td>
+              <td>12/24 V</td><td>no confirmado</td><td class="n"><span class="tag tal">Deriva con biodiesel</span></td>
+            </tr>
+            <tr>
+              <td>Presión hidrostática<br>Piusi OCIO</td><td class="n">±40 mm</td><td class="n">±695 L</td>
+              <td>110/230 V — necesita inversor</td><td>no confirmado</td>
+              <td class="n"><span class="tag tal">Cómodo, no preciso</span></td>
+            </tr>
+            <tr>
+              <td>Ultrasónico sin contacto</td><td class="n">deriva con la temperatura</td><td class="n">cientos de L</td>
+              <td>5/12 V</td><td>~USD 96</td><td class="n"><span class="tag no">Descartar</span></td>
+            </tr>
+            <tr>
+              <td>Flotante mecánico Rochester</td><td class="n">—</td><td class="n">—</td>
+              <td>ninguna</td><td>—</td><td class="n"><span class="tag no">No aplica</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel warn">
+        <div class="panel-h">Por qué descartar el ultrasónico y el flotante</div>
+        <p><strong>Ultrasónico:</strong> la humedad condensa sobre la cara del sensor y bloquea el
+        sonido; el vapor lo dispersa; y la velocidad del sonido cambia con la temperatura — 10 grados
+        pueden desviar la lectura varios centímetros, que en EL BUFALO son varios cientos de litros.
+        Además tiene una zona muerta de 30 cm: con el tanque casi lleno no lee. Es exactamente el
+        escenario de un tanque de gasoil al sol en el Chaco.</p>
+        <p><strong>Flotantes Rochester:</strong> son buenos productos, pero están diseñados para tanques
+        de hasta 76 a 91 cm de profundidad. Tus tanques tienen entre 1,48 y 2,50 m de diámetro. No dan.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-h">Si vas a poner electrónica, quedate en corriente continua</div>
+        <p>La restricción de campo —sin red eléctrica confiable— elimina la mitad del catálogo. El
+        <strong>Piusi OCIO es 110/230 V</strong> y no encontré versión de 12/24 V. Obligarte a un
+        inversor de 220 V prendido las 24 horas en un campo es la peor decisión posible: el inversor
+        consume en vacío, es el componente que más falla, y te agrega un punto de falla por tanque.
+        Un panel de 20 a 50 W con una batería de 12 V alcanza sobradamente para un sensor de bajo
+        consumo en continua.</p>
+      </div>
+      <div class="panel good">
+        <div class="panel-h">Lo único que resuelve la temperatura sola</div>
+        <p>La sonda magnetoestrictiva <strong>Veeder-Root Mag Plus</strong> mide nivel, temperatura del
+        líquido en cinco puntos con ±0,3 °C, <strong>y el agua del fondo</strong>. Corrige a 15 °C
+        automáticamente y te avisa del agua. Es la opción industrial cara, pero es la única que ataca
+        los tres problemas a la vez. Distribuidor en Argentina: AMIL SRL.</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="phase">
+    <div class="phase-head">
+      <div class="phase-n">FASE 3</div>
+      <div>
+        <div class="phase-t">Control por máquina, sólo con robo comprobado</div>
+        <div class="phase-s">La más cara. No saltar acá antes de las anteriores.</div>
+      </div>
+    </div>
+    <div class="phase-body">
+      <ul class="plain">
+        <li><strong>Piusi Cube 70 MC</strong> — surtidor con gestión de combustible y medidor de
+        engranajes ovalados integrado. Precio en Estados Unidos entre USD 2.322 y 3.085 por unidad;
+        para nueve puntos son USD 21.000 a 28.000 sólo de hardware.</li>
+        <li><strong>Piusi B.Smart</strong> — registra quién cargó, cuántos litros, cuándo y en qué
+        máquina. Identificación por PIN desde el celular, o llave iButton, o tarjeta RFID para quien no
+        usa celular. Sin señal el registro queda en el equipo y sincroniza después. Precio no publicado.</li>
+        <li><strong>B.Smart IdentiTank</strong> — RFID en el tanque de cada máquina: si el pico no
+        reconoce la etiqueta, el combustible no sale. Previene además cargar el producto equivocado.</li>
+      </ul>
+      <div class="panel warn">
+        <div class="panel-h">Ojo con la superposición</div>
+        <p>Esta fase se solapa con lo que va a hacer la app que estamos construyendo: registrar quién
+        cargó, cuántos litros y para qué equipo. La diferencia es que el B.Smart lo <strong>impone por
+        hardware</strong> —sin identificarse no sale combustible— y la app lo <strong>registra por
+        confianza</strong>. Dado que ya decidiste que <strong>el sistema no bloquea nunca</strong>,
+        esta fase sólo tiene sentido si aparece un robo comprobado que justifique cambiar ese criterio.</p>
+      </div>
+    </div>
+  </article>
+</section>
+
+<section>
+  <h2>Homologación: no hace falta</h2>
+  <div class="panel good">
+    <div class="panel-h">La buena noticia</div>
+    <p>La ley argentina de metrología legal exige verificación periódica de los instrumentos de medición
+    <strong>usados en transacciones comerciales</strong>. Si el gasoil es para consumo propio —no se
+    vende ni se factura litro a litro a un tercero— <strong>no hay transacción comercial, y por lo tanto
+    no se requiere aprobación de modelo ni verificación periódica del medidor</strong>.</p>
+    <p>Traducido a plata: podés usar caudalímetros no homologados (Piusi, Gespasa, Fill-Rite), que
+    cuestan una fracción de un surtidor homologado, y no pagás la verificación anual.</p>
+  </div>
+  <div class="panel warn">
+    <div class="panel-h">Tres advertencias</div>
+    <ul class="plain">
+      <li><strong>Hay otra obligación, que no es metrológica sino de registro.</strong> La Resolución
+      SE 1102/2004 creó un registro que <strong>alcanza expresamente a los titulares de instalaciones de
+      almacenamiento de combustible para consumo propio</strong>. Conviene verificar con tu contador o
+      despachante si los nueve tanques están inscriptos. No es algo que pueda verificar yo.</li>
+      <li><strong>Si en algún momento le cobrás el gasoil a un tercero</strong> —maquinaria alquilada con
+      combustible facturado por litro— ahí sí pasa a ser transacción comercial. Ya decidiste que a los
+      contratistas <strong>se les despacha y no se les factura</strong>, así que por ahora no aplica.
+      Salida práctica si cambiara: facturar por hectárea o por hora, no por litro medido.</li>
+      <li><strong>Aunque no te lo exijan, la tolerancia del 0,6% del régimen de surtidores es una buena
+      referencia interna.</strong> Un medidor de ±0,5% está dentro; uno de ±5% está diez veces afuera.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>A quién pedir cotización</h2>
+  <p>Ninguno publica precios: hay que cotizar. Los tres primeros son los relevantes para la Fase 1.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Proveedor</th><th>Qué representa</th></tr></thead>
+      <tbody>
+        <tr><td>AMIL SRL</td><td>Distribuidor oficial Piusi, Samoa y Veeder-Root para Argentina, Chile, Uruguay y Bolivia. El más completo para todas las fases.</td></tr>
+        <tr><td>NIKRON Automación</td><td>Piusi y Fill-Rite. Caudalímetros y el OCIO 2.0 con software.</td></tr>
+        <tr><td>Don Agro</td><td>Gespasa MGE-110 en Argentina.</td></tr>
+        <tr><td>Menatics · TEL-SEN · Alertank</td><td>Telemedición de tanques. Menatics incluye alerta de presencia de agua.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <details>
+    <summary>Marcas que conviene aclarar antes de que te las ofrezcan</summary>
+    <div class="details-body">
+      <ul class="plain">
+        <li><strong>Cim-Tek</strong> no hace medidores: hace <strong>filtros</strong> de surtidor. Igual
+        son útiles — un filtro separador de agua a la salida protege las inyectoras y evita que el agua
+        te falsee el inventario.</li>
+        <li><strong>Tuthill</strong> es la empresa dueña de Fill-Rite, no una línea aparte.</li>
+        <li><strong>Alemite</strong> es lubricación y aire comprimido, no medición de gasoil.</li>
+        <li><strong>Gilbarco</strong> son surtidores de estación de servicio. Su valor agregado es la
+        homologación que no necesitás: sobredimensionado y caro.</li>
+        <li><strong>Swarm</strong>, el servicio satelital de SpaceX para telemetría,
+        <strong>cerró en marzo de 2025</strong>. Si algún proveedor te lo ofrece, está trabajando con
+        material viejo.</li>
+        <li>No encontré ninguna marca llamada <strong>«Musschoot»</strong> en medición de combustible.
+        Puede estar mal escrita o ser un proveedor local sin presencia web.</li>
+      </ul>
+    </div>
+  </details>
+  <details>
+    <summary>Sobre telemetría y «que mande la lectura sola»</summary>
+    <div class="details-body">
+      <p>Con la restricción de no tener internet estable, en orden de sensatez:</p>
+      <ol class="num">
+        <li><strong>No poner telemetría.</strong> Sensor con display local y anotación en la app. Para
+        nueve tanques con conciliación mensual, esto captura casi todo el valor.</li>
+        <li><strong>Guardar y sincronizar cuando haya señal.</strong> Es exactamente el mismo patrón que
+        ya vamos a usar en la app para trabajar sin señal.</li>
+        <li><strong>Radio dentro del campo</strong> (LoRaWAN): sensor en el tanque, antena en la casa del
+        establecimiento, y de ahí a internet cuando hay. Alcance de varios kilómetros en campo abierto.
+        Más barato y confiable que el satélite.</li>
+        <li><strong>Satélite:</strong> los abonos que encontré van de USD 31,50 por mes por equipo
+        (Iridium) a USD 0,25 por mensaje (Globalstar). Para nueve tanques con Iridium son unos
+        <strong>USD 3.400 al año sólo de abono</strong>. Salvo robo comprobado y cuantificado, no se paga.</li>
+      </ol>
+    </div>
+  </details>
+</section>
+
+<section>
+  <h2>Lo que hay que hacer esta semana</h2>
+  <ul class="plain">
+    <li><strong>Medir el tanque de 60 mil de LA PRADERA</strong>: largo y diámetro. Es el más grande, el
+    que más miente, y el único sin datos.</li>
+    <li><strong>Listar las cisternas móviles</strong> con su capacidad y en qué campo están hoy.</li>
+    <li><strong>Definir, tanque por tanque, si tiene contador y si funciona.</strong> De eso depende
+    cuántos caudalímetros hay que comprar en la Fase 1 y cómo es la pantalla de carga de la app.</li>
+    <li><strong>Pedir cotización de nueve varillas graduadas al centímetro</strong> y de los
+    caudalímetros a AMIL, NIKRON y Don Agro.</li>
+    <li><strong>Verificar con el contador</strong> si los tanques están inscriptos en el Registro de
+    Consumo Propio.</li>
+  </ul>
+  <p>Los tres primeros puntos van a la hoja <code>PLANILLA MAESTRA</code> del Excel de tanques, que ya
+  tiene las columnas esperando en amarillo.</p>
+</section>
+
+<footer>
+  <p><strong>Cómo leer los números de este informe.</strong> Todos los cálculos sobre tus tanques
+  —litros por centímetro, error de la varilla, efecto de la temperatura— están hechos con las medidas
+  reales del Excel de tanques y son verificables. Los datos de precisión de los sensores y
+  caudalímetros son los que publica cada fabricante.</p>
+  <p><strong>Los precios son indicativos y hay que cotizarlos.</strong> Se recopilaron de resultados de
+  búsqueda, no de la lectura directa de las páginas de los proveedores, y los precios en pesos además
+  tienen fecha incierta. Donde no pude confirmar un precio dice «no confirmado» en vez de un número
+  inventado: eso pasa con el Piusi OCIO, el Gespasa MGE, el Technoton DUT-E, la consola de Veeder-Root,
+  la sonda Mag Plus de 3 m, el Piusi B.Smart y todas las cotizaciones de proveedores argentinos.</p>
+  <p><strong>Dos datos a verificar en la fuente original si se van a usar formalmente:</strong> el texto
+  exacto del umbral de la EPA (1% más 492 litros, conciliación cada 30 días) y la inscripción de los
+  tanques en el Registro de Consumo Propio de la Resolución SE 1102/2004.</p>
+</footer>
+
+</div>

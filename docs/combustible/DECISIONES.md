@@ -273,8 +273,133 @@ Ordenadas por cuánto cambian el diseño:
 7. **Qué depósito tiene contador y si funciona**, tanque por tanque.
 8. **El nombre del despachante** de cada depósito.
 9. **Los códigos definitivos**, incluido el segundo código de cada campo.
-10. **Frecuencia de medición con varilla** y **sensores electrónicos**: se está buscando lo
-    recomendado para el rubro.
+10. ~~**Frecuencia de medición con varilla** y **sensores electrónicos**~~ — **RESUELTO**, ver
+    sección 9.
+
+---
+
+## 9. Medición: varilla, contadores y sensores
+
+Investigado. El informe completo está en `informe-medicion-gasoil.html`. Lo esencial:
+
+### El hallazgo que reordena las prioridades
+
+**El problema no es que falte un sensor: es la varilla y el contador roto del surtidor.**
+
+Con marcas cada 5 cm, en **EL BUFALO** una lectura tiene **±434 L** de incertidumbre, y una
+conciliación —que usa dos lecturas— **±614 L**. Si ese tanque mueve 20.000 L/mes, el umbral a
+partir del cual la industria investiga un faltante es ~692 L. **El ruido de la medición es casi
+del tamaño del faltante que se querría detectar**: hoy no se puede detectar un robo en los
+tanques grandes, ni descartarlo.
+
+Y el dato incómodo: el **Piusi OCIO**, el medidor de nivel estándar del rubro, tiene precisión
+de ±40 mm, que en EL BUFALO son **±695 L — peor que la varilla actual** y cuatro veces peor que
+una varilla marcada al centímetro. Da comodidad y alarmas, no precisión.
+
+### Litros por centímetro (a media carga) y error de la varilla
+
+`litros por cm = diámetro (m) × largo (m) × 10`
+
+| Tanque | L/cm | Error 1 lectura (5 cm) | Conciliación (5 cm) | Conciliación (1 cm) |
+|---|---:|---:|---:|---:|
+| EL BUFALO | 174 | ±434 | ±614 | ±246 |
+| EL WICHI | 152 | ±380 | ±537 | ±215 |
+| LA PURIFICADA grande | 125 | ±314 | ±443 | ±177 |
+| EL C1 cisterna 1 | 111 | ±278 | ±394 | ±158 |
+| LA PRADERA 20 mil | 108 | ±270 | ±382 | ±153 |
+| EL C1 cisterna 2 | 99 | ±247 | ±350 | ±140 |
+| LA UNION | 83 | ±208 | ±294 | ±118 |
+| LA PURIFICADA chico | 47 | ±117 | ±165 | ±66 |
+| LA PRADERA 60 mil | 255–306 (est.) | ±637 a ±764 | hasta ±1.080 | — |
+
+**Pasar de varillas de 5 cm a varillas de 1 cm baja el ruido a menos de la mitad y cuesta el
+precio de una regla.** Es la mejor inversión del proyecto.
+
+### La temperatura importa, y mucho
+
+El gasoil se expande **0,083% por °C**. A media carga y con 20 °C de diferencia: **498 L** en el
+tanque de 60 mil, **258 L** en EL BUFALO, **1.788 L** sumando los nueve. En una descarga de
+20.000 L, 10 °C de diferencia son **166 L** — que es la explicación más común de un faltante en
+la recepción, y hay que descartarla antes de sospechar del remito.
+
+**Solución de costo cero: medir siempre a la misma hora (temprano) y anotarla.** La expansión no
+crea ni destruye gasoil; si se compara mañana contra mañana, el efecto se cancela. Lo que rompe
+la conciliación es mezclar una medición de la mañana con una de la tarde.
+
+### Frecuencia de medición — decidido
+
+1. **En cada recepción de camión: varillada antes y después, sin excepción.** Ya está previsto en
+   el formulario de recepción.
+2. **Semanal en campaña**, quincenal o mensual fuera de campaña.
+3. **Cierre mensual obligatorio de los nueve tanques.**
+4. **No medir a diario.** No es realista con nueve tanques en tres provincias, y con el ruido
+   actual de la varilla genera más ruido, no más información.
+5. Criterio de la norma petrolera (API MPMS 3.1A) que conviene copiar: **tres lecturas
+   consecutivas que coincidan dentro de 3 mm**; una sola varillada no es una medición.
+
+### Umbrales de discrepancia — para el reporte
+
+- **Alerta: 1%** del movimiento mensual.
+- **Investigación formal: 2%**, o el umbral estilo EPA (1% + 492 L), el que sea mayor.
+- **Lo más importante: mirar la tendencia, no el mes aislado.** Un faltante del 0,8% todos los
+  meses en el mismo tanque es más sospechoso que un −3% suelto. El ruido de medición se cancela
+  con el tiempo; el robo y la fuga no. **El reporte tiene que traer una columna de faltante
+  acumulado a 6 meses por tanque.**
+
+### Orden de inversión
+
+| Fase | Qué | Impacto |
+|---|---|---|
+| **0** | Medir el tanque de 60 mil, corregir los 2 errores de aforo, unificar unidades, nivelar los tanques, **varillas de 1 cm**, protocolo pegado en cada tanque, planilla de conciliación | Baja el ruido de ±614 a ±246 L en EL BUFALO. Costo casi nulo |
+| **1** | **Caudalímetros** en los surtidores. Recomendados: Piusi K33/K44 (mecánico, ±1%, sin energía), Gespasa MGE (±0,5%, pila 4 años), Piusi K24 (±1%, ~USD 146). **No comprar GPI 01A (±5%)** | Sin litros despachados no hay conciliación posible |
+| **2** | Sensores de nivel, sólo en 2 o 3 tanques, y **después de medir 3 meses**. Si las diferencias caen dentro del 1%, no había robo: había un problema de medición. Mejor relación: radar 12/24 V (E+H FMR20, ±2 mm = ±35 L). Máxima precisión: Veeder-Root Mag Plus (±0,76 mm, además mide temperatura y agua) | Sólo si la Fase 0 y 1 no cierran |
+| **3** | Control por máquina (Piusi Cube 70 MC, B.Smart con PIN/iButton/RFID) | Sólo con robo comprobado. **Se solapa con lo que hace la app**, y contradice la decisión de no bloquear |
+
+**Descartar:** ultrasónico sin contacto (condensa, deriva con la temperatura, zona muerta de
+30 cm) y flotantes Rochester (sólo hasta 76–91 cm de profundidad; los tanques tienen 1,48 a
+2,50 m). **Si se pone electrónica, quedarse en 12/24 V DC** y evitar el inversor de 220 V: el
+OCIO es 110/230 V y no tiene versión de continua.
+
+### Los tres errores que casi todos olvidan
+
+1. **Tabla de aforo lineal**: erra hasta 20% en niveles parciales. Las del Excel ya están bien
+   calculadas; falta la del tanque de 60 mil. Una tabla puramente cilíndrica **subestima**,
+   porque no cuenta los cabezales (1% a 3%).
+2. **Tanque no nivelado**: 1 grado de inclinación en los 7,62 m de EL BUFALO son 13 cm de
+   diferencia entre puntas, o sea **~2.300 L** según por dónde entre la varilla. Nivelar y usar
+   siempre la misma boca.
+3. **Agua en el fondo**: 1 cm de agua en EL BUFALO «genera» 174 L de gasoil inexistente y arruina
+   inyectoras. Pasta detectora de agua, purga del fondo y filtro separador a la salida.
+
+### Homologación: NO hace falta
+
+Si el gasoil es para **consumo propio** no hay transacción comercial, y la ley de metrología legal
+no exige aprobación de modelo ni verificación periódica. **Habilita a usar caudalímetros no
+homologados** (Piusi, Gespasa, Fill-Rite), mucho más baratos y sin verificación anual.
+
+Tres advertencias:
+
+- Hay otra obligación, de registro y no metrológica: la **Res. SE 1102/2004** alcanza a los
+  titulares de instalaciones de almacenamiento **para consumo propio**. **Verificar con el
+  contador si los nueve tanques están inscriptos.**
+- Ya está decidido que a los contratistas **se les despacha y no se les factura**, así que no hay
+  transacción comercial. Si eso cambiara, facturar por hectárea u hora, no por litro medido.
+- La tolerancia del 0,6% del régimen de surtidores es buena referencia interna: ±0,5% está
+  dentro, ±5% está diez veces afuera.
+
+### Proveedores a cotizar
+
+**AMIL SRL** (Piusi, Samoa, Veeder-Root — el más completo), **NIKRON Automación** (Piusi,
+Fill-Rite), **Don Agro** (Gespasa MGE-110). Ninguno publica precios.
+
+Aclaraciones: **Cim-Tek** hace filtros, no medidores (igual útiles: el separador de agua evita
+que el agua falsee el inventario). **Tuthill** es dueña de Fill-Rite. **Alemite** es lubricación.
+**Gilbarco** son surtidores de estación de servicio, sobredimensionados. **Swarm** (satélite IoT)
+cerró en marzo de 2025. No existe ninguna marca «Musschoot» en medición de combustible.
+
+> **Sobre los precios de esta sección:** son indicativos y hay que cotizarlos. Se recopilaron de
+> resultados de búsqueda, no de la lectura directa de las páginas de los proveedores. Donde no se
+> pudo confirmar un precio, dice «no confirmado» en vez de un número inventado.
 
 ---
 
