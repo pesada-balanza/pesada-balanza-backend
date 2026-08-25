@@ -464,6 +464,39 @@ module.exports = function crearAppMovil(deps) {
   }
 
   /* =========================================================================
+   * QUÉ PASO LE FALTA A UN TICKET
+   * -------------------------------------------------------------------------
+   * Un ticket de CAMIONES pasa por dos pesadas más después de la primera: la
+   * TARA FINAL y la REGULADA. Son dos estados distintos, y confundirlos hace
+   * perder el dato que importa: cuántos camiones esperan cada cosa.
+   *
+   * Las pantallas de mirar decían "Sin regular" a todo lo que no tenía
+   * REGULADA, así que un camión al que todavía le falta la TARA FINAL salía
+   * marcado igual que uno que ya la tiene y solo espera la regulada. Con la
+   * lista a la vista no se podía contar cuántos hay de cada uno.
+   *
+   * El patio ya usaba las palabras correctas ("Falta tara final" / "Falta
+   * regulada"). Acá quedan en UN solo lugar para que todas las pantallas digan
+   * lo mismo: el servidor manda el texto armado y la vista solo lo dibuja.
+   * ======================================================================= */
+
+  /** '' si el ticket ya cerró; si no, qué pesada falta. */
+  function faltaDelTicket(r) {
+    if (!r || r.fechaRegulada) return '';
+    return r.fechaTaraFinal ? 'REGULADA' : 'TARA_FINAL';
+  }
+
+  const TEXTO_FALTA = {
+    TARA_FINAL: 'Falta tara final',
+    REGULADA: 'Falta regulada',
+  };
+
+  /** El texto que va en el chip. '' cuando no falta nada. */
+  function textoFalta(r) {
+    return TEXTO_FALTA[faltaDelTicket(r)] || '';
+  }
+
+  /* =========================================================================
    * CONSULTAS DEL PATIO
    * ======================================================================= */
 
@@ -2498,6 +2531,11 @@ module.exports = function crearAppMovil(deps) {
         ? ticketVigente(r.fecha, DIAS_TARA_FINAL_A_REGULADA)
         : ticketVigente(r.fecha, DIAS_CAMIONES_A_TARA_FINAL)
     );
+    // "En curso" son dos cosas distintas: el que todavía no volvió a pesar
+    // vacío y el que ya tiene la tara final y espera la regulada. El número
+    // solo no lo dice, así que se manda el corte.
+    const enCursoTaraFinal = enCurso.filter((r) => !r.fechaTaraFinal).length;
+    const enCursoRegulada = enCurso.length - enCursoTaraFinal;
 
     // ── Por balanza
     const porBalanzaMap = {};
@@ -2614,6 +2652,8 @@ module.exports = function crearAppMovil(deps) {
       netoDia,
       camionesCerrados: regulados.length,
       enCurso: enCurso.length,
+      enCursoTaraFinal,
+      enCursoRegulada,
       porBalanza,
       porGrano,
       revisar,
@@ -2716,7 +2756,7 @@ module.exports = function crearAppMovil(deps) {
           lote: plano(r.lote),
           neto: r.fechaRegulada ? Number(r.neto) || 0 : Number(r.netoEstimado) || 0,
           cerrado: !!r.fechaRegulada,
-          sinTaraFinal: !r.fechaTaraFinal,
+          falta: textoFalta(r),
           anulado: !!r.anulado,
           faltaCtg: !!r.fechaRegulada && !r.cp && !r.anulado,
           cp: r.cp || '',
@@ -2834,11 +2874,19 @@ module.exports = function crearAppMovil(deps) {
         grano: r.grano || '',
         lote: plano(r.lote),
         neto: r.fechaRegulada ? Number(r.neto) || 0 : Number(r.netoEstimado) || 0,
-        sinRegular: !r.fechaRegulada,
+        falta: textoFalta(r),
       }));
 
-      // Los que faltan regular NO suman al total (así lo pide el diseño 8c).
-      const total = camiones.filter((c) => !c.sinRegular).reduce((a, c) => a + c.neto, 0);
+      // Los que no cerraron la regulada NO suman al total (diseño 8c): su neto
+      // es estimado, no pesado.
+      const total = camiones.filter((c) => !c.falta).reduce((a, c) => a + c.neto, 0);
+
+      // Cuántos esperan cada pesada. Con la lista larga, contar chips a ojo es
+      // justamente lo que no se podía hacer cuando todos decían lo mismo.
+      const pendientes = {
+        taraFinal: docs.filter((r) => faltaDelTicket(r) === 'TARA_FINAL').length,
+        regulada: docs.filter((r) => faltaDelTicket(r) === 'REGULADA').length,
+      };
 
       return res.render('app/general-balanza', {
         layout: 'app/layout',
@@ -2851,6 +2899,7 @@ module.exports = function crearAppMovil(deps) {
         dias: navegacionDias(fecha, '/app/general/balanza/' + codigo),
         camiones,
         total,
+        pendientes,
         kg,
       });
     } catch (err) {
@@ -3025,6 +3074,7 @@ module.exports = function crearAppMovil(deps) {
             hora: r.creadoEn ? horaCorta(r.creadoEn) : '',
             usuario: r.usuario || r.cargadoPor || '',
             neto: r.fechaRegulada ? Number(r.neto) || 0 : null,
+            falta: textoFalta(r),
           })),
         });
       }
@@ -3070,6 +3120,8 @@ module.exports = function crearAppMovil(deps) {
               hora: 'tara final ' + fechaCorta(r.fechaTaraFinal),
               usuario: r.usuario || r.cargadoPor || '',
               neto: null,
+              // Acá todos tienen la tara final hecha: lo que falta es regular.
+              falta: textoFalta(r),
             },
           ],
         }));

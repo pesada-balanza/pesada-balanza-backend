@@ -177,6 +177,20 @@ async function main() {
   const sinCtg = meterTicket({ patentes: 'CT 111 GG', chofer: 'Falta Ctg' });
   meterTicket({ patentes: 'AB 555 CD', chofer: 'Sin Regular', fechaRegulada: undefined, neto: 0 });
 
+  /* Los dos estados que antes se decían igual: al de arriba le falta la
+     REGULADA (ya tiene la tara final) y a este le falta la TARA FINAL. En
+     curso los dos, pero son trabajos distintos. */
+  const faltaTara = meterTicket({
+    patentes: 'FT 111 AA', chofer: 'Falta Tara',
+    fechaTaraFinal: undefined, fechaRegulada: undefined, neto: 0,
+    pesadaPara: 'CAMIONES', confirmada: false,
+  });
+  const faltaRegu = meterTicket({
+    patentes: 'FR 222 BB', chofer: 'Falta Regu',
+    fechaRegulada: undefined, neto: 0,
+    pesadaPara: 'CAMIONES', confirmada: false,
+  });
+
   /* ═══════════════════════════════════════════════════════════════════════
    * MOVERSE ENTRE DÍAS (lo que antes no se podía)
    * ═════════════════════════════════════════════════════════════════════ */
@@ -354,7 +368,40 @@ async function main() {
   ok('un ticket cerrado sin CTG avisa "Falta CTG"', /Falta CTG/.test(r.texto));
 
   r = await ir('GET', '/app/buscar?q=' + encodeURIComponent('Sin Regular'));
-  ok('un ticket sin regular sale marcado', /Sin regular|En camiones/.test(r.texto));
+  ok('un ticket sin regular sale marcado', /Falta regulada/.test(r.texto));
+
+  /* ── Los dos estados no se dicen igual ──────────────────────────────── */
+  seccion('Falta tara final y falta regulada son cosas distintas');
+
+  r = await ir('GET', '/app/buscar?q=' + encodeURIComponent('Falta Tara'));
+  ok('al que le falta la tara final se le dice eso', /Falta tara final/.test(r.texto));
+  ok('y NO se le dice que falta regular',
+    !/Falta regulada/.test(r.texto), (r.texto.match(/chip-ambar">[^<]*/) || [''])[0]);
+  ok('tampoco el viejo "Sin regular" ni "En camiones"',
+    !/Sin regular|En camiones/.test(r.texto));
+
+  r = await ir('GET', '/app/buscar?q=' + encodeURIComponent('Falta Regu'));
+  ok('al que ya tiene la tara final se le dice que falta regular',
+    /Falta regulada/.test(r.texto));
+  ok('y NO que falta la tara final', !/Falta tara final/.test(r.texto));
+
+  // La lista de la balanza: es donde se ven juntos y donde antes se mezclaban.
+  r = await ir('GET', '/app/general/balanza/' + QUIMILI);
+  ok('la lista de la balanza trae los dos', r.estado === 200 &&
+    /FT 111 AA/.test(r.texto) && /FR 222 BB/.test(r.texto), r.estado);
+  ok('con un chip para cada estado',
+    /Falta tara final/.test(r.texto) && /Falta regulada/.test(r.texto));
+  ok('ya no dice "Sin regular" a los dos', !/>Sin regular</.test(r.texto));
+  ok('y arriba cuenta cuántos hay de cada uno',
+    /1 sin tara final/.test(r.texto) && /2 sin regular/.test(r.texto),
+    (r.texto.match(/\d+ sin tara final[^<]*/) || [''])[0]);
+
+  // El resumen: el número de "En curso" junta los dos, así que abajo se parte.
+  r = await ir('GET', '/app/general');
+  ok('el resumen parte "En curso" en los dos estados',
+    /1 sin tara final · 1 sin regular/.test(r.texto),
+    (r.texto.match(/\d+ sin tara final[^<]*/) || [''])[0]);
+  ok('y ya no dice solo "sin cerrar ahora"', !/sin cerrar ahora/.test(r.texto));
 
   /* ── Alcance: cada código ve solo lo suyo ───────────────────────────── */
   seccion('Cada código ve solo su balanza');

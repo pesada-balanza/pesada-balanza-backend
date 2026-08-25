@@ -89,7 +89,9 @@
             <% if (r.anulado) { %>
               <span class="chip" style="color:var(--destructivo)">ANULADO</span>
             <% } else if (!r.cerrado) { %>
-              <span class="chip chip-ambar"><%= r.sinTaraFinal ? 'En camiones' : 'Sin regular' %></span>
+              <%# Antes decía "En camiones" o "Sin regular". Ahora dice cuál de
+                  las dos pesadas falta, igual que en el patio. %>
+              <span class="chip chip-ambar"><%= r.falta %></span>
             <% } else if (r.faltaCtg) { %>
               <span class="chip chip-ambar">Falta CTG</span>
             <% } %>

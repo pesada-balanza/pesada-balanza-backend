@@ -22,6 +22,23 @@
 
     <%- include('nav-dias', { dias: dias }) %>
 
+    <%# Cuántos esperan cada pesada. Va arriba de la lista porque es la lectura
+        que antes no se podía hacer: con todos los chips iguales no se sabía
+        cuántos camiones faltaban tarar y cuántos regular. %>
+    <% if (pendientes.taraFinal || pendientes.regulada) { %>
+      <div class="tarjeta tarjeta-chica" style="gap:6px">
+        <span class="etiqueta">Sin cerrar de este día</span>
+        <span class="txt">
+          <%
+            var faltan = [];
+            if (pendientes.taraFinal) faltan.push(pendientes.taraFinal + ' sin tara final');
+            if (pendientes.regulada) faltan.push(pendientes.regulada + ' sin regular');
+          %>
+          <%= faltan.join(' · ') %>
+        </span>
+      </div>
+    <% } %>
+
     <%# Arriba de la lista: si el camión no está en este día, se lo busca de acá. %>
     <a class="btn btn-borde-suave" href="/app/buscar">Buscar un ticket</a>
 
@@ -42,8 +59,10 @@
         </div>
         <div class="fila-der">
           <span class="mono" style="font:600 17px/1 var(--mono)"><%= kg(c.neto) %></span>
-          <% if (c.sinRegular) { %>
-            <span class="chip chip-ambar">Sin regular</span>
+          <%# El chip dice QUÉ pesada falta: "sin regular" a todo mezclaba el
+              que espera la tara final con el que espera la regulada. %>
+          <% if (c.falta) { %>
+            <span class="chip chip-ambar"><%= c.falta %></span>
           <% } else { %>
             <span class="mono-chico" style="letter-spacing:.06em; font-size:10px">NETO</span>
           <% } %>

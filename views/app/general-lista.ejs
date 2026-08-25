@@ -37,7 +37,9 @@
             <% if (t.neto !== null) { %>
               <span class="mono" style="font:600 15px/1 var(--mono)"><%= kg(t.neto) %></span>
             <% } else { %>
-              <span class="chip chip-ambar">Sin regular</span>
+              <%# `falta` lo arma el servidor: dice si espera la tara final o la
+                  regulada, que no es lo mismo. %>
+              <span class="chip chip-ambar"><%= t.falta || 'Sin cerrar' %></span>
             <% } %>
           </a>
         <% }); %>

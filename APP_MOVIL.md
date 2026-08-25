@@ -781,6 +781,37 @@ corregirlo por observaciones.
 
 ---
 
+## Falta la tara final o falta la regulada: no es lo mismo
+
+Un ticket de camiones pasa por **tres** pesadas: la primera (bruto estimado y
+tara), la **tara final** cuando el camión vuelve vacío, y la **regulada**, que
+es la que cierra el neto. Entre la primera y el cierre hay entonces **dos**
+estados abiertos, y son dos trabajos distintos:
+
+| Estado | Qué falta | Qué dice el chip |
+| --- | --- | --- |
+| sin `fechaTaraFinal` | el camión todavía no volvió a pesar vacío | `Falta tara final` |
+| con `fechaTaraFinal`, sin `fechaRegulada` | la pesada que cierra el neto | `Falta regulada` |
+
+El patio ya los distinguía. Las pantallas de **mirar** no: le decían
+**"Sin regular"** a todo lo que no tenía `fechaRegulada`, así que un camión al
+que le faltaba la tara final salía marcado igual que uno que ya la tenía. Con la
+lista a la vista no se podía contar cuántos había de cada uno, que es justamente
+el dato que se usa para saber qué queda por hacer.
+
+Ahora el texto lo arma **el servidor**, en un solo lugar (`faltaDelTicket` y
+`textoFalta` en `app-movil.js`), y la vista solo lo dibuja. Las cuatro pantallas
+dicen lo mismo: patio, buscador, lista de una balanza y las listas de revisión.
+
+Y donde había un **número** que juntaba los dos, ahora va el corte:
+
+- el KPI **"En curso"** del resumen agrega abajo `1 sin tara final · 2 sin regular`;
+- la **lista de una balanza** lleva arriba una línea **"Sin cerrar de este día"**
+  con la misma cuenta.
+
+Si no queda ninguno abierto, el KPI vuelve a decir `sin cerrar ahora` y la línea
+de la lista no aparece.
+
 ## Ver los registros de otros días y buscar un ticket
 
 Antes las pantallas de "ver registros" mostraban **solo el día de hoy**: no había
@@ -837,7 +868,7 @@ Toda la campaña**. Por omisión, 30 días. "Toda la campaña" usa el mismo cort
 
 Cada resultado es una tarjeta con patente, transporte y chofer, número, campo,
 grano, lote, neto y fecha, más un chip cuando hace falta: `ANULADO`,
-`En camiones`, `Sin regular` o `Falta CTG`. Se toca y abre el ticket.
+`Falta tara final`, `Falta regulada` o `Falta CTG`. Se toca y abre el ticket.
 
 Se muestran hasta **100** resultados, los más nuevos primero; si hay más, lo
 avisa y pide afinar la búsqueda o acortar el rango.
