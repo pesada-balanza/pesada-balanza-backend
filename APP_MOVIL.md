@@ -783,21 +783,30 @@ corregirlo por observaciones.
 
 ## Falta la tara final o falta la regulada: no es lo mismo
 
-Un ticket de camiones pasa por **tres** pesadas: la primera (bruto estimado y
-tara), la **tara final** cuando el camión vuelve vacío, y la **regulada**, que
-es la que cierra el neto. Entre la primera y el cierre hay entonces **dos**
-estados abiertos, y son dos trabajos distintos:
+### El recorrido del camión
 
-| Estado | Qué falta | Qué dice el chip |
+| Paso | Qué pasa en el campo | Qué se registra |
 | --- | --- | --- |
-| sin `fechaTaraFinal` | el camión todavía no volvió a pesar vacío | `Falta tara final` |
-| con `fechaTaraFinal`, sin `fechaRegulada` | la pesada que cierra el neto | `Falta regulada` |
+| **1. CAMIONES** | el camión llega **vacío**, a cargar | sus datos, el **bruto estimado** y —si se sabe— la **tara estimada** |
+| **2. TARA FINAL** | se pesa en la balanza; **recién después** sale al lote a cargar | la **tara real** |
+| **3. REGULADA** | vuelve del lote **cargado** y se pesa | el **bruto lote**, y el **bruto regulado** que cierra el neto (`bruto regulado − tara`) |
+| **CTG** | ya completada la carta de porte | el número de CTG |
+
+### Los dos estados abiertos
+
+Entre el paso 1 y el cierre hay **dos** estados, y para el balancero no son lo
+mismo: uno todavía no salió a cargar, el otro ya está en el lote.
+
+| Estado | Dónde está el camión | Qué dice el chip |
+| --- | --- | --- |
+| sin `fechaTaraFinal` | en la balanza o llegando; **no salió a cargar** | `Falta tara final` |
+| con `fechaTaraFinal`, sin `fechaRegulada` | **en el lote** cargando, o volvió y falta pesarlo | `Falta regulada` |
 
 El patio ya los distinguía. Las pantallas de **mirar** no: le decían
-**"Sin regular"** a todo lo que no tenía `fechaRegulada`, así que un camión al
-que le faltaba la tara final salía marcado igual que uno que ya la tenía. Con la
-lista a la vista no se podía contar cuántos había de cada uno, que es justamente
-el dato que se usa para saber qué queda por hacer.
+**"Sin regular"** a todo lo que no tenía `fechaRegulada`, así que el camión que
+**ni salió a cargar** salía marcado igual que el que **ya está en el lote**. Con
+la lista a la vista no se podía contar cuántos había de cada uno, que es
+justamente el dato que se usa para saber qué queda por hacer.
 
 Ahora el texto lo arma **el servidor**, en un solo lugar (`faltaDelTicket` y
 `textoFalta` en `app-movil.js`), y la vista solo lo dibuja. Las cuatro pantallas

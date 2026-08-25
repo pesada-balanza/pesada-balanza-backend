@@ -466,14 +466,28 @@ module.exports = function crearAppMovil(deps) {
   /* =========================================================================
    * QUÉ PASO LE FALTA A UN TICKET
    * -------------------------------------------------------------------------
-   * Un ticket de CAMIONES pasa por dos pesadas más después de la primera: la
-   * TARA FINAL y la REGULADA. Son dos estados distintos, y confundirlos hace
-   * perder el dato que importa: cuántos camiones esperan cada cosa.
+   * El recorrido real del camión, que es lo que estos dos estados cuentan:
+   *
+   *   1. CAMIONES     llega VACÍO, a cargar. Se registran sus datos, el bruto
+   *                   estimado y —si se sabe— la tara estimada.
+   *   2. TARA FINAL   se pesa en la balanza: esa es la TARA REAL. Recién
+   *                   después sale al lote a cargar.
+   *   3. REGULADA     vuelve del lote CARGADO, se pesa el bruto lote, se lo
+   *                   regula y se registra el bruto regulado. El neto sale de
+   *                   bruto regulado − tara. Con la carta de porte, el CTG.
+   *
+   * Entre el paso 1 y el cierre hay entonces DOS estados abiertos, y no son lo
+   * mismo ni para el balancero:
+   *
+   *   falta TARA FINAL   todavía no se pesó vacío: está en la balanza o
+   *                      llegando, y no salió a cargar.
+   *   falta REGULADA     ya pesó la tara y está en el lote cargando, o volvió
+   *                      y falta pesarlo cargado.
    *
    * Las pantallas de mirar decían "Sin regular" a todo lo que no tenía
-   * REGULADA, así que un camión al que todavía le falta la TARA FINAL salía
-   * marcado igual que uno que ya la tiene y solo espera la regulada. Con la
-   * lista a la vista no se podía contar cuántos hay de cada uno.
+   * REGULADA, así que el camión que ni salió a cargar salía marcado igual que
+   * el que ya está en el lote. Con la lista a la vista no se podía contar
+   * cuántos hay de cada uno.
    *
    * El patio ya usaba las palabras correctas ("Falta tara final" / "Falta
    * regulada"). Acá quedan en UN solo lugar para que todas las pantallas digan
@@ -2531,9 +2545,9 @@ module.exports = function crearAppMovil(deps) {
         ? ticketVigente(r.fecha, DIAS_TARA_FINAL_A_REGULADA)
         : ticketVigente(r.fecha, DIAS_CAMIONES_A_TARA_FINAL)
     );
-    // "En curso" son dos cosas distintas: el que todavía no volvió a pesar
-    // vacío y el que ya tiene la tara final y espera la regulada. El número
-    // solo no lo dice, así que se manda el corte.
+    // "En curso" son dos cosas distintas: el que todavía no se pesó vacío (no
+    // salió a cargar) y el que ya tiene la tara y está en el lote esperando la
+    // regulada. El número solo no lo dice, así que se manda el corte.
     const enCursoTaraFinal = enCurso.filter((r) => !r.fechaTaraFinal).length;
     const enCursoRegulada = enCurso.length - enCursoTaraFinal;
 

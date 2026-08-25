@@ -177,9 +177,10 @@ async function main() {
   const sinCtg = meterTicket({ patentes: 'CT 111 GG', chofer: 'Falta Ctg' });
   meterTicket({ patentes: 'AB 555 CD', chofer: 'Sin Regular', fechaRegulada: undefined, neto: 0 });
 
-  /* Los dos estados que antes se decían igual: al de arriba le falta la
-     REGULADA (ya tiene la tara final) y a este le falta la TARA FINAL. En
-     curso los dos, pero son trabajos distintos. */
+  /* Los dos estados que antes se decían igual. En curso los dos, pero el
+     camión no está en el mismo lugar: al que le falta la TARA FINAL todavía no
+     se pesó vacío (no salió a cargar), y al que le falta la REGULADA ya pesó la
+     tara y está en el lote. */
   const faltaTara = meterTicket({
     patentes: 'FT 111 AA', chofer: 'Falta Tara',
     fechaTaraFinal: undefined, fechaRegulada: undefined, neto: 0,

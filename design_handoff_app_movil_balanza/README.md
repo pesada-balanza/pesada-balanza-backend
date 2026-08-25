@@ -283,10 +283,10 @@ GENERAL **no carga nada**: solo mira, autoriza anulaciones y corrige.
 - Los que **faltan regular** llevan chip ámbar `SIN REGULAR` y **no suman al
   total**.
   > **Cambió en el uso.** Un chip único mezclaba dos estados: al camión que
-  > todavía no volvió a pesar vacío le falta la **tara final**, no la regulada.
-  > Lo implementado usa `FALTA TARA FINAL` / `FALTA REGULADA` y agrega arriba la
-  > cuenta de cada uno. Ver *"Falta la tara final o falta la regulada"* en
-  > `APP_MOVIL.md`.
+  > todavía no se pesó vacío le falta la **tara final** —ni salió a cargar—, no
+  > la regulada. Lo implementado usa `FALTA TARA FINAL` / `FALTA REGULADA` y
+  > agrega arriba la cuenta de cada uno. Ver *"Falta la tara final o falta la
+  > regulada"* en `APP_MOVIL.md`.
 
 ### 14. Acumulado (opcional) — ref. `8b`
 

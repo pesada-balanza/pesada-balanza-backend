@@ -30,8 +30,8 @@
         <span class="etiqueta">En curso</span>
         <span class="dato-xg"><%= resumen.enCurso %></span>
         <%# El total solo no alcanza: "en curso" junta al camión que todavía no
-            volvió a pesar vacío con el que ya tiene la tara final y espera la
-            regulada. Son dos trabajos distintos, así que se muestran aparte. %>
+            se pesó vacío (no salió a cargar) con el que ya está en el lote
+            esperando la regulada. Son dos cosas distintas, van aparte. %>
         <%
           var faltan = [];
           if (resumen.enCursoTaraFinal) faltan.push(resumen.enCursoTaraFinal + ' sin tara final');
