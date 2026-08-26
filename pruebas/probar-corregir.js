@@ -269,6 +269,86 @@ async function main() {
   ok('y el contador quedó en cero',
     registros().docs.find((d) => String(d._id) === id2).modificaciones === 0);
 
+  /* ═══════════════════════════════════════════════════════════════════════
+   * UN TICKET QUE TODAVÍA NO PASÓ POR LA TARA FINAL
+   * ---------------------------------------------------------------------
+   * En el paso CAMIONES la tara es una ESTIMACIÓN y es opcional: la web y la
+   * app la dejan vacía. La corrección la exigía igual, con el mínimo de 1.000,
+   * así que un ticket cargado sin tara estimada no se podía corregir en NADA
+   * —ni la patente, que es lo que se suele pedir—.
+   * ═════════════════════════════════════════════════════════════════════ */
+  seccion('Corregir antes de la tara final');
+
+  /** Ticket en el paso CAMIONES: sin tara final y sin tara estimada. */
+  const enCamiones = (extra) => meterTicket(Object.assign({
+    fechaTaraFinal: undefined, tara: 0, netoEstimado: 52500, confirmada: false,
+  }, extra || {}));
+
+  const tc = enCamiones({ idTicket: 374, nroApp: '1-0374', patentes: 'NEQ734 EDL759' });
+  const idc = String(tc._id);
+
+  r = await ir('GET', '/app/corregir/' + idc);
+  ok('la pantalla abre igual', r.estado === 200 && /Corregir los datos/.test(r.texto), r.estado);
+  ok('y dice que la tara estimada es opcional', /Tara estimada \(kg\) · opcional/.test(r.texto));
+  ok('el campo NO arranca en 0 (el camión no pesa cero)',
+    !/id="tara"[^>]*value="0"/.test(r.texto), (r.texto.match(/id="tara"[^>]*>/) || [''])[0]);
+  ok('del lado del teléfono la tara tampoco es obligatoria',
+    /var taraEsReal = false/.test(r.texto));
+
+  // Lo que no se podía hacer: corregir la patente sin tocar la tara.
+  r = await ir('POST', '/app/api/corregir/' + idc, {
+    patentes: 'NEQ734 JMV977', chofer: 'FRANZOY FABRICIO', tara: '',
+  });
+  ok('se corrige la patente con la tara vacía', r.estado === 200 && r.json.ok === true, r.texto.slice(0, 200));
+  const corr = registros().docs.find((d) => String(d._id) === idc);
+  ok('la patente quedó cambiada', corr.patentes === 'NEQ734 JMV977', corr.patentes);
+  ok('y la tara sigue sin cargarse', (Number(corr.tara) || 0) === 0, corr.tara);
+  ok('el neto estimado sigue siendo el bruto estimado',
+    Number(corr.netoEstimado) === 52500, corr.netoEstimado);
+  ok('gastó una sola corrección', corr.modificaciones === 1, corr.modificaciones);
+
+  // Y si se sabe la tara estimada, se puede escribir.
+  const tc2 = enCamiones({ idTicket: 375, nroApp: '1-0375', patentes: 'HH 888 II' });
+  r = await ir('POST', '/app/api/corregir/' + String(tc2._id), {
+    patentes: 'HH 888 II', chofer: tc2.chofer, tara: '15000',
+  });
+  ok('también se puede cargar la tara estimada', r.estado === 200 && r.json.ok === true, r.texto.slice(0, 200));
+  const corr2 = registros().docs.find((d) => String(d._id) === String(tc2._id));
+  ok('queda guardada', Number(corr2.tara) === 15000, corr2.tara);
+  ok('y recalcula el neto estimado', Number(corr2.netoEstimado) === 52500 - 15000, corr2.netoEstimado);
+
+  // Abrir y guardar sin tocar nada no gasta una corrección: antes la tara
+  // vacía contra el 0 guardado se leía como un cambio.
+  const tc3 = enCamiones({ idTicket: 376, nroApp: '1-0376', patentes: 'II 999 JJ' });
+  r = await ir('POST', '/app/api/corregir/' + String(tc3._id), {
+    patentes: 'II 999 JJ', chofer: tc3.chofer, tara: '', cargoDe: '', comentarios: '',
+  });
+  ok('sin tocar nada no cuenta como corrección',
+    r.estado === 200 && r.json.sinCambios === true, r.texto.slice(0, 200));
+  ok('el contador quedó en cero',
+    registros().docs.find((d) => String(d._id) === String(tc3._id)).modificaciones === 0);
+
+  // Opcional no es "cualquier cosa": los topes siguen valiendo.
+  const tc4 = enCamiones({ idTicket: 377, nroApp: '1-0377', patentes: 'JJ 000 KK' });
+  r = await ir('POST', '/app/api/corregir/' + String(tc4._id), {
+    patentes: 'JJ 000 KK', chofer: 'X', tara: '55000',
+  });
+  ok('una tara estimada fuera de rango se rechaza igual',
+    r.estado === 400 && /Tara/.test(r.json.error), r.texto.slice(0, 200));
+
+  // Con la tara final cargada sigue siendo obligatoria: es un peso real.
+  const tcf = meterTicket({ idTicket: 378, nroApp: '1-0378', patentes: 'KK 111 LL' });
+  r = await ir('POST', '/app/api/corregir/' + String(tcf._id), {
+    patentes: 'KK 111 LL', chofer: 'X', tara: '',
+  });
+  ok('con la tara final cargada, vacía no se acepta',
+    r.estado === 400 && /tara/i.test(r.json.error), r.texto.slice(0, 200));
+  r = await ir('GET', '/app/corregir/' + String(tcf._id));
+  ok('y ahí la pantalla la pide sin el "opcional"',
+    /Tara \(kg\)/.test(r.texto) && !/· opcional/.test(r.texto),
+    (r.texto.match(/for="tara"[\s\S]{0,60}/) || [''])[0]);
+  ok('del lado del teléfono también', /var taraEsReal = true/.test(r.texto));
+
   /* ── El máximo de 2, como en la web ─────────────────────────────────── */
   seccion('Las reglas que ya tenía la web');
 

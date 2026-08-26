@@ -620,8 +620,27 @@ campos y las mismas reglas.
 Los brutos quedan fijos a propósito: son lo que marcó la balanza y la única prueba
 del pesaje. Lo que se corrige es la tara, y el neto se recalcula solo
 (`netoEstimado = brutoEstimado − tara`, y `neto = bruto − tara` cuando ya está la
-regulada). La tara se valida entre 1.000 y 30.000 kg y no puede quedar por encima
-de ningún bruto.
+regulada). La tara nunca puede quedar por encima de ningún bruto.
+
+#### La tara se pide según el paso en el que está el ticket
+
+Son dos taras distintas, y esto **trababa la corrección entera**:
+
+| Estado del ticket | Qué es la tara | Cómo se pide |
+| --- | --- | --- |
+| **sin** `fechaTaraFinal` (paso CAMIONES) | una **estimación**, opcional: al cargar el ticket se deja vacía si no se sabe | **opcional**, 0 a 30.000 kg. El campo arranca vacío, no en `0` |
+| **con** `fechaTaraFinal` | un **peso real** de la balanza | **obligatoria**, 1.000 a 30.000 kg, igual que al cargarla |
+
+Antes se exigía siempre, con el mínimo de 1.000. Como en el paso CAMIONES la tara
+suele estar vacía, el formulario se trababa en un campo que a esa altura **no
+tiene valor**, y el ticket no se podía corregir en **nada** —ni la patente, que es
+justo lo que más se pide—. El error que salía era *"Falta la tara"*, del lado del
+teléfono, y `Tara: Debe ser un número válido` del lado del servidor.
+
+Los pesos se comparan como **números** para decidir si hubo cambio: un ticket sin
+tara guarda `0`, o nada, o `"0"`, y comparándolos como texto (`"" ≠ 0`) se anotaba
+un cambio inexistente —y **gastaba una de las dos correcciones**— con solo abrir la
+pantalla y guardar.
 
 ### Las reglas, las mismas que la web
 

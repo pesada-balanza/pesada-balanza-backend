@@ -2047,10 +2047,27 @@ module.exports = function crearAppMovil(deps) {
       if (!patentes) return fallar(res, 400, 'La patente no puede quedar vacía.');
       if (!chofer) return fallar(res, 400, 'El chofer no puede quedar vacío.');
 
-      // Los mismos límites que al cargar la tara final: 1.000 a 30.000 kg.
-      const vTara = validarNumero(req.body.tara, 1000, 30000);
-      if (!vTara.ok) return fallar(res, 400, 'Tara: ' + vTara.error);
-      const tara = vTara.valor;
+      /* La tara sigue las reglas del paso en el que está el ticket:
+       *
+       *  - con TARA FINAL cargada es un peso REAL de la balanza: obligatoria y
+       *    de 1.000 a 30.000 kg, los mismos límites que al cargarla;
+       *  - sin TARA FINAL todavía es la TARA ESTIMADA del ticket de CAMIONES,
+       *    donde es OPCIONAL (así la dejan la web y la app: vacía vale).
+       *
+       * Antes se exigía siempre, con el mínimo de 1.000. Eso dejaba sin
+       * corregir NINGÚN dato —ni la patente, que es lo que se suele pedir— a
+       * todo ticket cargado sin tara estimada, que es el caso normal: el
+       * formulario se trababa en un campo que a esa altura no tiene valor. */
+      const taraEsReal = !!r.fechaTaraFinal;
+      const taraEscrita = String(req.body.tara == null ? '' : req.body.tara).trim();
+      let tara = 0;
+      if (taraEscrita === '') {
+        if (taraEsReal) return fallar(res, 400, 'Falta la tara.');
+      } else {
+        const vTara = validarNumero(taraEscrita, taraEsReal ? 1000 : 0, 30000);
+        if (!vTara.ok) return fallar(res, 400, 'Tara: ' + vTara.error);
+        tara = vTara.valor;
+      }
 
       // El bruto NO se toca: es lo que marcó la balanza y es la única prueba del
       // pesaje. La tara sí, y con ella se recalculan los netos.
@@ -2082,12 +2099,19 @@ module.exports = function crearAppMovil(deps) {
       if (bruto != null) cambios.neto = bruto - tara;
 
       // Qué cambió de verdad: si no cambió nada, no se gasta una modificación.
+      // Los pesos se comparan como NÚMEROS: un ticket sin tara guarda 0, o
+      // nada, o "0", y comparándolos como texto ("" ≠ 0) se anotaba un cambio
+      // que no existió —y gastaba una de las dos correcciones— con solo abrir
+      // la pantalla y guardar.
+      const NUMERICOS = ['tara', 'netoEstimado', 'neto'];
       const antes = {};
       const despues = {};
       for (const k of Object.keys(cambios)) {
         const viejo = k === 'contratista' || k === 'tractor' ? plano(r[k]) : r[k];
         const nuevoValor = cambios[k];
-        const igual = viejo == null && nuevoValor === '' ? true : String(viejo == null ? '' : viejo) === String(nuevoValor);
+        const igual = NUMERICOS.indexOf(k) !== -1
+          ? (Number(viejo) || 0) === (Number(nuevoValor) || 0)
+          : viejo == null && nuevoValor === '' ? true : String(viejo == null ? '' : viejo) === String(nuevoValor);
         if (!igual) {
           antes[k] = r[k] == null ? '' : r[k];
           despues[k] = nuevoValor;

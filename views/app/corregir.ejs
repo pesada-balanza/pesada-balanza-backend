@@ -68,10 +68,18 @@
                value="<%= r.chofer %>">
       </div>
 
+      <%# Antes de la TARA FINAL lo que hay es la TARA ESTIMADA del ticket de
+          camiones, que es opcional: se deja vacía si no se sabe. Mostrar un 0
+          hacía pensar que el camión pesa cero, y exigirla trababa la
+          corrección de cualquier otro dato. %>
       <div class="campo" style="margin-top:11px">
-        <label class="etiqueta" for="tara">Tara (kg)</label>
+        <label class="etiqueta" for="tara">
+          <%= r.fechaTaraFinal ? 'Tara (kg)' : 'Tara estimada (kg) · opcional' %>
+        </label>
         <input type="tel" id="tara" name="tara" class="mono" inputmode="numeric"
-               autocomplete="off" value="<%= r.tara %>">
+               autocomplete="off"
+               value="<%= r.fechaTaraFinal || r.tara ? r.tara : '' %>"
+               placeholder="<%= r.fechaTaraFinal ? '' : 'sin tara todavía' %>">
         <span class="txt-aux" id="calculo">&nbsp;</span>
       </div>
 
@@ -140,6 +148,9 @@
 
   var brutoEstimado = <%= Number(r.brutoEstimado) || 0 %>;
   var bruto = <%= r.bruto ? Number(r.bruto) : 0 %>;
+  // Con la TARA FINAL cargada la tara es un peso de la balanza y no puede
+  // quedar vacía. Antes es una estimación del ticket de camiones: opcional.
+  var taraEsReal = <%= r.fechaTaraFinal ? 'true' : 'false' %>;
   var tractoresPor = <%- JSON.stringify(tractoresPorContratista) %>;
   var tractorActual = '<%= r.tractor %>';
 
@@ -205,7 +216,8 @@
     var faltan = [];
     if (!datos.patentes.trim()) faltan.push('la patente');
     if (!datos.chofer.trim()) faltan.push('el chofer');
-    if (!Number(datos.tara)) faltan.push('la tara');
+    // La tara solo es obligatoria cuando ya es un peso real de la balanza.
+    if (taraEsReal && !Number(datos.tara)) faltan.push('la tara');
     if (datos.cargoDe === 'SILOBOLSA' && !datos.silobolsa.trim()) faltan.push('el número de silobolsa');
     if (datos.cargoDe === 'CONTRATISTA' && !datos.contratista) faltan.push('el contratista');
     if (faltan.length) {
