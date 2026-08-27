@@ -117,6 +117,7 @@
   var ocultoCarga = form.elements['cargaPara'];
   var campoSocio = document.getElementById('campo-socio');
   var inputPatentes = document.getElementById('patentes');
+  var selCampo = document.getElementById('campo');
   var yaAvisado = '';
 
   // Autocompletar con lo que ya está cargado en la base.
@@ -134,26 +135,37 @@
   ocultoCarga.addEventListener('cambio-opcion', revisarSocio);
   revisarSocio();
 
-  // Aviso de camión repetido: se consulta al salir del campo Patentes.
-  inputPatentes.addEventListener('blur', function () {
+  // Aviso de camión repetido: se consulta al salir de Patentes, y otra vez al
+  // elegir el campo, porque con el código 56781 el ticket va a la balanza del
+  // campo y de eso depende si el otro ticket es "de otra balanza" o no.
+  function revisarRepetido() {
     var p = (inputPatentes.value || '').trim();
-    if (!p || p === yaAvisado || !App.hayConexion()) return;
-    App.pedir('GET', '/app/api/repetido?patentes=' + encodeURIComponent(p), null, function (err, res) {
+    var c = selCampo.value || '';
+    var clave = p + '|' + c;
+    if (!p || clave === yaAvisado || !App.hayConexion()) return;
+    yaAvisado = clave;
+    App.pedir('GET', '/app/api/repetido?patentes=' + encodeURIComponent(p) +
+      '&campo=' + encodeURIComponent(c), null, function (err, res) {
       if (err || !res || !res.repetido) return;
-      yaAvisado = p;
       mostrarRepetido(res.repetido);
     });
-  });
+  }
+  inputPatentes.addEventListener('blur', revisarRepetido);
+  selCampo.addEventListener('change', revisarRepetido);
 
-  function mostrarRepetido(r) {
+  function mostrarRepetido(r, guardado) {
     document.getElementById('rep-titulo').innerHTML =
       App.esc(r.patentes) + ' ya se cargó hoy en ' + App.esc(r.balanza);
     var partes = [];
-    if (r.nro) partes.push('Ticket ' + r.nro);
+    if (r.nro) partes.push('ticket ' + r.nro);
     if (r.hora) partes.push('a las ' + r.hora);
     if (r.usuario) partes.push('por ' + r.usuario);
+    // Se aclara de quién es el número: el que se muestra es el OTRO ticket.
+    // Leerlo como el propio era parte de lo que hacía confuso el aviso.
+    var otro = partes.length ? 'El otro es el ' + partes.join(', ') + '. ' : '';
     document.getElementById('rep-detalle').innerHTML =
-      App.esc(partes.join(', ')) + '. Fijate que no sea el mismo viaje cargado dos veces.';
+      (guardado ? 'Tu pesada quedó guardada. ' : '') + App.esc(otro) +
+      'Fijate que no sea el mismo viaje cargado dos veces.';
     document.getElementById('rep-ver').href = '/app/registro/' + r.id;
     App.abrirModal('modal-repetido');
   }
@@ -212,8 +224,9 @@
 
       alListo: function (res) {
         if (res.repetido) {
-          // Se guardó igual (no bloquea), pero se avisa.
-          mostrarRepetido(res.repetido);
+          // Se guardó igual (no bloquea), pero se avisa. El `true` es lo que
+          // hace que el cartel arranque diciendo que la pesada ya está.
+          mostrarRepetido(res.repetido, true);
           document.getElementById('rep-seguir').innerHTML = 'Listo, volver al patio';
           document.getElementById('rep-seguir').onclick = function (ev) {
             ev.preventDefault();

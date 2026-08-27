@@ -1063,10 +1063,24 @@ module.exports = function crearAppMovil(deps) {
    * AVISO DE CAMIÓN REPETIDO HOY  (ref. 7b)
    * ======================================================================= */
 
-  async function buscarRepetidoHoy(patentes, codigoIngresoPropio) {
+  /**
+   * La misma patente cargada hoy en OTRA balanza (ref. 7b). Segundo viaje en la
+   * misma balanza es normal y no avisa.
+   *
+   * `balanzaDelTicket` es la balanza del ticket que se está mirando, NO el
+   * código de la sesión: con el código GENERAL de carga (56781) el ticket queda
+   * en la balanza del campo elegido, así que comparar contra el código de la
+   * sesión hacía que ningún ticket contara como "de la misma balanza".
+   *
+   * `excluirId` es el ticket recién insertado. Sin eso, el aviso posterior a
+   * guardar encontraba el ticket que acababa de crearse y lo anunciaba como su
+   * propio repetido: mismo número, misma hora, mismo usuario.
+   */
+  async function buscarRepetidoHoy(patentes, balanzaDelTicket, excluirId) {
     const clave = patenteClave(patentes);
     if (!clave) return null;
     const hoy = hoyStr();
+    const propio = excluirId ? String(excluirId) : '';
     const docs = await colRegistros()
       .find({ fecha: hoy, anulado: { $ne: true } })
       .sort({ idTicket: -1 })
@@ -1074,7 +1088,8 @@ module.exports = function crearAppMovil(deps) {
 
     for (const r of docs) {
       if (patenteClave(r.patentes) !== clave) continue;
-      if (r.codigoIngreso === codigoIngresoPropio) continue;
+      if (propio && String(r._id) === propio) continue;
+      if (r.codigoIngreso === balanzaDelTicket) continue;
       return {
         id: String(r._id),
         nro: r.nroApp || String(r.idTicket || ''),
@@ -1090,7 +1105,12 @@ module.exports = function crearAppMovil(deps) {
   router.get('/api/repetido', exigirApp, exigirBalancero, async (req, res) => {
     try {
       const s = sesionApp(req);
-      const otro = await buscarRepetidoHoy(req.query.patentes, s.codigoIngreso);
+      // Todavía no hay ticket, así que la balanza es la que le TOCARÍA: con el
+      // 56781 depende del campo. Se consulta al salir de Patentes, que va antes
+      // del campo en el formulario, así que puede venir vacío; ahí se cae al
+      // código de la sesión, que es lo que se hacía siempre.
+      const balanza = balanzaDelTicket(s.codigoIngreso, String(req.query.campo || ''));
+      const otro = await buscarRepetidoHoy(req.query.patentes, balanza);
       return res.json({ ok: true, repetido: otro });
     } catch (err) {
       return siguienteError(err, req, res);
@@ -1244,7 +1264,14 @@ module.exports = function crearAppMovil(deps) {
         }
       }
 
-      const repetido = await buscarRepetidoHoy(registro.patentes, s.codigoIngreso);
+      // La balanza del TICKET y su propio id: con el código 56781 el ticket va
+      // a la balanza del campo, y sin excluirse a sí mismo se avisaba de un
+      // repetido que era el ticket que se acababa de guardar.
+      const repetido = await buscarRepetidoHoy(
+        registro.patentes,
+        registro.codigoIngreso,
+        r.insertedId
+      );
 
       return res.json({
         ok: true,

@@ -1231,6 +1231,75 @@ async function main() {
     docSinFija.codigoIngreso === '5684', docSinFija.codigoIngreso);
 
   /* ═════════════════════════════════════════════════════════════════════
+   * EL AVISO DE REPETIDO CON EL CÓDIGO 56781
+   * ---------------------------------------------------------------------
+   * Con el 56781 el ticket queda en la balanza del CAMPO, no en la del
+   * código. El aviso comparaba contra el código de la sesión, así que
+   * ningún ticket contaba como "de la misma balanza" y —peor— el ticket
+   * recién guardado se encontraba a SÍ MISMO: el cartel salía con su
+   * propio número, su propia hora y su propio usuario.
+   * ═══════════════════════════════════════════════════════════════════ */
+  seccion('Camión repetido cargando con el 56781');
+
+  r = await ir('POST', '/app/api/pesada', {
+    cargaPara: 'AMH', transporte: 'Serden', patentes: 'RE PET 01', chofer: 'Primera Vez',
+    brutoEstimado: '45000', campo: 'Panuncio - ARBOL BLANCO - SE',
+  }, { desde: OFICINA });
+  ok('la pesada se guarda', r.estado === 200 && !!r.json.id, r.texto.slice(0, 200));
+  ok('un camión nuevo NO sale avisado como repetido de sí mismo',
+    !r.json.repetido, JSON.stringify(r.json.repetido || null));
+  const idRep1 = r.json.id;
+
+  // Segundo viaje del mismo camión, mismo campo → misma balanza: es normal.
+  r = await ir('POST', '/app/api/pesada', {
+    cargaPara: 'AMH', transporte: 'Serden', patentes: 'RE PET 01', chofer: 'Segundo Viaje',
+    brutoEstimado: '45000', campo: 'Panuncio - ARBOL BLANCO - SE',
+  }, { desde: OFICINA });
+  ok('el segundo viaje en la MISMA balanza no avisa',
+    r.estado === 200 && !r.json.repetido, JSON.stringify(r.json.repetido || null));
+
+  // Ahora sí: el mismo camión en un campo de OTRA balanza (AVELLEIRA → 5684).
+  r = await ir('POST', '/app/api/pesada', {
+    cargaPara: 'AMH', transporte: 'Serden', patentes: 'RE PET 01', chofer: 'Otra Balanza',
+    brutoEstimado: '45000', campo: 'AVELLEIRA',
+  }, { desde: OFICINA });
+  ok('en otra balanza SÍ avisa', r.estado === 200 && !!r.json.repetido, r.texto.slice(0, 200));
+  ok('y el ticket que muestra es el OTRO, no el que se acaba de guardar',
+    r.json.repetido && r.json.repetido.id !== r.json.id,
+    'propio ' + r.json.id + ' / avisado ' + (r.json.repetido || {}).id);
+  ok('el avisado es uno de los de Panuncio',
+    r.json.repetido && [idRep1].concat(
+      baseFalsa.collection('registros').docs
+        .filter((d) => d.patentes === 'RE PET 01' && d.codigoIngreso === '5679')
+        .map((d) => String(d._id))
+    ).indexOf(r.json.repetido.id) !== -1, (r.json.repetido || {}).id);
+  /* La consulta previa (al salir de Patentes y al elegir el campo) también usa
+     el campo. Se prueba con una patente que está en UNA sola balanza: la de
+     arriba ya quedó en dos, y ahí avisar es lo correcto desde las dos puntas. */
+  r = await ir('POST', '/app/api/pesada', {
+    cargaPara: 'AMH', transporte: 'Serden', patentes: 'RE PET 02', chofer: 'Una Sola',
+    brutoEstimado: '45000', campo: 'Panuncio - ARBOL BLANCO - SE',
+  }, { desde: OFICINA });
+  ok('se carga una patente que queda en una sola balanza',
+    r.estado === 200 && !r.json.repetido, r.texto.slice(0, 200));
+
+  r = await ir('GET', '/app/api/repetido?patentes=RE%20PET%2002&campo=' +
+    encodeURIComponent('Panuncio - ARBOL BLANCO - SE'), null, { desde: OFICINA });
+  ok('preguntando por el campo de la MISMA balanza, no avisa',
+    r.estado === 200 && !r.json.repetido, JSON.stringify(r.json.repetido || null));
+
+  r = await ir('GET', '/app/api/repetido?patentes=RE%20PET%2002&campo=' +
+    encodeURIComponent('AVELLEIRA'), null, { desde: OFICINA });
+  ok('preguntando por un campo de OTRA balanza, sí avisa',
+    r.estado === 200 && !!r.json.repetido, JSON.stringify(r.json.repetido || null));
+
+  // Sin campo (recién salió de Patentes) se cae al código de la sesión, como
+  // siempre: con el 56781 ninguna balanza es "la propia", así que avisa.
+  r = await ir('GET', '/app/api/repetido?patentes=RE%20PET%2002', null, { desde: OFICINA });
+  ok('sin campo todavía elegido, la consulta previa sigue respondiendo',
+    r.estado === 200 && !!r.json.repetido, JSON.stringify(r.json.repetido || null));
+
+  /* ═════════════════════════════════════════════════════════════════════
    * RESUMEN
    * ═══════════════════════════════════════════════════════════════════ */
   console.log('\n════════════════════════════════════════');

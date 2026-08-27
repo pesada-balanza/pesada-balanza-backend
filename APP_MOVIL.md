@@ -365,6 +365,37 @@ que lo cargó lo pierda de vista.
 > código**, así que cualquier balanza ve y puede cerrar la tara final de otra.
 > En la app cada balanza ve y cierra **solo lo suyo**, en los tres pasos.
 
+### El aviso de "camión repetido hoy"
+
+Cuando la misma patente se carga hoy en **otra** balanza, sale un cartel (ref.
+7b). Es solo un aviso: **no bloquea** la carga, y el mismo dato le llega a
+GENERAL en "Para revisar". Un segundo viaje en la **misma** balanza es normal y
+no avisa.
+
+Se pregunta en dos momentos: al salir de **Patentes**, y otra vez al elegir el
+**campo** — porque de eso depende cuál es "su" balanza.
+
+> **Cuidado con el código `56781`.** Es el único que **deriva** el ticket a la
+> balanza del campo, así que la balanza del ticket **no** es la de la sesión.
+> Comparar contra el código de la sesión tiene dos consecuencias, y las dos se
+> vieron en la práctica:
+>
+> 1. ninguna balanza cuenta como "la propia", así que avisa hasta del segundo
+>    viaje en el mismo lugar;
+> 2. peor: el aviso posterior a guardar encontraba **el ticket recién creado** y
+>    lo anunciaba como su propio repetido, con su mismo número, su misma hora y
+>    su mismo usuario. Un camión nuevo parecía repetido.
+>
+> Por eso `buscarRepetidoHoy(patentes, balanzaDelTicket, excluirId)` recibe la
+> balanza **del ticket** y el id a excluir. Después de guardar se le pasa el
+> `_id` recién insertado: un ticket no puede ser su propio repetido, pase lo que
+> pase con los códigos.
+
+El cartel aclara **de quién es el número** que muestra ("El otro es el ticket
+1-0408…"): leerlo como el propio era la otra mitad de la confusión. Y cuando sale
+**después** de guardar arranca diciendo *"Tu pesada quedó guardada"*, porque el
+cartel tapa la pantalla y no quedaba claro si se había guardado o no.
+
 ### Cuando el balancero pide una anulación o una corrección
 
 Los accesos a "Pedir corrección a GENERAL" y "Pedir anulación a GENERAL" son
