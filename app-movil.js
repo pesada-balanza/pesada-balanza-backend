@@ -42,6 +42,11 @@ module.exports = function crearAppMovil(deps) {
     ticketVigente,
     notificar,
     resolverNombreCodigo,
+    // Límites de la tara. Se definen en app.js y viajan por acá para que la
+    // web, el servidor de la app y las pantallas usen el MISMO número.
+    TARA_MIN,
+    TARA_MAX,
+    TARA_ESTIMADA_MIN,
     rangoCampana,
     construirLibroRegistros,
   } = deps;
@@ -639,6 +644,14 @@ module.exports = function crearAppMovil(deps) {
     // patio y del resumen la compara con la que tiene guardada el teléfono: así
     // se ve de un vistazo si quedó atrasado, sin tener que adivinar.
     res.locals.versionApp = versionDelServiceWorker();
+    // Los límites de la tara, para que el teléfono valide con el MISMO número
+    // que el servidor. Antes estaban escritos en cada vista y subirlos obligaba
+    // a acordarse de todas: alcanzaba con olvidar una para que la pantalla
+    // rechazara un peso que el servidor aceptaba.
+    res.locals.taraMin = TARA_MIN;
+    res.locals.taraMax = TARA_MAX;
+    res.locals.taraMinTexto = kg(TARA_MIN);
+    res.locals.taraMaxTexto = kg(TARA_MAX);
     return next();
   });
 
@@ -1154,7 +1167,7 @@ module.exports = function crearAppMovil(deps) {
 
   /**
    * Alta de CAMIONES. Repite las mismas validaciones que /guardar-tara de la web
-   * (campo de la lista oficial, bruto 1000–60000, tara opcional 0–30000).
+   * (campo de la lista oficial, bruto 1000–60000, tara estimada opcional).
    */
   router.post('/api/pesada', exigirApp, exigirBalancero, exigirNombreDia, async (req, res) => {
     try {
@@ -1191,7 +1204,7 @@ module.exports = function crearAppMovil(deps) {
       let tara = 0;
       const taraRaw = String(req.body.tara || '').trim();
       if (taraRaw !== '') {
-        const vTara = validarNumero(taraRaw, 0, 30000);
+        const vTara = validarNumero(taraRaw, TARA_ESTIMADA_MIN, TARA_MAX);
         if (!vTara.ok) return fallar(res, 400, 'Tara: ' + vTara.error);
         tara = vTara.valor;
       }
@@ -1395,7 +1408,7 @@ module.exports = function crearAppMovil(deps) {
       if (r.anulado) return fallar(res, 400, 'Este ticket está anulado.');
       if (r.fechaTaraFinal) return fallar(res, 400, 'Este camión ya tiene la tara final cargada.');
 
-      const v = validarNumero(req.body.taraNueva, 1000, 30000);
+      const v = validarNumero(req.body.taraNueva, TARA_MIN, TARA_MAX);
       if (!v.ok) return fallar(res, 400, 'Tara final: ' + v.error);
       const taraNueva = v.valor;
 
@@ -1566,7 +1579,7 @@ module.exports = function crearAppMovil(deps) {
       const confirmarTara = String(req.body.confirmarTara || 'SI').toUpperCase() === 'NO' ? 'NO' : 'SI';
       let taraFinal;
       if (confirmarTara === 'NO') {
-        const vTara = validarNumero(req.body.taraNueva, 1000, 30000);
+        const vTara = validarNumero(req.body.taraNueva, TARA_MIN, TARA_MAX);
         if (!vTara.ok) return fallar(res, 400, 'Tara corregida: ' + vTara.error);
         taraFinal = vTara.valor;
       } else {
@@ -2077,7 +2090,7 @@ module.exports = function crearAppMovil(deps) {
       /* La tara sigue las reglas del paso en el que está el ticket:
        *
        *  - con TARA FINAL cargada es un peso REAL de la balanza: obligatoria y
-       *    de 1.000 a 30.000 kg, los mismos límites que al cargarla;
+       *    entre TARA_MIN y TARA_MAX, los mismos límites que al cargarla;
        *  - sin TARA FINAL todavía es la TARA ESTIMADA del ticket de CAMIONES,
        *    donde es OPCIONAL (así la dejan la web y la app: vacía vale).
        *
@@ -2091,7 +2104,7 @@ module.exports = function crearAppMovil(deps) {
       if (taraEscrita === '') {
         if (taraEsReal) return fallar(res, 400, 'Falta la tara.');
       } else {
-        const vTara = validarNumero(taraEscrita, taraEsReal ? 1000 : 0, 30000);
+        const vTara = validarNumero(taraEscrita, taraEsReal ? TARA_MIN : TARA_ESTIMADA_MIN, TARA_MAX);
         if (!vTara.ok) return fallar(res, 400, 'Tara: ' + vTara.error);
         tara = vTara.valor;
       }

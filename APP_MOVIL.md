@@ -653,14 +653,49 @@ del pesaje. Lo que se corrige es la tara, y el neto se recalcula solo
 (`netoEstimado = brutoEstimado − tara`, y `neto = bruto − tara` cuando ya está la
 regulada). La tara nunca puede quedar por encima de ningún bruto.
 
+#### Los límites de la tara: 1.000 a 40.000 kg
+
+**La tara del ticket no es siempre el camión vacío.** Un camión que no llegó a
+completar la carga en un campo sigue viaje a otro para terminar, y cuando se pesa
+en el segundo su "tara" ya trae lo cargado en el primero. Por eso el techo no se
+calcula sobre un chasis vacío. El límite anterior de **30.000 kg** rechazaba un
+caso real de unos **36.000 kg**, y por eso se subió a **40.000**.
+
+Los tres números viven en **un solo lugar**, `app.js`:
+
+```js
+const TARA_MIN = 1000;          // TARA FINAL y tara corregida: pesos reales
+const TARA_MAX = 40000;
+const TARA_ESTIMADA_MIN = 0;    // la tara del paso CAMIONES es opcional
+```
+
+De ahí salen para todos lados:
+
+- **el servidor de la web** los usa directo (4 validaciones);
+- **`app-movil.js`** los recibe por `deps` (4 validaciones: nueva pesada, tara
+  final, tara corregida en la regulada, y la corrección de GENERAL);
+- **las pantallas** los reciben por `res.locals` (`taraMin`, `taraMax`,
+  `taraMinTexto`, `taraMaxTexto`) y los escriben en el `min`/`max` del campo y en
+  el mensaje de error.
+
+Antes estaban escritos a mano en **17 lugares**. Con eso, subir el tope obligaba
+a acordarse de todos: bastaba olvidar una vista para que el teléfono rechazara un
+peso que el servidor aceptaba, y el balancero se quedaba sin poder cargar sin
+entender por qué.
+
+> **Al cambiarlos hay que subir la `VERSION` del service worker.** La pantalla
+> `/app/local` —la que se usa **sin señal**— está precacheada y valida la tara
+> sola, sin servidor. Si no se sube la versión, los teléfonos que ya tienen la
+> app instalada siguen con el tope viejo justo cuando no hay red para corregirlo.
+
 #### La tara se pide según el paso en el que está el ticket
 
 Son dos taras distintas, y esto **trababa la corrección entera**:
 
 | Estado del ticket | Qué es la tara | Cómo se pide |
 | --- | --- | --- |
-| **sin** `fechaTaraFinal` (paso CAMIONES) | una **estimación**, opcional: al cargar el ticket se deja vacía si no se sabe | **opcional**, 0 a 30.000 kg. El campo arranca vacío, no en `0` |
-| **con** `fechaTaraFinal` | un **peso real** de la balanza | **obligatoria**, 1.000 a 30.000 kg, igual que al cargarla |
+| **sin** `fechaTaraFinal` (paso CAMIONES) | una **estimación**, opcional: al cargar el ticket se deja vacía si no se sabe | **opcional**, `TARA_ESTIMADA_MIN`–`TARA_MAX` (0 a 40.000 kg). El campo arranca vacío, no en `0` |
+| **con** `fechaTaraFinal` | un **peso real** de la balanza | **obligatoria**, `TARA_MIN`–`TARA_MAX` (1.000 a 40.000 kg), igual que al cargarla |
 
 Antes se exigía siempre, con el mínimo de 1.000. Como en el paso CAMIONES la tara
 suele estar vacía, el formulario se trababa en un campo que a esa altura **no

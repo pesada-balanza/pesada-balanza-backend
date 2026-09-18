@@ -50,7 +50,7 @@
       <div class="campo oculto" id="campo-tara-nueva">
         <label class="etiqueta" for="taraNuevaReg">Tara corregida (kg)</label>
         <input type="number" id="taraNuevaReg" class="mono" inputmode="numeric"
-               min="1000" max="30000" step="10" placeholder="<%= r.tara %>">
+               min="<%= taraMin %>" max="<%= taraMax %>" step="10" placeholder="<%= r.tara %>">
         <span class="txt-chico">Solo si la tara pesada estaba mal.</span>
       </div>
     </div>
@@ -414,8 +414,8 @@
 
     if (corrigiendoTara) {
       var t = Number(inputTaraNueva.value);
-      if (!isFinite(t) || t < 1000 || t > 30000) {
-        error.innerHTML = 'La tara corregida va entre 1.000 y 30.000 kg.';
+      if (!isFinite(t) || t < <%= taraMin %> || t > <%= taraMax %>) {
+        error.innerHTML = 'La tara corregida va entre <%= taraMinTexto %> y <%= taraMaxTexto %> kg.';
         return;
       }
       datos.confirmarTara = 'NO';

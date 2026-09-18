@@ -40,7 +40,7 @@
       <div class="campo">
         <label class="etiqueta" for="taraNueva">Tara final (kg)</label>
         <input type="number" id="taraNueva" name="taraNueva" class="mono" inputmode="numeric"
-               min="1000" max="30000" step="10" enterkeyhint="done" placeholder="15600">
+               min="<%= taraMin %>" max="<%= taraMax %>" step="10" enterkeyhint="done" placeholder="15600">
       </div>
       <div id="error-tf" class="campo-error" style="min-height:18px; margin-top:8px"></div>
       <div class="tarjeta tarjeta-gris" id="calculo" hidden style="margin-top:4px">
@@ -129,8 +129,10 @@
   function guardar() {
     error.innerHTML = '';
     var v = Number(input.value);
-    if (!isFinite(v) || v < 1000 || v > 30000) {
-      error.innerHTML = 'La tara final va entre 1.000 y 30.000 kg.';
+    // Los límites los manda el servidor (TARA_MIN/TARA_MAX en app.js): acá no
+    // se repiten, así el teléfono nunca rechaza un peso que el servidor acepta.
+    if (!isFinite(v) || v < <%= taraMin %> || v > <%= taraMax %>) {
+      error.innerHTML = 'La tara final va entre <%= taraMinTexto %> y <%= taraMaxTexto %> kg.';
       input.focus();
       return;
     }

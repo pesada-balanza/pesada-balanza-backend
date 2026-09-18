@@ -190,8 +190,11 @@
   function guardarTaraFinal() {
     error.innerHTML = '';
     var v = Number(document.getElementById('l-tara').value);
-    if (!isFinite(v) || v < 1000 || v > 30000) {
-      error.innerHTML = 'La tara final va entre 1.000 y 30.000 kg.';
+    // Mismos límites que con señal, puestos por el servidor al armar esta
+    // pantalla. Ojo: esta pantalla se guarda en el teléfono, así que cambiarlos
+    // exige subir la VERSION del service worker para que llegue la nueva.
+    if (!isFinite(v) || v < <%= taraMin %> || v > <%= taraMax %>) {
+      error.innerHTML = 'La tara final va entre <%= taraMinTexto %> y <%= taraMaxTexto %> kg.';
       return;
     }
 

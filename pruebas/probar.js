@@ -307,9 +307,33 @@ async function main() {
   seccion('Tara final e impresión del ticket');
   r = await ir('GET', '/app/tara-final/' + idCamion);
   ok('la pantalla de tara final abre', r.estado === 200 && /Tara final \(kg\)/.test(r.texto));
+  // La pantalla tiene que traer los límites que manda el servidor, no los suyos.
+  ok('el campo trae el tope de 40.000 que pone el servidor',
+    /max="40000"/.test(r.texto), (r.texto.match(/id="taraNueva"[\s\S]{0,140}/) || [''])[0]);
+  ok('y el mensaje de error dice el mismo número',
+    /va entre 1\.000 y 40\.000 kg/.test(r.texto), (r.texto.match(/va entre [^']*/) || [''])[0]);
 
   r = await ir('POST', '/app/api/tara-final', { id: idCamion, taraNueva: 500 });
   ok('tara fuera de rango se rechaza', r.estado === 400 && /Tara final/.test(r.json.error));
+
+  /* El techo subió de 30.000 a 40.000: un camión que no llegó a completar la
+     carga en un campo sigue a otro para terminar, y al pesarse ahí su "tara" ya
+     trae lo del primero. El caso real que lo motivó rondaba los 36.000 kg. */
+  r = await ir('POST', '/app/api/tara-final', { id: idCamion, taraNueva: 36000 });
+  ok('una tara de 36.000 (camión cargado a medias) ahora entra',
+    r.estado === 200, r.texto.slice(0, 200));
+  let docParcial = baseFalsa.collection('registros').docs.find((d) => String(d._id) === idCamion);
+  ok('quedó guardada tal cual', docParcial.tara === 36000, docParcial.tara);
+
+  // Se deshace a mano para seguir la prueba como estaba: la tara final solo se
+  // carga una vez, y el resto de esta sección espera el ticket todavía abierto.
+  delete docParcial.fechaTaraFinal;
+  docParcial.tara = 0;
+  docParcial.netoEstimado = 0;
+
+  r = await ir('POST', '/app/api/tara-final', { id: idCamion, taraNueva: 40001 });
+  ok('pasado el tope sigue rechazando', r.estado === 400 && /Tara final/.test(r.json.error),
+    r.json && r.json.error);
 
   r = await ir('POST', '/app/api/tara-final', { id: idCamion, taraNueva: 15600 });
   ok('se guarda la tara final', r.estado === 200 && r.json.urlTicket, r.texto.slice(0, 200));
@@ -539,6 +563,12 @@ async function main() {
 
   r = await ir('GET', '/app/local');
   ok('la pantalla para seguir sin señal abre', r.estado === 200 && /l-cuerpo/.test(r.texto), r.estado);
+  // Esta pantalla se guarda en el teléfono y valida la tara SIN servidor: si se
+  // quedara con un tope viejo, sin señal rechazaría un peso que el servidor
+  // acepta. Por eso los límites los escribe el servidor al armarla.
+  ok('sin señal valida la tara con el mismo tope de 40.000',
+    /40000/.test(r.texto) && /va entre 1\.000 y 40\.000 kg/.test(r.texto),
+    (r.texto.match(/va entre [^']*/) || [''])[0]);
 
   // Sin sesión también, para que el service worker la pueda guardar de entrada
   const cookiesConSesion = cookies;

@@ -251,6 +251,14 @@ async function main() {
   r = await ir('POST', '/app/api/corregir/' + nuevoTicket(), { patentes: 'AA 111 BB', chofer: 'X', tara: '55000' });
   ok('una tara fuera de rango se rechaza', r.estado === 400 && /Tara/.test(r.json.error), r.texto.slice(0, 200));
 
+  // El techo es 40.000: un camión que completó carga en un segundo campo llega
+  // con la tara alta y también se tiene que poder corregir.
+  r = await ir('POST', '/app/api/corregir/' + nuevoTicket(), { patentes: 'AA 111 BB', chofer: 'X', tara: '36000' });
+  ok('una tara de 36.000 sí se puede corregir', r.estado === 200 && r.json.ok === true, r.texto.slice(0, 200));
+
+  r = await ir('POST', '/app/api/corregir/' + nuevoTicket(), { patentes: 'AA 111 BB', chofer: 'X', tara: '40001' });
+  ok('pasado el tope de 40.000 se rechaza', r.estado === 400 && /Tara/.test(r.json.error), r.texto.slice(0, 200));
+
   // 25.000 entra en el rango de una tara pero supera el bruto estimado de 52.500?
   // no: se usa un ticket con bruto chico para probar justamente ese control.
   const idBrutoChico = String(meterTicket({

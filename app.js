@@ -1083,6 +1083,29 @@ function validarNumero(v, min = 0, max = 60000) {
 }
 
 /* ---------------------------------------------
+ * LÍMITES DE LA TARA — un solo lugar
+ * ---------------------------------------------
+ * La tara del ticket NO es siempre el camión vacío. Un camión que no llegó a
+ * completar la carga en un campo sigue viaje a otro para terminar de cargar, y
+ * al pesarse ahí su "tara" ya trae lo cargado en el primero. Por eso el techo
+ * no se calcula sobre un chasis vacío: pasó un caso real de ~36.000 kg que el
+ * límite anterior de 30.000 rechazaba.
+ *
+ * TARA_MIN vale para la TARA FINAL y para la tara corregida: son pesos reales
+ * de la balanza. La tara del paso CAMIONES es una ESTIMACIÓN opcional y arranca
+ * en 0 (TARA_ESTIMADA_MIN).
+ *
+ * Estaban escritos a mano en 17 lugares entre el servidor, las vistas y la web.
+ * Ahora salen de acá: app-movil.js los recibe por deps y las pantallas los
+ * reciben por res.locals, así el teléfono valida con el mismo número que el
+ * servidor y no hay forma de que queden desparejos.
+ * -------------------------------------------*/
+const TARA_MIN = 1000;
+const TARA_MAX = 40000;
+const TARA_ESTIMADA_MIN = 0;
+
+
+/* ---------------------------------------------
  * APP MÓVIL (/app) — PWA para los balanceros
  * Vive entera en app-movil.js y cuelga del prefijo /app. Está detrás del flag
  * APP_MOVIL: con la variable apagada no se monta nada y la web queda exactamente
@@ -1095,6 +1118,7 @@ if (process.env.APP_MOVIL === '1') {
     getContratistas: () => contratistas,   // se carga async desde el xlsx
     codigosIngreso, codigosObservacion, ingresoAObservacion,
     ymd, validarNumero, ticketVigente, notificar, resolverNombreCodigo,
+    TARA_MIN, TARA_MAX, TARA_ESTIMADA_MIN,
     rangoCampana,
     // El mismo reporte que el botón "Exportar a Excel" de la web: se arma en un
     // solo lugar y la app decide qué registros entran según con qué código se
@@ -1620,7 +1644,7 @@ app.post('/guardar-tara', async (req, res) => {
     const taraRawTara = [].concat(req.body.tara || '').filter(v => v !== '').pop() || '';
     let tara = 0;
     if (taraRawTara !== '') {
-      const vTara = validarNumero(taraRawTara, 0, 30000);
+      const vTara = validarNumero(taraRawTara, TARA_ESTIMADA_MIN, TARA_MAX);
       if (!vTara.ok) {
         return res.status(400).render('error', { error: `Tara inválida: ${vTara.error}` });
       }
@@ -1677,8 +1701,8 @@ app.post('/confirmar-tara-final', async (req, res) => {
       });
     }
 
-    // VUL-04: taraNueva es OBLIGATORIA en TARA FINAL, entre 1000 y 30000 kg
-    const vTaraNuevaConf = validarNumero(req.body.taraNueva, 1000, 30000);
+    // VUL-04: taraNueva es OBLIGATORIA en TARA FINAL (ver TARA_MIN/TARA_MAX)
+    const vTaraNuevaConf = validarNumero(req.body.taraNueva, TARA_MIN, TARA_MAX);
     if (!vTaraNuevaConf.ok) {
       return res.status(400).render('error', {
         error: `Tara Final inválida: ${vTaraNuevaConf.error}`
@@ -1737,8 +1761,8 @@ app.post('/guardar-tara-final', async (req, res) => {
       });
     }
 
-    // VUL-04: taraNueva es OBLIGATORIA en TARA FINAL, entre 1000 y 30000 kg
-    const vTaraNuevaGuard = validarNumero(req.body.taraNueva, 1000, 30000);
+    // VUL-04: taraNueva es OBLIGATORIA en TARA FINAL (ver TARA_MIN/TARA_MAX)
+    const vTaraNuevaGuard = validarNumero(req.body.taraNueva, TARA_MIN, TARA_MAX);
     if (!vTaraNuevaGuard.ok) {
       return res.status(400).render('error', {
         error: `Tara Final inválida: ${vTaraNuevaGuard.error}`
@@ -1958,13 +1982,13 @@ app.post('/guardar-regulada', async (req, res) => {
     const bruto = vBrutoReg.valor;
 
     // Si confirmarTara='SI' se usa la tara original del ticket (ya validada al crear).
-    // Si confirmarTara='NO' el operador ingresa una nueva → mismas reglas que TARA FINAL (1000–30000 kg).
+    // Si confirmarTara='NO' el operador ingresa una nueva → mismas reglas que TARA FINAL.
     const taraRaw = req.body.confirmarTara === 'SI'
       ? req.body.tara
       : req.body.taraNueva;
     let taraFinal;
     if (req.body.confirmarTara === 'NO') {
-      const vTaraReg = validarNumero(taraRaw, 1000, 30000);
+      const vTaraReg = validarNumero(taraRaw, TARA_MIN, TARA_MAX);
       if (!vTaraReg.ok) {
         return res.status(400).render('error', { error: `Tara corregida inválida: ${vTaraReg.error}` });
       }
