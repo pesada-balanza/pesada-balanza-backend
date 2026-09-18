@@ -26,6 +26,40 @@ const cron = require('node-cron');
 const qrcode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
 const fs = require('fs');
+
+/* ---------------------------------------------
+ * PARCHE whatsapp-web.js (fix envío de archivos)
+ * -------------------------------------------
+ * WhatsApp Web (build 2.3000.1047xxx, 17/09/2026) rompió el envío de
+ * documentos/media en whatsapp-web.js con el error:
+ *   "Data passed to getter must include an id property..."
+ * El fix oficial (PR #201923) borra la propiedad interna __x_id antes de
+ * armar el mensaje. Lo aplicamos solo al archivo inyectado de la librería,
+ * ANTES de cargarla. Es idempotente y se re-aplica en cada arranque, así
+ * sobrevive a reinstalaciones de npm. No requiere re-escanear el QR.
+ */
+(function parcharWhatsappWebJs() {
+  try {
+    const f = path.join(path.dirname(require.resolve('whatsapp-web.js')),
+      'src', 'util', 'Injected', 'Utils.js');
+    let src = fs.readFileSync(f, 'utf8');
+    if (src.includes('message.__x_id')) return; // ya parchado
+    const marca = "// Bot's won't reply if canonicalUrl is set";
+    const idx = src.indexOf(marca);
+    if (idx === -1) {
+      console.warn('[Parche] No se encontró el punto de parche __x_id (¿cambió la librería?). Se sigue sin parchar.');
+      return;
+    }
+    const lineStart = src.lastIndexOf('\n', idx) + 1;
+    const indent = src.slice(lineStart, idx);
+    src = src.slice(0, lineStart) + indent + 'delete message.__x_id;\n\n' + src.slice(lineStart);
+    fs.writeFileSync(f, src);
+    console.log('[Parche] Aplicado el fix __x_id a whatsapp-web.js (envío de archivos).');
+  } catch (err) {
+    console.warn('[Parche] No se pudo aplicar el fix __x_id:', err.message);
+  }
+})();
+
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
 const lineas = require('./lineas');
