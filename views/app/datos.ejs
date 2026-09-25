@@ -26,12 +26,13 @@
     <div class="chips">
       <% [['hoy','Hoy'],['semana','7 días'],['mes','30 días'],['campana','Campaña']].forEach(function (p) { %>
         <a class="chip-elegible<%= periodo === p[0] ? ' elegido' : '' %>"
-           href="/app/datos?corte=<%= corte %>&periodo=<%= p[0] %>"><%= p[1] %></a>
+           href="/app/datos?corte=<%= corte %>&periodo=<%= p[0] %>&orden=<%= orden %>"><%= p[1] %></a>
       <% }); %>
     </div>
 
     <form class="tarjeta tarjeta-chica" method="GET" action="/app/datos" style="gap:9px">
       <input type="hidden" name="corte" value="<%= corte %>">
+      <input type="hidden" name="orden" value="<%= orden %>">
       <span class="etiqueta">O un rango a mano</span>
       <div class="fila" style="gap:8px">
         <input type="date" name="desde" value="<%= desde %>" max="<%= hoy %>" style="flex:1">
@@ -58,7 +59,7 @@
       <div class="chips" style="margin-top:6px">
         <% cortes.forEach(function (c) { %>
           <a class="chip-elegible<%= corte === c.clave ? ' elegido' : '' %>"
-             href="/app/datos?corte=<%= c.clave %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %>"><%= c.etiqueta %></a>
+             href="/app/datos?corte=<%= c.clave %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %>&orden=<%= orden %>"><%= c.etiqueta %></a>
         <% }); %>
       </div>
     </div>
@@ -69,6 +70,18 @@
         <span class="txt">Probá con un período más largo, o fijate en el resumen del día si hay camiones en curso.</span>
       </div>
     <% } else { %>
+      <%# Con treinta renglones el orden tiene que estar a la vista y poder
+          cambiarse: si no, la lista aparece en un orden que no se entiende. %>
+      <div class="campo">
+        <span class="etiqueta">Ordenar por</span>
+        <div class="chips" style="margin-top:6px">
+          <% [['fecha','Último registro'],['kg','Kilos']].forEach(function (o) { %>
+            <a class="chip-elegible<%= orden === o[0] ? ' elegido' : '' %>"
+               href="/app/datos?corte=<%= corte %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %>&orden=<%= o[0] %>"><%= o[1] %></a>
+          <% }); %>
+        </div>
+      </div>
+
       <div class="tarjeta" style="gap:13px">
         <div class="fila-base">
           <span class="cuerpo-fuerte">Por <%= (cortes.find(function (c) { return c.clave === corte; }) || {}).etiqueta.toLowerCase() %></span>
@@ -84,7 +97,9 @@
                 <span class="mono" style="font:600 16px/1 var(--mono)"><%= kg(f.neto) %></span>
               </div>
               <div class="fila-base">
-                <span class="txt-aux"><%= f.camiones %> <%= f.camiones === 1 ? 'camión' : 'camiones' %></span>
+                <span class="txt-aux">
+                  <%= f.camiones %> <%= f.camiones === 1 ? 'camión' : 'camiones' %><%= f.ultima ? ' · último ' + f.ultima : '' %>
+                </span>
                 <span class="txt-aux"><%= f.porcentaje %>%</span>
               </div>
               <%# La barra hace comparable de un vistazo lo que los números

@@ -962,6 +962,23 @@ Si esta pantalla dice un número distinto al del Excel, deja de servir. Por eso:
 Se filtra por **`fecha`**, el mismo campo que usa el botón de Excel, para que el
 mismo rango dé el mismo número en los dos lados.
 
+### El orden de la lista
+
+Con treinta silobolsas a la vista, **un orden que no se explica no se entiende**.
+Por eso cada renglón muestra **la fecha de su último ticket** (`último 25/09`),
+ordene por lo que ordene, y el orden se elige con un chip:
+
+| Ordenar por | Para qué |
+| --- | --- |
+| **Último registro** *(por omisión)* | qué se está usando ahora. Con muchas bolsas, importa más que cuál pesó más en toda la campaña |
+| **Kilos** | de mayor a menor, que era el único orden que había |
+
+Cuando varios renglones empatan en fecha —una balanza cierra varias bolsas el
+mismo día— desempatan por kilos, para que el orden sea estable y no uno al azar.
+
+El renglón `primero` (hoy, "Sin número") queda arriba **con cualquiera de los
+dos órdenes**: es una lista de pendientes, no compite por tamaño.
+
 ### El corte por silobolsa: campo + número
 
 El número de silobolsa se **tipea en la regulada** y solo existe si ahí se eligió

@@ -609,6 +609,16 @@ async function main() {
   // Eligió silobolsa y NO tipeó el número: este, y solo este, es "Sin número".
   totDia({ patentes: 'TT 007 GG', chofer: 'Tot Sin Nro', grano: 'SOJA', lote: 'L9',
     neto: 5000, cargoDe: 'SILOBOLSA', silobolsa: '' });
+  /* Dos bolsas para el orden: la GRANDE es vieja y la CHICA es de un día
+     después. Por kilos manda la grande; por fecha, la chica. */
+  const DIA_VIEJO = haceDias(6);
+  meterTicket({ fecha: DIA_VIEJO, fechaTaraFinal: DIA_VIEJO, fechaRegulada: DIA_VIEJO,
+    patentes: 'TT 008 HH', chofer: 'Tot Vieja', grano: 'SOJA', neto: 90000,
+    cargoDe: 'SILOBOLSA', silobolsa: '80' });
+  const DIA_NUEVO = haceDias(5);
+  meterTicket({ fecha: DIA_NUEVO, fechaTaraFinal: DIA_NUEVO, fechaRegulada: DIA_NUEVO,
+    patentes: 'TT 009 II', chofer: 'Tot Nueva', grano: 'SOJA', neto: 1000,
+    cargoDe: 'SILOBOLSA', silobolsa: '81' });
   totDia({ patentes: 'TT 003 CC', chofer: 'Tot Tres', grano: 'MAÍZ', lote: 'L9',
     neto: 50000, cargaPara: 'AMH', socio: '', transporte: 'Ciriaci' });
   // No cuentan: uno anulado y uno sin regular.
@@ -670,6 +680,36 @@ async function main() {
   // 5.000 es el del silobolsa sin número; 10.000 el del contratista. Si se
   // hubieran mezclado, el renglón daría 15.000.
   ok('y no se suman entre sí', !/15\.000/.test(r.texto), r.estado);
+
+  /* ── El orden de la lista ──────────────────────────────────────────────
+     Con treinta silobolsas, un orden que no se explica no se entiende. Por eso
+     la fecha del último ticket va SIEMPRE a la vista y el orden se elige. */
+  const rangoBolsas = 'desde=' + haceDias(7) + '&hasta=' + haceDias(4) + '&corte=silobolsa';
+
+  r = await ir('GET', '/app/datos?' + rangoBolsas);
+  ok('cada renglón muestra la fecha de su último ticket',
+    /último \d\d\/\d\d/.test(r.texto), (r.texto.match(/último \d\d\/\d\d/) || [''])[0]);
+  ok('por omisión ordena por el último registro: la bolsa nueva va antes que la grande',
+    r.texto.indexOf('81 ·') < r.texto.indexOf('80 ·'),
+    r.texto.indexOf('81 ·') + ' / ' + r.texto.indexOf('80 ·'));
+
+  r = await ir('GET', '/app/datos?' + rangoBolsas + '&orden=kg');
+  ok('eligiendo Kilos se da vuelta: manda la grande',
+    r.texto.indexOf('80 ·') < r.texto.indexOf('81 ·'),
+    r.texto.indexOf('80 ·') + ' / ' + r.texto.indexOf('81 ·'));
+
+  r = await ir('GET', '/app/datos?' + rangoBolsas + '&orden=inventado');
+  ok('un orden inventado no rompe: se cae al último registro',
+    r.estado === 200 && r.texto.indexOf('81 ·') < r.texto.indexOf('80 ·'), r.estado);
+
+  // "Sin número" sigue anclado arriba ordene por lo que ordene.
+  for (const o of ['fecha', 'kg']) {
+    r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
+      '&corte=silobolsa&orden=' + o);
+    ok('"Sin número" queda primero también ordenando por ' + o,
+      r.texto.indexOf('Sin número') < r.texto.indexOf('17 · Quimili'),
+      r.texto.indexOf('Sin número') + ' / ' + r.texto.indexOf('17 · Quimili'));
+  }
   ok('y ese renglón va PRIMERO, aunque sume menos',
     r.texto.indexOf('Sin número') < r.texto.indexOf('17 · Quimili'),
     r.texto.indexOf('Sin número') + ' / ' + r.texto.indexOf('17 · Quimili'));

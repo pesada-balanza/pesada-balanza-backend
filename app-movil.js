@@ -3089,6 +3089,9 @@ module.exports = function crearAppMovil(deps) {
         ? String(req.query.corte)
         : 'grano';
       const { desde, hasta, periodo } = periodoElegido(req.query);
+      // Por omisión, el último registro arriba: con treinta silobolsas, lo que
+      // se está usando ahora importa más que lo que más pesó en la campaña.
+      const orden = String(req.query.orden) === 'kg' ? 'kg' : 'fecha';
 
       // Mismo alcance que el buscador y el Excel: cada código ve SOLO su
       // balanza, el 12341 todas. Va acá y no en la vista a propósito: es un
@@ -3104,7 +3107,7 @@ module.exports = function crearAppMovil(deps) {
       const docs = await colRegistros()
         .find(filtro, {
           projection: {
-            neto: 1, grano: 1, lote: 1, campo: 1, cargaPara: 1, socio: 1,
+            fecha: 1, neto: 1, grano: 1, lote: 1, campo: 1, cargaPara: 1, socio: 1,
             transporte: 1, codigoIngreso: 1, cargoDe: 1, silobolsa: 1,
           },
         })
@@ -3122,9 +3125,11 @@ module.exports = function crearAppMovil(deps) {
         const parte = def.reparte && claves.length > 1 ? neto / claves.length : neto;
         for (const k of claves) {
           const clave = String(k || '—');
-          if (!acum[clave]) acum[clave] = { nombre: clave, neto: 0, camiones: 0 };
+          if (!acum[clave]) acum[clave] = { nombre: clave, neto: 0, camiones: 0, ultima: '' };
           acum[clave].neto += parte;
           acum[clave].camiones++;
+          // Las fechas son YYYY-MM-DD: se comparan como texto sin convertir.
+          if (String(r.fecha || '') > acum[clave].ultima) acum[clave].ultima = String(r.fecha || '');
         }
       }
 
@@ -3136,6 +3141,11 @@ module.exports = function crearAppMovil(deps) {
             if (a.nombre === def.primero) return -1;
             if (b.nombre === def.primero) return 1;
           }
+          if (orden === 'kg') return b.neto - a.neto;
+          // Por fecha del último ticket. Empatan muchos renglones el mismo día
+          // (una balanza cierra varias bolsas en la misma jornada), así que el
+          // desempate por kilos deja un orden estable y no uno al azar.
+          if (a.ultima !== b.ultima) return a.ultima < b.ultima ? 1 : -1;
           return b.neto - a.neto;
         })
         .map((f) => ({
@@ -3143,6 +3153,9 @@ module.exports = function crearAppMovil(deps) {
           neto: Math.round(f.neto),
           camiones: f.camiones,
           porcentaje: total > 0 ? Math.round((f.neto / total) * 100) : 0,
+          // La fecha va SIEMPRE a la vista, ordene por lo que ordene: sin ella
+          // la lista aparece en un orden que no se entiende.
+          ultima: f.ultima ? fechaCorta(f.ultima) : '',
         }));
 
       return res.render('app/datos', {
@@ -3151,6 +3164,7 @@ module.exports = function crearAppMovil(deps) {
         corte,
         cortes: Object.keys(CORTES).map((k) => ({ clave: k, etiqueta: CORTES[k].etiqueta })),
         periodo,
+        orden,
         desde,
         hasta,
         desdeBonito: fechaCorta(desde),
