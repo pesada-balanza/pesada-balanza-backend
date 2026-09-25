@@ -3005,7 +3005,14 @@ module.exports = function crearAppMovil(deps) {
    * el mismo rango dé el mismo número en los dos lados.
    * ======================================================================= */
 
-  /** Los cortes disponibles. `reparte` marca los que dividen el neto del viaje. */
+  /** Renglón donde caen los viajes sin número de silobolsa. */
+  const SIN_NUMERO = 'Sin número';
+
+  /**
+   * Los cortes disponibles.
+   *  - `reparte`: divide el neto del viaje entre sus claves (los lotes).
+   *  - `primero`: ese renglón va arriba de todo, aunque sume menos.
+   */
   const CORTES = {
     grano:      { etiqueta: 'Grano',      de: (r) => [r.grano || 'Sin grano'] },
     lote:       { etiqueta: 'Lote',       de: (r) => (Array.isArray(r.lote) ? r.lote : r.lote ? [String(r.lote)] : ['Sin lote']), reparte: true },
@@ -3013,16 +3020,25 @@ module.exports = function crearAppMovil(deps) {
     socio:      { etiqueta: 'Socio',      de: (r) => [r.cargaPara === 'SOCIO' && r.socio ? r.socio : 'AMH'] },
     transporte: { etiqueta: 'Transporte', de: (r) => [r.transporte || 'Sin transporte'] },
     balanza:    { etiqueta: 'Balanza',    de: (r) => [nombreBalanza(r.codigoIngreso) || 'Sin balanza'] },
-    /* El silobolsa es un número que se tipea en la regulada, y solo existe si
-       se eligió "Silobolsa". Los otros dos casos van a su propio renglón en vez
-       de mezclarse en un "sin dato": que el viaje lo haya cargado un
-       contratista no es lo mismo que no saber de dónde salió. Así el total de
-       la pantalla sigue cerrando con el de arriba. */
-    silobolsa:  { etiqueta: 'Silobolsa',  de: (r) => {
-      if (r.cargoDe === 'SILOBOLSA') return [r.silobolsa ? String(r.silobolsa) : 'Silobolsa sin número'];
-      if (r.cargoDe === 'CONTRATISTA') return ['Cargó un contratista'];
-      return ['Sin dato de carga'];
-    } },
+    /* El silobolsa se agrupa por CAMPO + NÚMERO, no por el número solo: los
+       números se repiten entre establecimientos, así que el "3" de Quimili y el
+       "3" de El Mataco son bolsas distintas. Agrupando por el número pelado se
+       sumaban como una sola y el 12341 —que ve todas las balanzas— veía un
+       total que no existe.
+
+       Todo lo que no tiene número —cargó un contratista, o directamente no se
+       cargó el dato— va junto en "Sin número", y ese renglón se muestra
+       PRIMERO: es la lista de lo que falta completar, y enterrada al fondo
+       entre las bolsas grandes no la mira nadie. */
+    silobolsa:  {
+      etiqueta: 'Silobolsa',
+      primero: SIN_NUMERO,
+      de: (r) => {
+        const nro = r.cargoDe === 'SILOBOLSA' ? String(r.silobolsa || '').trim() : '';
+        if (!nro) return [SIN_NUMERO];
+        return [nro + ' · ' + (nombreCampoCorto(r.campo) || 'sin campo')];
+      },
+    },
   };
 
   /** Los períodos de un toque. El desde–hasta a mano sigue estando. */
@@ -3108,7 +3124,14 @@ module.exports = function crearAppMovil(deps) {
 
       const filas = Object.keys(acum)
         .map((k) => acum[k])
-        .sort((a, b) => b.neto - a.neto)
+        .sort((a, b) => {
+          // El renglón `primero` va arriba aunque sume menos que los demás.
+          if (def.primero) {
+            if (a.nombre === def.primero) return -1;
+            if (b.nombre === def.primero) return 1;
+          }
+          return b.neto - a.neto;
+        })
         .map((f) => ({
           nombre: f.nombre,
           neto: Math.round(f.neto),

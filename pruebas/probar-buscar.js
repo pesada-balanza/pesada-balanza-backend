@@ -615,7 +615,8 @@ async function main() {
     neto: 99000, fechaRegulada: undefined });
   // De OTRA balanza: el 1240 no lo tiene que sumar nunca.
   totDia({ patentes: 'TT 006 FF', chofer: 'Tot Ajeno', grano: 'SOJA',
-    neto: 77000, codigoIngreso: '5679', campo: 'El Mataco - SACHAYOJ - SE' });
+    neto: 77000, codigoIngreso: '5679', campo: 'El Mataco - SACHAYOJ - SE',
+    cargoDe: 'SILOBOLSA', silobolsa: '17' });
 
   cookies = {};
   r = await ir('POST', '/app/api/ingreso', { code: VER_QUIMILI }, { desde: '10.9.4.1' });
@@ -654,9 +655,13 @@ async function main() {
   /* Silobolsa. El número solo existe si en la regulada se eligió SILOBOLSA;
      los otros dos casos van a su propio renglón para que el total cierre. */
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=silobolsa');
-  ok('corta por silobolsa', r.estado === 200 && />17</.test(r.texto), r.estado);
-  ok('el que cargó un contratista va aparte', /Cargó un contratista/.test(r.texto));
-  ok('y el que no tiene el dato también', /Sin dato de carga/.test(r.texto));
+  ok('corta por silobolsa, con el campo al lado del número',
+    r.estado === 200 && /17 · Quimili/.test(r.texto), r.estado);
+  ok('todo lo que no tiene número va junto en "Sin número"',
+    /Sin número/.test(r.texto) && !/Cargó un contratista/.test(r.texto));
+  ok('y ese renglón va PRIMERO, aunque sume menos',
+    r.texto.indexOf('Sin número') < r.texto.indexOf('17 · Quimili'),
+    r.texto.indexOf('Sin número') + ' / ' + r.texto.indexOf('17 · Quimili'));
   // Ojo: los chips de período también llevan "corte=" en el enlace, así que la
   // posición hay que medirla DENTRO del bloque de "Agrupar por".
   const bloqueCortes = r.texto.slice(r.texto.indexOf('Agrupar por'));
@@ -693,6 +698,17 @@ async function main() {
     r.estado);
   ok('y su total incluye el de la otra balanza', /177\.000/.test(r.texto),
     (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+
+  /* Lo que motivó agrupar por campo + número: los dos establecimientos usan un
+     "silobolsa 17" y son bolsas distintas. Con el número pelado, GENERAL —que
+     es el único que ve las dos— las sumaba en un renglón que no existe. */
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=silobolsa');
+  const bolsas = (r.texto.match(/17 · [A-Za-zÁ-úñÑ ]+/g) || []);
+  ok('el mismo número en dos campos son DOS renglones, no uno',
+    bolsas.length === 2 && /Quimili/.test(bolsas.join(' ')) && /Mataco/.test(bolsas.join(' ')),
+    bolsas.join(' | ') || '(ninguno)');
+  ok('y ninguno de los dos trae la suma de ambos',
+    !/117\.000/.test(r.texto), r.estado);
 
   // El service worker no la puede guardar: los números cambian con cada regulada.
   r = await ir('GET', '/app/sw.js');

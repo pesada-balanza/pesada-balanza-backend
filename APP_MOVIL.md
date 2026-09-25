@@ -962,20 +962,23 @@ Si esta pantalla dice un número distinto al del Excel, deja de servir. Por eso:
 Se filtra por **`fecha`**, el mismo campo que usa el botón de Excel, para que el
 mismo rango dé el mismo número en los dos lados.
 
-### El corte por silobolsa
+### El corte por silobolsa: campo + número
 
 El número de silobolsa se **tipea en la regulada** y solo existe si ahí se eligió
-"Silobolsa". Los otros dos casos van a su **propio renglón** en vez de caer en
-una bolsa común: que el viaje lo haya cargado un **contratista** no es lo mismo
-que **no tener el dato**, y mezclarlos escondería justamente los tickets a los
-que les falta cargar de dónde salieron. Así, además, el total sigue cerrando con
-el de arriba.
+"Silobolsa".
 
-> **Cuidado si dos campos repiten el número.** El silobolsa se agrupa por el
-> número tal como se tipeó. Para un código de balanza eso está bien, pero el
-> `12341` ve todas: si en dos establecimientos hay un "silobolsa 3", los dos
-> caen en el mismo renglón. Si eso pasa en la práctica, hay que agrupar por
-> campo + número en vez de por número solo.
+**Los números se repiten entre establecimientos.** El "3" de Quimili y el "3" de
+El Mataco son bolsas distintas. Por eso se agrupa por **campo + número**, y el
+renglón se lee `3 · Quimili`. Agrupando por el número pelado, el `12341` —el
+único que ve todas las balanzas— sumaba dos bolsas en un renglón que no existe.
+
+Todo lo que **no tiene número** —cargó un contratista, o no se cargó el dato—
+va junto en **"Sin número"**, y ese renglón se muestra **primero**, aunque sume
+menos que las bolsas grandes: es la lista de lo que falta completar, y enterrada
+al fondo no la mira nadie. Para eso los cortes admiten `primero` en `CORTES`.
+
+Los viajes sin número siguen contando en el total, así que el número de arriba
+cierra igual.
 
 ### Alcance y señal
 
