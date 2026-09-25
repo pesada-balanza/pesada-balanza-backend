@@ -83,6 +83,39 @@
         <span class="txt-aux" id="calculo">&nbsp;</span>
       </div>
 
+      <%# Para quién se cargó. Es lo que agrupa los totales por socio, así que
+          un error acá no lo arregla una observación: o se corrige, o el ticket
+          queda mal contado. %>
+      <div class="campo" style="margin-top:11px">
+        <span class="etiqueta">Carga para</span>
+        <div class="opciones" data-opciones="cargaPara">
+          <button type="button" class="opcion<%= r.cargaPara !== 'SOCIO' ? ' elegida' : '' %>" data-valor="AMH">AMH</button>
+          <button type="button" class="opcion<%= r.cargaPara === 'SOCIO' ? ' elegida' : '' %>" data-valor="SOCIO">Socio</button>
+        </div>
+        <input type="hidden" name="cargaPara" value="<%= r.cargaPara === 'SOCIO' ? 'SOCIO' : 'AMH' %>">
+      </div>
+
+      <div class="campo<%= r.cargaPara === 'SOCIO' ? '' : ' oculto' %>" id="campo-socio" style="margin-top:11px">
+        <label class="etiqueta" for="socio">Nombre del socio</label>
+        <% if (socios.length) { %>
+          <select id="socio" name="socio">
+            <option value="">Elegí el socio…</option>
+            <%# El socio viejo puede no estar en la lista (se tipeaba a mano).
+                Se agrega como opción para no perderlo sin querer al corregir
+                otra cosa, pero marcado, para que se note que hay que cambiarlo. %>
+            <% var enLista = socios.some(function (x) { return x === r.socio; }); %>
+            <% if (r.socio && !enLista) { %>
+              <option value="<%= r.socio %>" selected><%= r.socio %> (fuera de la lista)</option>
+            <% } %>
+            <% socios.forEach(function (x) { %>
+              <option value="<%= x %>"<%= r.socio === x ? ' selected' : '' %>><%= x %></option>
+            <% }); %>
+          </select>
+        <% } else { %>
+          <input type="text" id="socio" name="socio" autocapitalize="words" maxlength="60" value="<%= r.socio %>">
+        <% } %>
+      </div>
+
       <div class="campo" style="margin-top:11px">
         <span class="etiqueta">Cargó de</span>
         <div class="opciones" data-opciones="cargoDe">
@@ -140,6 +173,9 @@
   var inputTara = document.getElementById('tara');
   var calculo = document.getElementById('calculo');
   var ocultoCargo = form.elements['cargoDe'];
+  var ocultoCargaPara = form.elements['cargaPara'];
+  var campoSocio = document.getElementById('campo-socio');
+  var inputSocio = document.getElementById('socio');
   var campoSilo = document.getElementById('campo-silobolsa');
   var campoContr = document.getElementById('campo-contratista');
   var campoTractor = document.getElementById('campo-tractor');
@@ -183,6 +219,12 @@
     }
   }
 
+  /* ── AMH o Socio ──────────────────────────────────────────────────────── */
+  function acomodarCargaPara() {
+    var esSocio = ocultoCargaPara.value === 'SOCIO';
+    campoSocio.className = 'campo' + (esSocio ? '' : ' oculto');
+  }
+
   function acomodarCargo() {
     var v = ocultoCargo.value;
     campoSilo.className = 'campo' + (v === 'SILOBOLSA' ? '' : ' oculto');
@@ -193,6 +235,8 @@
   // El manejo de los botones de opción ya está en app.js: se usa ese.
   App.conectarOpciones(form);
   ocultoCargo.addEventListener('cambio-opcion', acomodarCargo);
+  ocultoCargaPara.addEventListener('cambio-opcion', acomodarCargaPara);
+  acomodarCargaPara();
   selContr.addEventListener('change', function () { llenarTractores(this.value); });
   llenarTractores(selContr.value);
   acomodarCargo();
@@ -206,6 +250,8 @@
       patentes: document.getElementById('patentes').value,
       chofer: document.getElementById('chofer').value,
       tara: inputTara.value,
+      cargaPara: ocultoCargaPara.value,
+      socio: inputSocio ? inputSocio.value : '',
       cargoDe: ocultoCargo.value,
       silobolsa: document.getElementById('silobolsa').value,
       contratista: selContr.value,
@@ -218,6 +264,7 @@
     if (!datos.chofer.trim()) faltan.push('el chofer');
     // La tara solo es obligatoria cuando ya es un peso real de la balanza.
     if (taraEsReal && !Number(datos.tara)) faltan.push('la tara');
+    if (datos.cargaPara === 'SOCIO' && !datos.socio.trim()) faltan.push('el socio');
     if (datos.cargoDe === 'SILOBOLSA' && !datos.silobolsa.trim()) faltan.push('el número de silobolsa');
     if (datos.cargoDe === 'CONTRATISTA' && !datos.contratista) faltan.push('el contratista');
     if (faltan.length) {

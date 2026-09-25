@@ -868,12 +868,37 @@ async function main() {
    * ═══════════════════════════════════════════════════════════════════ */
   seccion('Anular: solo GENERAL, y desde su propio código');
   cookies = cookiesMataco;
+  /* El socio sale de la hoja "Socios" de Tablets 25-26.xlsx: ya no se tipea. */
   r = await ir('POST', '/app/api/pesada', {
     cargaPara: 'SOCIO', socio: 'Pérez', transporte: 'Avelleira', patentes: 'AF 902 LK',
     chofer: 'J. Pérez', brutoEstimado: '45000', campo: 'El 44 - ARBOL BLANCO - SE',
   });
+  ok('un socio que no está en la lista se rechaza',
+    r.estado === 400 && /no está en la lista/.test(r.json.error), r.texto.slice(0, 160));
+
+  r = await ir('POST', '/app/api/pesada', {
+    cargaPara: 'SOCIO', socio: 'provinvest', transporte: 'Avelleira', patentes: 'AF 902 LK',
+    chofer: 'J. Pérez', brutoEstimado: '45000', campo: 'El 44 - ARBOL BLANCO - SE',
+  });
   ok('se carga otra pesada (socio)', r.estado === 200, r.texto.slice(0, 150));
   const idParaAnular = r.json.id;
+  // Se guarda como está en la lista, no como lo tipeó el balancero: si no, los
+  // totales por socio se parten entre "provinvest" y "ProvInvest".
+  ok('el socio se guarda con la escritura de la lista',
+    baseFalsa.collection('registros').docs.find((d) => String(d._id) === idParaAnular).socio === 'ProvInvest',
+    baseFalsa.collection('registros').docs.find((d) => String(d._id) === idParaAnular).socio);
+
+  r = await ir('POST', '/app/api/pesada', {
+    cargaPara: 'SOCIO', socio: '', transporte: 'Avelleira', patentes: 'AF 902 LK',
+    chofer: 'J. Pérez', brutoEstimado: '45000', campo: 'El 44 - ARBOL BLANCO - SE',
+  });
+  ok('sin socio elegido tampoco entra',
+    r.estado === 400 && /socio/i.test(r.json.error), r.texto.slice(0, 160));
+
+  r = await ir('GET', '/app/nueva-pesada');
+  ok('la pantalla ofrece la lista de socios, no un campo libre',
+    /<select id="socio"/.test(r.texto) && /ProvInvest/.test(r.texto),
+    (r.texto.match(/id="socio"[^>]*/) || [''])[0]);
 
   r = await ir('POST', '/app/api/anular', { id: idParaAnular, code: '9999' });
   ok('desde la balanza, un código cualquiera no anula', r.estado === 403);

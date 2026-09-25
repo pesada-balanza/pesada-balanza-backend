@@ -906,6 +906,83 @@ Y donde había un **número** que juntaba los dos, ahora va el corte:
 Si no queda ninguno abierto, el KPI vuelve a decir `sin cerrar ahora` y la línea
 de la lista no aparece.
 
+## Totales: mirar los números sin bajar el Excel
+
+Estaba en el diseño original como pantalla **`8b` "Acumulado"**, marcada como
+*"dejarla para una segunda etapa"*. Reemplaza el trabajo de exportar a Excel y
+filtrar afuera. Está en **`/app/totales`**, con el botón **"Ver totales"** en el
+resumen, arriba del de Excel.
+
+**Período**: chips *Hoy · 7 días · 30 días · Campaña*, más un desde–hasta a mano.
+**Agrupar por**: *Grano · Lote · Campo · Socio · Transporte · Balanza*. Cambiar
+el corte no cambia el período, y al revés. Todo por `GET`: el "atrás" del
+teléfono vuelve al corte anterior y la dirección se puede compartir.
+
+### Las tres reglas que hacen que los números cierren
+
+Si esta pantalla dice un número distinto al del Excel, deja de servir. Por eso:
+
+1. **Solo cuentan las reguladas cerradas.** El neto real existe recién ahí. Lo
+   que está en curso tiene neto *estimado* y no se suma — la pantalla lo aclara,
+   para que nadie lo compare con el KPI "En curso" y crea que falta plata.
+2. **Los anulados quedan afuera.**
+3. **Un viaje con más de un lote reparte su neto en partes iguales** entre los
+   lotes, igual que el resumen del día. Si no, el mismo viaje se contaría entero
+   en cada lote y el total daría de más. Cuando el corte es por lote, la pantalla
+   avisa que la suma de camiones puede dar más que el total.
+
+Se filtra por **`fecha`**, el mismo campo que usa el botón de Excel, para que el
+mismo rango dé el mismo número en los dos lados.
+
+### Alcance y señal
+
+Cada código ve **solo su balanza**; el `12341`, todas. El filtro va en la
+consulta (`balanzasVisibles`), no en la vista: es esta clase de pantalla la que
+ya dejó escapar datos dos veces —el buscador y `/general/sin-regular`—, así que
+va con prueba de alcance desde el primer día.
+
+**Sin señal no se guarda** (`SIN_GUARDAR` del service worker): los números
+cambian con cada regulada que se cierra y mostrarlos viejos sería mentir.
+
+GENERAL puede pedir una campaña entera de todas las balanzas, donde el índice
+`{ codigoIngreso, fecha }` no sirve porque no hay balanza que filtrar. Por eso se
+agregó **`{ fecha: -1 }`**.
+
+## El socio sale de una lista, no se tipea
+
+Antes era texto libre. Con eso `ProvInvest`, `PROVINVEST` y `Provinvest SA`
+quedaban como tres socios distintos y **cualquier total por socio salía partido
+en pedazos**. Por eso se cambió junto con la pantalla de totales: sin lista, el
+corte por socio no sirve.
+
+**La lista la mantiene Matías** en la hoja **`Socios`** de `Tablets 25-26.xlsx`
+(la raíz del repositorio), el mismo archivo de donde ya salían los contratistas.
+Una columna, un nombre por fila, encabezado en la fila 1.
+
+| | |
+| --- | --- |
+| Dónde | `Tablets 25-26.xlsx`, hoja `Socios`, columna A |
+| Cómo se aplica | se edita el archivo, se sube al repositorio y se toma en el siguiente arranque |
+| Si falta la hoja | se avisa por consola y el campo vuelve a ser libre: **nunca** se bloquea una carga por un archivo de configuración |
+
+Al guardar se compara **sin mayúsculas ni acentos** pero se escribe **como está
+en la lista**: si el balancero manda `provinvest`, el ticket guarda `ProvInvest`.
+Así todos los tickets del mismo socio se escriben igual y el total no se parte.
+
+Los **campos** (`campos`) y la **planilla de siembra** (`datosSiembra`) NO están
+en el Excel: son listas dentro de `app.js`. Cambiarlos es tocar código.
+
+> **Lo ya cargado no se arregla solo.** Los tickets viejos conservan el texto que
+> se tipeó. En la pantalla de corregir, un socio que no está en la lista aparece
+> marcado *"(fuera de la lista)"* para poder cambiarlo sin perderlo de vista.
+
+### El socio ahora se puede corregir
+
+`cargaPara` y `socio` se sumaron a los campos que GENERAL puede corregir. Es lo
+que agrupa los totales por socio: un error ahí no lo arregla una observación, o
+se corrige o el ticket queda mal contado para siempre. Volver a **AMH** borra el
+socio, para que no quede un nombre colgado sumando donde no va.
+
 ## Ver los registros de otros días y buscar un ticket
 
 Antes las pantallas de "ver registros" mostraban **solo el día de hoy**: no había
@@ -1201,6 +1278,7 @@ probado que si se rompe el acumulado, esta sigue estando.
 | `/app/excel` | bajar el Excel de registros (el mismo de la web) |
 | `/app/general/repetidos` | camiones repetidos en dos balanzas |
 | `/app/general/sin-regular` | camiones que quedaron sin regular |
+| `/app/totales` | totales de un rango, cortados por grano, lote, campo, socio, transporte o balanza |
 
 ---
 

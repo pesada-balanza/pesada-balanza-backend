@@ -25,9 +25,23 @@
         <input type="hidden" name="cargaPara" value="AMH">
       </div>
 
+      <%# El socio sale de una lista (hoja "Socios" de Tablets 25-26.xlsx). Antes
+          se tipeaba, y "ProvInvest" / "PROVINVEST" / "Provinvest SA" quedaban
+          como socios distintos: cualquier total por socio salía partido. Si la
+          lista no se pudo leer se vuelve a escribir a mano, porque no poder
+          registrar un camión es peor que un nombre mal escrito. %>
       <div class="campo oculto" id="campo-socio">
         <label class="etiqueta" for="socio">Nombre del socio</label>
-        <input type="text" id="socio" name="socio" autocapitalize="words" maxlength="60">
+        <% if (socios.length) { %>
+          <select id="socio" name="socio">
+            <option value="">Elegí el socio…</option>
+            <% socios.forEach(function (x) { %>
+              <option value="<%= x %>"><%= x %></option>
+            <% }); %>
+          </select>
+        <% } else { %>
+          <input type="text" id="socio" name="socio" autocapitalize="words" maxlength="60">
+        <% } %>
       </div>
 
       <div class="campo">

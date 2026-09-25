@@ -123,6 +123,11 @@
         este día no está el camión que se busca. %>
     <a class="btn btn-borde-suave" href="/app/buscar">Buscar un ticket</a>
 
+    <%# Los totales de un rango de fechas, cortados por grano, lote, campo,
+        socio, transporte o balanza. Va antes del Excel a propósito: para mirar
+        un número ya no hace falta bajar el archivo y filtrarlo afuera. %>
+    <a class="btn btn-borde-suave" href="/app/totales?periodo=hoy&corte=grano">Ver totales</a>
+
     <%# Exportar a Excel: el mismo archivo que el botón de la web, con las mismas
         hojas. Un solo botón, que abre el desde–hasta ya puesto en el día que se
         está mirando: para un día solo hay que tocar "Bajar el Excel". Cada

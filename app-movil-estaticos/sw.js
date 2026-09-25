@@ -14,7 +14,7 @@
 // Al subir cambios hay que subir este número: así el teléfono descarta las
 // pantallas guardadas y toma las nuevas. Las pesadas sin subir NO se tocan:
 // viven en localStorage y este archivo no lo mira nunca.
-var VERSION = 'pesada-app-v20';
+var VERSION = 'pesada-app-v21';
 
 // Dos copias separadas a propósito:
 //  - FIJOS: css, js, ícono. No dependen de quién esté usando la app.
@@ -63,7 +63,7 @@ function esCascara(pathname) {
  * conexión se dice que hace falta internet. El Excel además es un archivo:
  * guardarlo dejaría planillas viejas ocupando el teléfono.
  */
-var SIN_GUARDAR = ['/app/buscar', '/app/excel'];
+var SIN_GUARDAR = ['/app/buscar', '/app/excel', '/app/totales'];
 
 function seGuarda(pathname) {
   for (var i = 0; i < SIN_GUARDAR.length; i++) {

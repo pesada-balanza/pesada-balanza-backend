@@ -33,6 +33,7 @@ module.exports = function crearAppMovil(deps) {
     campos,
     datosSiembra,
     getContratistas,
+    getSocios,
     campoUsuario,
     codigosIngreso,
     codigosObservacion,
@@ -352,6 +353,10 @@ module.exports = function crearAppMovil(deps) {
       await colPedidos().createIndex({ registroId: 1 });
       // Para buscar tickets por balanza y por fecha sin recorrer todo.
       await colRegistros().createIndex({ codigoIngreso: 1, fecha: -1 });
+      // GENERAL mira TODAS las balanzas a la vez: ahí el índice de arriba no
+      // sirve porque no hay una balanza que filtrar. La pantalla de totales
+      // puede pedir una campaña entera, así que la fecha va indexada sola.
+      await colRegistros().createIndex({ fecha: -1 });
     } catch (err) {
       console.warn('[app-movil] No se pudieron crear índices:', err.message);
     }
@@ -466,6 +471,39 @@ module.exports = function crearAppMovil(deps) {
       mensaje: 'No se pudo completar la operación. Probá de nuevo en un rato.',
       volver: '/app',
     });
+  }
+
+  /* =========================================================================
+   * EL SOCIO SALE DE UNA LISTA, NO SE TIPEA
+   * -------------------------------------------------------------------------
+   * Antes era texto libre. Con eso, "ProvInvest", "PROVINVEST" y "Provinvest SA"
+   * quedaban como tres socios distintos y cualquier total por socio salía
+   * partido en pedazos. La lista la mantiene Matías en la hoja "Socios" de
+   * `Tablets 25-26.xlsx`.
+   *
+   * Si la lista no se pudo leer (archivo cambiado, hoja borrada), NO se bloquea
+   * la carga: se acepta lo que venga. Un balancero con un camión en la balanza
+   * no se puede quedar sin poder registrar porque falló un archivo de
+   * configuración.
+   * ======================================================================= */
+
+  /** Devuelve `{ valor }` con el nombre tal como está en la lista, o `{ error }`. */
+  function validarSocio(cargaPara, crudo) {
+    if (cargaPara !== 'SOCIO') return { valor: '' };
+    const escrito = String(crudo || '').trim();
+    if (!escrito) return { error: 'Falta el nombre del socio.' };
+
+    const lista = getSocios() || [];
+    if (!lista.length) return { valor: escrito.slice(0, 60) };
+
+    // Se compara sin mayúsculas ni acentos, pero se guarda como está en la
+    // lista: así todos los tickets del mismo socio se escriben igual.
+    const buscado = normalizar(escrito);
+    const hallado = lista.find((x) => normalizar(x) === buscado);
+    if (!hallado) {
+      return { error: 'El socio "' + escrito + '" no está en la lista. Elegí uno de la lista.' };
+    }
+    return { valor: hallado };
   }
 
   /* =========================================================================
@@ -1042,6 +1080,7 @@ module.exports = function crearAppMovil(deps) {
         campos,
         siembra: datosSiembra,
         contratistas: getContratistas() || {},
+        socios: getSocios() || [],
         brutosEstimados: [45000, 52500, 55000],
       },
     });
@@ -1142,6 +1181,7 @@ module.exports = function crearAppMovil(deps) {
       balanza: s.balanza,
       nombreDia: req.nombreDia,
       campos,
+      socios: getSocios() || [],
       brutosEstimados: [45000, 52500, 55000],
     });
   });
@@ -1213,9 +1253,8 @@ module.exports = function crearAppMovil(deps) {
       if (cargaPara !== 'AMH' && cargaPara !== 'SOCIO') {
         return fallar(res, 400, 'Carga para: elegí AMH o SOCIO.');
       }
-      if (cargaPara === 'SOCIO' && !String(req.body.socio || '').trim()) {
-        return fallar(res, 400, 'Falta el nombre del socio.');
-      }
+      const vSocio = validarSocio(cargaPara, req.body.socio);
+      if (vSocio.error) return fallar(res, 400, vSocio.error);
 
       const brutoEst = vBruto.valor;
       const idTicket = await siguienteIdTicket();
@@ -1229,7 +1268,7 @@ module.exports = function crearAppMovil(deps) {
         fecha: hoyStr(),
         usuario: req.nombreDia,
         cargaPara,
-        socio: cargaPara === 'SOCIO' ? String(req.body.socio || '').trim() : '',
+        socio: vSocio.valor,
         pesadaPara: 'CAMIONES',
         transporte: String(req.body.transporte).trim(),
         patentes: String(req.body.patentes).trim().toUpperCase(),
@@ -1990,6 +2029,8 @@ module.exports = function crearAppMovil(deps) {
     patentes: 'las patentes',
     chofer: 'el chofer',
     tara: 'la tara',
+    cargaPara: 'para quién se cargó',
+    socio: 'el socio',
     cargoDe: 'de dónde cargó',
     silobolsa: 'el silobolsa',
     contratista: 'el contratista',
@@ -2054,6 +2095,7 @@ module.exports = function crearAppMovil(deps) {
 
       const contratistas = getContratistas() || {};
       return res.render('app/corregir', {
+        socios: getSocios() || [],
         layout: 'app/layout',
         titulo: 'Corregir el ticket',
         r: vistaRegistro(r),
@@ -2124,9 +2166,21 @@ module.exports = function crearAppMovil(deps) {
         ? String(req.body.cargoDe)
         : (r.cargoDe || '');
 
+      /* Para quién se cargó. Es lo que agrupa los totales por socio, así que un
+         error acá no se puede arreglar por observaciones: se corrige o queda
+         mal contado para siempre. Si no viene en el pedido se deja lo que
+         estaba, para no pisarlo desde una pantalla vieja. */
+      const cargaPara = ['AMH', 'SOCIO'].indexOf(String(req.body.cargaPara || '').toUpperCase()) !== -1
+        ? String(req.body.cargaPara).toUpperCase()
+        : (r.cargaPara || 'AMH');
+      const vSocio = validarSocio(cargaPara, cargaPara === 'SOCIO' ? (req.body.socio || r.socio) : '');
+      if (vSocio.error) return fallar(res, 400, vSocio.error);
+
       const cambios = {
         patentes,
         chofer,
+        cargaPara,
+        socio: vSocio.valor,
         tara,
         netoEstimado: brutoEstimado ? brutoEstimado - tara : 0,
         cargoDe,
@@ -2924,6 +2978,145 @@ module.exports = function crearAppMovil(deps) {
       res.attachment(nombre);
       await libro.xlsx.write(res);
       return res.end();
+    } catch (err) {
+      return siguienteError(err, req, res);
+    }
+  });
+
+  /* =========================================================================
+   * TOTALES — mirar los números sin bajar el Excel  (ref. 8b del diseño)
+   * -------------------------------------------------------------------------
+   * El resumen del día contesta "cuánto se cargó HOY, por grano". Esto contesta
+   * "cuánto se cargó ENTRE DOS FECHAS, cortado como yo quiera": por grano, por
+   * lote, por campo, por socio, por transporte o por balanza. Es lo que antes
+   * había que hacer exportando a Excel y filtrando afuera.
+   *
+   * Tres reglas que se respetan a rajatabla, porque si los números no coinciden
+   * con el Excel la pantalla no sirve para nada:
+   *
+   *  1. Solo cuentan las REGULADAS CERRADAS. El neto real existe recién ahí; lo
+   *     que está en curso tiene neto estimado y no se suma. La pantalla lo dice.
+   *  2. Los anulados quedan afuera.
+   *  3. Un viaje con más de un lote reparte su neto en partes iguales entre los
+   *     lotes, igual que el resumen del día. Si no, el mismo viaje se contaría
+   *     entero en cada lote y el total daría de más.
+   *
+   * Se filtra por `fecha`, el mismo campo que usa el botón de Excel, para que
+   * el mismo rango dé el mismo número en los dos lados.
+   * ======================================================================= */
+
+  /** Los cortes disponibles. `reparte` marca los que dividen el neto del viaje. */
+  const CORTES = {
+    grano:      { etiqueta: 'Grano',      de: (r) => [r.grano || 'Sin grano'] },
+    lote:       { etiqueta: 'Lote',       de: (r) => (Array.isArray(r.lote) ? r.lote : r.lote ? [String(r.lote)] : ['Sin lote']), reparte: true },
+    campo:      { etiqueta: 'Campo',      de: (r) => [r.campo || 'Sin campo'] },
+    socio:      { etiqueta: 'Socio',      de: (r) => [r.cargaPara === 'SOCIO' && r.socio ? r.socio : 'AMH'] },
+    transporte: { etiqueta: 'Transporte', de: (r) => [r.transporte || 'Sin transporte'] },
+    balanza:    { etiqueta: 'Balanza',    de: (r) => [nombreBalanza(r.codigoIngreso) || 'Sin balanza'] },
+  };
+
+  /** Los períodos de un toque. El desde–hasta a mano sigue estando. */
+  function periodoElegido(query) {
+    const hoy = hoyStr();
+    const nDias = (n) => ymd(new Date(Date.now() - n * 24 * 60 * 60 * 1000));
+    const cual = String(query.periodo || '');
+
+    if (cual === 'hoy') return { desde: hoy, hasta: hoy, periodo: 'hoy' };
+    if (cual === 'semana') return { desde: nDias(6), hasta: hoy, periodo: 'semana' };
+    if (cual === 'mes') return { desde: nDias(29), hasta: hoy, periodo: 'mes' };
+    if (cual === 'campana') {
+      const c = typeof rangoCampana === 'function' ? rangoCampana(hoy) : null;
+      return { desde: c ? c.desde : nDias(29), hasta: hoy, periodo: 'campana' };
+    }
+    // A mano. Si vienen al revés se dan vuelta, como en el Excel.
+    const esFecha = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+    if (esFecha(query.desde) || esFecha(query.hasta)) {
+      const d = esFecha(query.desde) ? query.desde : hoy;
+      const h = esFecha(query.hasta) ? query.hasta : hoy;
+      return d <= h ? { desde: d, hasta: h, periodo: '' } : { desde: h, hasta: d, periodo: '' };
+    }
+    return { desde: hoy, hasta: hoy, periodo: 'hoy' };
+  }
+
+  router.get('/totales', exigirApp, async (req, res) => {
+    try {
+      const s = sesionApp(req);
+      const visibles = balanzasVisibles(s);
+      if (!visibles.length) {
+        return pantallaError(res, 'Sin permiso', 'Este código no tiene registros para mirar.', '/app/general');
+      }
+
+      const corte = Object.prototype.hasOwnProperty.call(CORTES, String(req.query.corte))
+        ? String(req.query.corte)
+        : 'grano';
+      const { desde, hasta, periodo } = periodoElegido(req.query);
+
+      // Mismo alcance que el buscador y el Excel: cada código ve SOLO su
+      // balanza, el 12341 todas. Va acá y no en la vista a propósito: es un
+      // filtro de la consulta, no algo que se dibuja o se deja de dibujar.
+      const filtro = {
+        fecha: { $gte: desde, $lte: hasta },
+        anulado: { $ne: true },
+        fechaRegulada: { $exists: true },
+      };
+      if (!s.esGeneral) filtro.codigoIngreso = { $in: visibles };
+
+      await asegurarIndices();
+      const docs = await colRegistros()
+        .find(filtro, {
+          projection: {
+            neto: 1, grano: 1, lote: 1, campo: 1, cargaPara: 1, socio: 1,
+            transporte: 1, codigoIngreso: 1,
+          },
+        })
+        .toArray();
+
+      const def = CORTES[corte];
+      const acum = {};
+      let total = 0;
+      for (const r of docs) {
+        const neto = Number(r.neto) || 0;
+        total += neto;
+        const claves = def.de(r);
+        // El viaje se reparte solo en los cortes que lo piden (los lotes). En
+        // los demás cada viaje tiene una sola clave y entra entero.
+        const parte = def.reparte && claves.length > 1 ? neto / claves.length : neto;
+        for (const k of claves) {
+          const clave = String(k || '—');
+          if (!acum[clave]) acum[clave] = { nombre: clave, neto: 0, camiones: 0 };
+          acum[clave].neto += parte;
+          acum[clave].camiones++;
+        }
+      }
+
+      const filas = Object.keys(acum)
+        .map((k) => acum[k])
+        .sort((a, b) => b.neto - a.neto)
+        .map((f) => ({
+          nombre: f.nombre,
+          neto: Math.round(f.neto),
+          camiones: f.camiones,
+          porcentaje: total > 0 ? Math.round((f.neto / total) * 100) : 0,
+        }));
+
+      return res.render('app/totales', {
+        layout: 'app/layout',
+        titulo: 'Totales',
+        corte,
+        cortes: Object.keys(CORTES).map((k) => ({ clave: k, etiqueta: CORTES[k].etiqueta })),
+        periodo,
+        desde,
+        hasta,
+        desdeBonito: fechaCorta(desde),
+        hastaBonito: fechaCorta(hasta),
+        filas,
+        total: Math.round(total),
+        camiones: docs.length,
+        reparteLotes: !!def.reparte,
+        alcance: s.esGeneral ? 'TODAS LAS BALANZAS' : nombreBalanza(visibles[0]) || 'MI BALANZA',
+        hoy: hoyStr(),
+        kg,
+      });
     } catch (err) {
       return siguienteError(err, req, res);
     }

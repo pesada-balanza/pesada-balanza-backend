@@ -123,6 +123,10 @@ const ingresoAObservacion = {
  * Estructura: { "Nombre Contratista": ["TRACTOR1", "TRACTOR2", ...] }
  * -------------------------------------------*/
 let contratistas = {};
+/* Socios: la lista la mantiene Matías en la hoja "Socios" del mismo Excel.
+   Se agrega, se saca o se corrige uno ahí y se sube el archivo; no hay que
+   tocar código. Arranca vacía y se llena al leer el archivo. */
+let socios = [];
 (async () => {
   try {
     const xlsxPath = path.join(__dirname, 'Tablets 25-26.xlsx');
@@ -144,6 +148,26 @@ let contratistas = {};
       return acc;
     }, {});
     console.log('Contratistas cargados:', Object.keys(contratistas).length);
+
+    // Socios: hoja "Socios" del MISMO archivo, una sola columna con el nombre.
+    // Se lee por nombre de hoja, no por posición, para que agregar hojas no
+    // rompa nada. Si la hoja no está, se sigue sin socios y se avisa: la app
+    // arranca igual y el campo queda como estaba.
+    const hojaSocios = wb.getWorksheet('Socios');
+    if (hojaSocios) {
+      const vistos = new Set();
+      hojaSocios.eachRow((row, idx) => {
+        if (idx === 1) return; // encabezado
+        const nombre = (row.getCell(1).value || '').toString().trim();
+        if (!nombre || vistos.has(nombre.toUpperCase())) return;
+        vistos.add(nombre.toUpperCase());
+        socios.push(nombre);
+      });
+      socios.sort((a, b) => a.localeCompare(b, 'es'));
+      console.log('Socios cargados:', socios.length);
+    } else {
+      console.warn('Tablets 25-26.xlsx no tiene hoja "Socios": el campo queda libre.');
+    }
   } catch (err) {
     console.error('No se pudo cargar Tablets 25-26.xlsx:', err.message);
   }
@@ -1116,6 +1140,7 @@ if (process.env.APP_MOVIL === '1') {
   app.use('/app', require('./app-movil')({
     campos, datosSiembra, campoUsuario,
     getContratistas: () => contratistas,   // se carga async desde el xlsx
+    getSocios: () => socios,               // ídem, hoja "Socios" del mismo xlsx
     codigosIngreso, codigosObservacion, ingresoAObservacion,
     ymd, validarNumero, ticketVigente, notificar, resolverNombreCodigo,
     TARA_MIN, TARA_MAX, TARA_ESTIMADA_MIN,

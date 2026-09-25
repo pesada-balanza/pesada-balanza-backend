@@ -1,0 +1,118 @@
+<%#
+  Totales entre dos fechas, cortados como se quiera — ref. 8b del diseño, que
+  había quedado para "una segunda etapa".
+
+  Reemplaza el trabajo de bajar el Excel y filtrar afuera. Todo por GET: el
+  botón "atrás" del teléfono vuelve al corte anterior y la dirección se puede
+  compartir tal cual.
+%>
+<div class="pantalla">
+
+  <div class="enc">
+    <div class="enc-col">
+      <a href="/app/general" class="volver"><span class="flecha">‹</span><span class="texto">Resumen</span></a>
+      <span class="etiqueta"><%= alcance %></span>
+      <span class="t-pantalla">Totales</span>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
+      <%- include('menu') %>
+    </div>
+  </div>
+
+  <div class="cuerpo" style="gap:11px">
+
+    <%# 1. Qué período. Los cuatro de un toque, y el desde–hasta abajo. %>
+    <div class="chips">
+      <% [['hoy','Hoy'],['semana','7 días'],['mes','30 días'],['campana','Campaña']].forEach(function (p) { %>
+        <a class="chip-elegible<%= periodo === p[0] ? ' elegido' : '' %>"
+           href="/app/totales?corte=<%= corte %>&periodo=<%= p[0] %>"><%= p[1] %></a>
+      <% }); %>
+    </div>
+
+    <form class="tarjeta tarjeta-chica" method="GET" action="/app/totales" style="gap:9px">
+      <input type="hidden" name="corte" value="<%= corte %>">
+      <span class="etiqueta">O un rango a mano</span>
+      <div class="fila" style="gap:8px">
+        <input type="date" name="desde" value="<%= desde %>" max="<%= hoy %>" style="flex:1">
+        <input type="date" name="hasta" value="<%= hasta %>" max="<%= hoy %>" style="flex:1">
+        <button type="submit" class="btn btn-borde-suave" style="width:auto; padding:0 16px">Ir</button>
+      </div>
+    </form>
+
+    <%# 2. El número grande, con lo que hay que saber para leerlo bien. %>
+    <div class="tarjeta" style="gap:6px">
+      <span class="etiqueta">Neto de <%= desdeBonito %><%= desde === hasta ? '' : ' a ' + hastaBonito %></span>
+      <span class="dato-xg"><%= kg(total) %></span>
+      <span class="txt-aux">
+        kg · <%= (total / 1000).toLocaleString('es-AR', { maximumFractionDigits: 1 }) %> toneladas ·
+        <%= camiones %> <%= camiones === 1 ? 'camión' : 'camiones' %>
+      </span>
+      <%# Que nadie compare este número con "En curso" y crea que falta plata. %>
+      <span class="txt-aux">Cuenta solo los camiones con la regulada cerrada. Los anulados quedan afuera.</span>
+    </div>
+
+    <%# 3. Cómo se corta. Cambiar de corte no cambia el período. %>
+    <div class="campo">
+      <span class="etiqueta">Agrupar por</span>
+      <div class="chips" style="margin-top:6px">
+        <% cortes.forEach(function (c) { %>
+          <a class="chip-elegible<%= corte === c.clave ? ' elegido' : '' %>"
+             href="/app/totales?corte=<%= c.clave %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %>"><%= c.etiqueta %></a>
+        <% }); %>
+      </div>
+    </div>
+
+    <% if (!filas.length) { %>
+      <div class="tarjeta" style="gap:6px">
+        <span class="cuerpo-fuerte">No hay reguladas cerradas en esas fechas</span>
+        <span class="txt">Probá con un período más largo, o fijate en el resumen del día si hay camiones en curso.</span>
+      </div>
+    <% } else { %>
+      <div class="tarjeta" style="gap:13px">
+        <div class="fila-base">
+          <span class="cuerpo-fuerte">Por <%= (cortes.find(function (c) { return c.clave === corte; }) || {}).etiqueta.toLowerCase() %></span>
+          <span class="mono-chico" style="letter-spacing:.06em"><%= filas.length %></span>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px">
+          <% filas.forEach(function (f, i) { %>
+            <% if (i > 0) { %><div class="divisor"></div><% } %>
+            <div style="display:flex; flex-direction:column; gap:6px">
+              <div class="fila-base">
+                <span class="cuerpo-fuerte" style="font-size:15px"><%= f.nombre %></span>
+                <span class="mono" style="font:600 16px/1 var(--mono)"><%= kg(f.neto) %></span>
+              </div>
+              <div class="fila-base">
+                <span class="txt-aux"><%= f.camiones %> <%= f.camiones === 1 ? 'camión' : 'camiones' %></span>
+                <span class="txt-aux"><%= f.porcentaje %>%</span>
+              </div>
+              <%# La barra hace comparable de un vistazo lo que los números
+                  sueltos no: cuál pesa y cuál es marginal. %>
+              <div class="proporcion"><span style="width:<%= f.porcentaje %>%"></span></div>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+
+      <% if (reparteLotes) { %>
+        <span class="txt-aux">
+          Un viaje con más de un lote reparte su neto en partes iguales, igual que
+          el resumen del día. Por eso la suma de los camiones puede dar más que el
+          total de arriba.
+        </span>
+      <% } %>
+    <% } %>
+
+    <div class="espaciador"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // Al volver acá se vuelve a pedir: estos números cambian con cada regulada
+  // que se cierra y no hay nada escrito que se pueda perder.
+  App.refrescarAlVolver();
+})();
+</script>

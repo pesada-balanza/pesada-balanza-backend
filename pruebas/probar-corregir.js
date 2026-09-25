@@ -357,6 +357,59 @@ async function main() {
     (r.texto.match(/for="tara"[\s\S]{0,60}/) || [''])[0]);
   ok('del lado del teléfono también', /var taraEsReal = true/.test(r.texto));
 
+  /* ═══════════════════════════════════════════════════════════════════════
+   * CORREGIR PARA QUIÉN SE CARGÓ
+   * ---------------------------------------------------------------------
+   * Es lo que agrupa los totales por socio: un error acá no lo arregla una
+   * observación, o se corrige o el ticket queda mal contado.
+   * ═════════════════════════════════════════════════════════════════════ */
+  seccion('Corregir el socio');
+
+  const tSocio = meterTicket({
+    idTicket: 380, nroApp: '1-0380', patentes: 'SO 111 CC',
+    cargaPara: 'AMH', socio: '',
+  });
+  const idSocio = String(tSocio._id);
+
+  r = await ir('GET', '/app/corregir/' + idSocio);
+  ok('la pantalla ofrece elegir AMH o Socio', /data-opciones="cargaPara"/.test(r.texto), r.estado);
+  ok('y la lista de socios, no un campo libre',
+    /<select id="socio"/.test(r.texto) && /ProvInvest/.test(r.texto),
+    (r.texto.match(/id="socio"[^>]*/) || [''])[0]);
+
+  r = await ir('POST', '/app/api/corregir/' + idSocio, {
+    patentes: tSocio.patentes, chofer: tSocio.chofer, tara: String(tSocio.tara),
+    cargaPara: 'SOCIO', socio: 'Zunesma',
+  });
+  ok('se corrige a Socio', r.estado === 200 && r.json.ok === true, r.texto.slice(0, 200));
+  let dSocio = registros().docs.find((d) => String(d._id) === idSocio);
+  ok('quedó guardado', dSocio.cargaPara === 'SOCIO' && dSocio.socio === 'Zunesma',
+    dSocio.cargaPara + '/' + dSocio.socio);
+
+  const auditSocio = auditoria().docs.filter((d) => String(d.registroId) === idSocio);
+  ok('con auditoría del cambio',
+    auditSocio.length === 1 && auditSocio[0].camposNuevos.socio === 'Zunesma',
+    JSON.stringify((auditSocio[0] || {}).camposNuevos || {}).slice(0, 160));
+
+  // Un socio inventado no entra tampoco por acá.
+  const tSocio2 = meterTicket({ idTicket: 381, nroApp: '1-0381', patentes: 'SO 222 DD' });
+  r = await ir('POST', '/app/api/corregir/' + String(tSocio2._id), {
+    patentes: 'SO 222 DD', chofer: 'X', tara: '16000',
+    cargaPara: 'SOCIO', socio: 'El Que Sea',
+  });
+  ok('un socio fuera de la lista se rechaza',
+    r.estado === 400 && /no está en la lista/.test(r.json.error), r.texto.slice(0, 200));
+
+  // Volver a AMH borra el socio: si no, queda un nombre colgado que suma mal.
+  r = await ir('POST', '/app/api/corregir/' + idSocio, {
+    patentes: tSocio.patentes, chofer: tSocio.chofer, tara: String(tSocio.tara),
+    cargaPara: 'AMH', socio: 'Zunesma',
+  });
+  ok('volver a AMH se acepta', r.estado === 200 && r.json.ok === true, r.texto.slice(0, 200));
+  dSocio = registros().docs.find((d) => String(d._id) === idSocio);
+  ok('y el socio queda vacío', dSocio.cargaPara === 'AMH' && !dSocio.socio,
+    dSocio.cargaPara + '/' + JSON.stringify(dSocio.socio));
+
   /* ── El máximo de 2, como en la web ─────────────────────────────────── */
   seccion('Las reglas que ya tenía la web');
 

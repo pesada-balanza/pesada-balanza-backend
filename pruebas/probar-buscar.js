@@ -484,7 +484,7 @@ async function main() {
   r = await ir('GET', '/app/sw.js');
   ok('el service worker no guarda /app/buscar', /SIN_GUARDAR/.test(r.texto) && /'\/app\/buscar'/.test(r.texto));
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
-  ok('la versión subió', /pesada-app-v20/.test(r.texto));
+  ok('la versión subió', /pesada-app-v21/.test(r.texto));
 
   /* ═══════════════════════════════════════════════════════════════════════
    * "PARA REVISAR": EL AVISO Y LA PANTALLA TIENEN QUE IR JUNTOS
@@ -588,6 +588,96 @@ async function main() {
   ok('su bandeja trae los pedidos de las dos balanzas',
     /se cargó dos veces/.test(r.texto) && /pedido de otra balanza/.test(r.texto), r.estado);
   ok('y sí tiene los botones', /data-decidir="/.test(r.texto));
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * TOTALES (ref. 8b) — mirar los números sin bajar el Excel
+   * ═════════════════════════════════════════════════════════════════════ */
+  seccion('Totales por período y por corte');
+
+  /* Escenario propio, en un día que no usa ninguna otra prueba: el archivo ya
+     tiene ~100 tickets en HOY (la prueba del tope de resultados) y cualquier
+     total calculado sobre hoy sería imposible de verificar a mano. */
+  const DIA_TOT = haceDias(4);
+  const totDia = (extra) => meterTicket(Object.assign(
+    { fecha: DIA_TOT, fechaTaraFinal: DIA_TOT, fechaRegulada: DIA_TOT }, extra));
+  totDia({ patentes: 'TT 001 AA', chofer: 'Tot Uno', grano: 'SOJA', lote: 'L9',
+    neto: 40000, cargaPara: 'SOCIO', socio: 'ProvInvest', transporte: 'Serden' });
+  totDia({ patentes: 'TT 002 BB', chofer: 'Tot Dos', grano: 'SOJA', lote: 'L9',
+    neto: 10000, cargaPara: 'SOCIO', socio: 'Zunesma', transporte: 'Serden' });
+  totDia({ patentes: 'TT 003 CC', chofer: 'Tot Tres', grano: 'MAÍZ', lote: 'L9',
+    neto: 50000, cargaPara: 'AMH', socio: '', transporte: 'Ciriaci' });
+  // No cuentan: uno anulado y uno sin regular.
+  totDia({ patentes: 'TT 004 DD', chofer: 'Tot Anulado', grano: 'SOJA',
+    neto: 99000, anulado: true });
+  totDia({ patentes: 'TT 005 EE', chofer: 'Tot Abierto', grano: 'SOJA',
+    neto: 99000, fechaRegulada: undefined });
+  // De OTRA balanza: el 1240 no lo tiene que sumar nunca.
+  totDia({ patentes: 'TT 006 FF', chofer: 'Tot Ajeno', grano: 'SOJA',
+    neto: 77000, codigoIngreso: '5679', campo: 'El Mataco - SACHAYOJ - SE' });
+
+  cookies = {};
+  r = await ir('POST', '/app/api/ingreso', { code: VER_QUIMILI }, { desde: '10.9.4.1' });
+  ok('entra el código de ver registros', r.estado === 200, r.texto.slice(0, 150));
+
+  r = await ir('GET', '/app/general');
+  ok('el resumen ofrece "Ver totales"', /href="\/app\/totales/.test(r.texto));
+
+  r = await ir('GET', '/app/totales?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=grano');
+  ok('la pantalla abre', r.estado === 200 && /Totales/.test(r.texto), r.estado);
+  ok('corta por grano', /SOJA/.test(r.texto) && /MAÍZ/.test(r.texto));
+  // 40.000 + 10.000 (SOJA) + 50.000 (MAÍZ) = 100.000. Ni el anulado, ni el que
+  // no cerró la regulada, ni el de la otra balanza.
+  ok('el total suma solo reguladas cerradas de SU balanza',
+    /100\.000/.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+  ok('deja afuera el ticket anulado y el que falta regular',
+    !/99\.000/.test(r.texto) && !/199\.000/.test(r.texto));
+  ok('y el de la otra balanza no aparece ni suma',
+    !/TT 006 FF/.test(r.texto) && !/177\.000/.test(r.texto));
+  ok('dice que cuenta solo las reguladas cerradas',
+    /solo los camiones con la regulada cerrada/.test(r.texto));
+
+  r = await ir('GET', '/app/totales?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=socio');
+  ok('corta por socio', /ProvInvest/.test(r.texto) && /Zunesma/.test(r.texto), r.estado);
+  ok('lo de AMH se agrupa aparte', /AMH/.test(r.texto));
+
+  r = await ir('GET', '/app/totales?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=transporte');
+  ok('corta por transporte', /Serden/.test(r.texto) && /Ciriaci/.test(r.texto));
+
+  r = await ir('GET', '/app/totales?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=campo');
+  ok('corta por campo', r.estado === 200 && /Quimili/.test(r.texto));
+
+  r = await ir('GET', '/app/totales?corte=grano&desde=' + AYER + '&hasta=' + HOY);
+  ok('un rango a mano abre y trae más días', r.estado === 200 && /Totales/.test(r.texto), r.estado);
+
+  // Al revés se da vuelta, como en el Excel: el formulario vuelve ordenado y
+  // el total es el del rango, no vacío.
+  r = await ir('GET', '/app/totales?corte=grano&desde=' + HOY + '&hasta=' + DIA_TOT);
+  ok('un rango al revés se da vuelta en vez de venir vacío',
+    r.estado === 200 &&
+    r.texto.indexOf('name="desde" value="' + DIA_TOT + '"') !== -1 &&
+    r.texto.indexOf('name="hasta" value="' + HOY + '"') !== -1,
+    (r.texto.match(/name="(desde|hasta)" value="[^"]*"/g) || []).join(' · '));
+
+  r = await ir('GET', '/app/totales?corte=inventado&desde=' + DIA_TOT + '&hasta=' + DIA_TOT);
+  ok('un corte inventado no rompe: se cae a grano', r.estado === 200 && /SOJA/.test(r.texto), r.estado);
+
+  r = await ir('GET', '/app/totales?periodo=campana&corte=lote');
+  ok('el período campaña y el corte por lote abren', r.estado === 200, r.estado);
+  ok('avisa que un viaje con varios lotes se reparte',
+    /reparte su neto en partes iguales/.test(r.texto));
+
+  // El alcance, que es donde esta clase de pantalla ya se nos escapó dos veces.
+  cookies = {};
+  await ir('POST', '/app/api/ingreso', { code: VER_TODO }, { desde: '10.9.4.2' });
+  r = await ir('GET', '/app/totales?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=balanza');
+  ok('GENERAL sí ve las dos balanzas', r.estado === 200 && /Quimili/.test(r.texto) && /Mataco/.test(r.texto),
+    r.estado);
+  ok('y su total incluye el de la otra balanza', /177\.000/.test(r.texto),
+    (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+
+  // El service worker no la puede guardar: los números cambian con cada regulada.
+  r = await ir('GET', '/app/sw.js');
+  ok('el service worker no guarda /app/totales', /'\/app\/totales'/.test(r.texto));
 
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);
