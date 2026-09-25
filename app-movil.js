@@ -3005,7 +3005,7 @@ module.exports = function crearAppMovil(deps) {
    * el mismo rango dé el mismo número en los dos lados.
    * ======================================================================= */
 
-  /** Renglón donde caen los viajes sin número de silobolsa. */
+  /** Cargó de silobolsa pero no se tipeó el número: es lo que falta completar. */
   const SIN_NUMERO = 'Sin número';
 
   /**
@@ -3026,15 +3026,21 @@ module.exports = function crearAppMovil(deps) {
        sumaban como una sola y el 12341 —que ve todas las balanzas— veía un
        total que no existe.
 
-       Todo lo que no tiene número —cargó un contratista, o directamente no se
-       cargó el dato— va junto en "Sin número", y ese renglón se muestra
-       PRIMERO: es la lista de lo que falta completar, y enterrada al fondo
-       entre las bolsas grandes no la mira nadie. */
+       "Sin número" es SOLO para los que cargaron de silobolsa y no tipearon el
+       número: son los que hay que ir a completar, y por eso el renglón va
+       PRIMERO —al fondo, entre las bolsas grandes, no lo mira nadie—.
+
+       El que cargó de un CONTRATISTA no entra ahí: no le falta un dato, salió
+       de otro lado. Va a su propio renglón, igual que el que no tiene cargado
+       ni siquiera de dónde salió. Los tres siguen sumando al total, así que el
+       número de arriba cierra. */
     silobolsa:  {
       etiqueta: 'Silobolsa',
       primero: SIN_NUMERO,
       de: (r) => {
-        const nro = r.cargoDe === 'SILOBOLSA' ? String(r.silobolsa || '').trim() : '';
+        if (r.cargoDe === 'CONTRATISTA') return ['Cargó un contratista'];
+        if (r.cargoDe !== 'SILOBOLSA') return ['Sin dato de carga'];
+        const nro = String(r.silobolsa || '').trim();
         if (!nro) return [SIN_NUMERO];
         return [nro + ' · ' + (nombreCampoCorto(r.campo) || 'sin campo')];
       },

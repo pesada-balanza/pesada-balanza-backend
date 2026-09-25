@@ -972,13 +972,23 @@ El Mataco son bolsas distintas. Por eso se agrupa por **campo + número**, y el
 renglón se lee `3 · Quimili`. Agrupando por el número pelado, el `12341` —el
 único que ve todas las balanzas— sumaba dos bolsas en un renglón que no existe.
 
-Todo lo que **no tiene número** —cargó un contratista, o no se cargó el dato—
-va junto en **"Sin número"**, y ese renglón se muestra **primero**, aunque sume
-menos que las bolsas grandes: es la lista de lo que falta completar, y enterrada
-al fondo no la mira nadie. Para eso los cortes admiten `primero` en `CORTES`.
+**"Sin número" es solo para los que cargaron de silobolsa y no tipearon el
+número.** Ese renglón se muestra **primero**, aunque sume menos que las bolsas
+grandes: es la lista de lo que hay que ir a completar, y al fondo no la mira
+nadie. Para eso los cortes admiten `primero` en `CORTES`.
 
-Los viajes sin número siguen contando en el total, así que el número de arriba
-cierra igual.
+El que cargó de un **contratista** no entra ahí: no le falta ningún dato, salió
+de otro lado. Va a su propio renglón, igual que el que no tiene cargado ni
+siquiera de dónde salió:
+
+| Renglón | Qué cae ahí |
+| --- | --- |
+| **Sin número** *(primero)* | `cargoDe = SILOBOLSA` y el número vacío |
+| `3 · Quimili` | `cargoDe = SILOBOLSA` con número, agrupado con su campo |
+| **Cargó un contratista** | `cargoDe = CONTRATISTA` |
+| **Sin dato de carga** | sin `cargoDe` (tickets viejos o de la web) |
+
+Los cuatro suman al total, así que el número de arriba cierra igual.
 
 ### Alcance y señal
 

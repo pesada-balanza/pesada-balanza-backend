@@ -606,6 +606,9 @@ async function main() {
   totDia({ patentes: 'TT 002 BB', chofer: 'Tot Dos', grano: 'SOJA', lote: 'L9',
     neto: 10000, cargaPara: 'SOCIO', socio: 'Zunesma', transporte: 'Serden',
     cargoDe: 'CONTRATISTA', contratista: 'Villa Marcelo' });
+  // Eligió silobolsa y NO tipeó el número: este, y solo este, es "Sin número".
+  totDia({ patentes: 'TT 007 GG', chofer: 'Tot Sin Nro', grano: 'SOJA', lote: 'L9',
+    neto: 5000, cargoDe: 'SILOBOLSA', silobolsa: '' });
   totDia({ patentes: 'TT 003 CC', chofer: 'Tot Tres', grano: 'MAÍZ', lote: 'L9',
     neto: 50000, cargaPara: 'AMH', socio: '', transporte: 'Ciriaci' });
   // No cuentan: uno anulado y uno sin regular.
@@ -631,10 +634,10 @@ async function main() {
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=grano');
   ok('la pantalla abre', r.estado === 200 && /t-pantalla">Datos</.test(r.texto), r.estado);
   ok('corta por grano', /SOJA/.test(r.texto) && /MAÍZ/.test(r.texto));
-  // 40.000 + 10.000 (SOJA) + 50.000 (MAÍZ) = 100.000. Ni el anulado, ni el que
-  // no cerró la regulada, ni el de la otra balanza.
+  // 40.000 + 10.000 + 5.000 (SOJA) + 50.000 (MAÍZ) = 105.000. Ni el anulado, ni
+  // el que no cerró la regulada, ni el de la otra balanza.
   ok('el total suma solo reguladas cerradas de SU balanza',
-    /100\.000/.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+    /105\.000/.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
   ok('deja afuera el ticket anulado y el que falta regular',
     !/99\.000/.test(r.texto) && !/199\.000/.test(r.texto));
   ok('y el de la otra balanza no aparece ni suma',
@@ -657,8 +660,16 @@ async function main() {
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=silobolsa');
   ok('corta por silobolsa, con el campo al lado del número',
     r.estado === 200 && /17 · Quimili/.test(r.texto), r.estado);
-  ok('todo lo que no tiene número va junto en "Sin número"',
-    /Sin número/.test(r.texto) && !/Cargó un contratista/.test(r.texto));
+  /* "Sin número" es SOLO el que cargó de silobolsa y no tipeó el número: son
+     los que hay que ir a completar. El que cargó de un contratista no le falta
+     ningún dato, salió de otro lado, y va a su propio renglón. */
+  ok('"Sin número" existe y es el del silobolsa sin tipear',
+    /Sin número/.test(r.texto), r.estado);
+  ok('el que cargó de un contratista NO cae ahí: tiene renglón propio',
+    /Cargó un contratista/.test(r.texto));
+  // 5.000 es el del silobolsa sin número; 10.000 el del contratista. Si se
+  // hubieran mezclado, el renglón daría 15.000.
+  ok('y no se suman entre sí', !/15\.000/.test(r.texto), r.estado);
   ok('y ese renglón va PRIMERO, aunque sume menos',
     r.texto.indexOf('Sin número') < r.texto.indexOf('17 · Quimili'),
     r.texto.indexOf('Sin número') + ' / ' + r.texto.indexOf('17 · Quimili'));
@@ -696,7 +707,8 @@ async function main() {
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=balanza');
   ok('GENERAL sí ve las dos balanzas', r.estado === 200 && /Quimili/.test(r.texto) && /Mataco/.test(r.texto),
     r.estado);
-  ok('y su total incluye el de la otra balanza', /177\.000/.test(r.texto),
+  // 105.000 de Quimili + 77.000 de El Mataco.
+  ok('y su total incluye el de la otra balanza', /182\.000/.test(r.texto),
     (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
 
   /* Lo que motivó agrupar por campo + número: los dos establecimientos usan un
