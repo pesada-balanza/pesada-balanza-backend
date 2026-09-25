@@ -19,25 +19,46 @@
     <%# 0. Moverse entre días: el resumen ya no es solo el de hoy %>
     <%- include('nav-dias', { dias: dias }) %>
 
-    <%# 1. Los dos números que importan %>
-    <div class="kpis">
-      <div class="kpi">
-        <span class="etiqueta">Neto del día</span>
-        <span class="dato-xg"><%= kg(resumen.netoDia) %></span>
-        <span class="txt-aux">kg · <%= resumen.camionesCerrados %> <%= resumen.camionesCerrados === 1 ? 'camión' : 'camiones' %></span>
-      </div>
-      <div class="kpi">
-        <span class="etiqueta">En curso</span>
+    <%# 1. El neto del día, a lo ancho: así los granos entran cómodos adentro
+        de la misma tarjeta, sin achicar nada. Antes eran dos recuadros al lado
+        y el de la izquierda quedaba muy angosto para meterle el detalle. %>
+    <div class="tarjeta" style="gap:5px">
+      <span class="etiqueta">Neto del día</span>
+      <span class="dato-xg"><%= kg(resumen.netoDia) %></span>
+      <span class="txt-aux">kg · <%= resumen.camionesCerrados %> <%= resumen.camionesCerrados === 1 ? 'camión' : 'camiones' %></span>
+
+      <% if (resumen.porGrano.length) { %>
+        <div class="granos-dia">
+          <% resumen.porGrano.forEach(function (g, i) { %>
+            <% if (i > 0) { %><div class="divisor"></div><% } %>
+            <div class="fila-base">
+              <span class="txt" style="color:var(--tinta)"><%= g.grano %></span>
+              <span class="mono" style="font:600 15px/1 var(--mono)"><%= kg(g.neto) %></span>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <%# Sin reguladas cerradas el 0 de arriba se explica solo acá: si no,
+            parece que en el día no se cargó nada. %>
+        <span class="txt" style="margin-top:7px">Todavía no hay reguladas cerradas. El neto aparece cuando los camiones la cierran.</span>
+      <% } %>
+    </div>
+
+    <%# En curso, abajo y también a lo ancho. El número grande a la derecha: la
+        etiqueta y el corte a la izquierda aprovechan el ancho en vez de
+        apilarse en una columna angosta. %>
+    <div class="tarjeta tarjeta-chica">
+      <div class="fila-base">
+        <div class="fila-col">
+          <span class="etiqueta">En curso</span>
+          <%
+            var faltan = [];
+            if (resumen.enCursoTaraFinal) faltan.push(resumen.enCursoTaraFinal + ' sin tara final');
+            if (resumen.enCursoRegulada) faltan.push(resumen.enCursoRegulada + ' sin regular');
+          %>
+          <span class="txt-aux"><%= faltan.length ? faltan.join(' · ') : 'sin cerrar ahora' %></span>
+        </div>
         <span class="dato-xg"><%= resumen.enCurso %></span>
-        <%# El total solo no alcanza: "en curso" junta al camión que todavía no
-            se pesó vacío (no salió a cargar) con el que ya está en el lote
-            esperando la regulada. Son dos cosas distintas, van aparte. %>
-        <%
-          var faltan = [];
-          if (resumen.enCursoTaraFinal) faltan.push(resumen.enCursoTaraFinal + ' sin tara final');
-          if (resumen.enCursoRegulada) faltan.push(resumen.enCursoRegulada + ' sin regular');
-        %>
-        <span class="txt-aux"><%= faltan.length ? faltan.join(' · ') : 'sin cerrar ahora' %></span>
       </div>
     </div>
 
@@ -77,47 +98,9 @@
       </div>
     <% } %>
 
-    <%# 4. Por grano, con sus lotes indentados %>
-    <% if (resumen.porGrano.length) { %>
-      <div class="tarjeta" style="gap:13px">
-        <div class="fila-base">
-          <span class="cuerpo-fuerte">Por grano</span>
-          <span class="mono-chico" style="letter-spacing:.06em"><%= dias.esHoy ? 'HOY' : dias.corto %></span>
-        </div>
-
-        <% resumen.porGrano.forEach(function (g, i) { %>
-          <% if (i > 0) { %><div class="divisor"></div><% } %>
-          <div style="display:flex; flex-direction:column; gap:8px">
-            <div class="fila-base">
-              <span class="cuerpo-fuerte" style="font-size:16px"><%= g.grano %></span>
-              <span class="mono" style="font:600 16px/1 var(--mono)"><%= kg(g.neto) %></span>
-            </div>
-            <div class="lotes">
-              <% g.lotes.forEach(function (l) { %>
-                <% if (g.unLote) { %>
-                  <%# Un solo lote: va como línea gris, sin repetir el kilaje %>
-                  <div class="fila-base">
-                    <span class="txt-chico"><%= l.lote %> · <%= l.camiones %> <%= l.camiones === 1 ? 'camión' : 'camiones' %></span>
-                  </div>
-                <% } else { %>
-                  <div class="fila-base">
-                    <span class="txt" style="font-size:13px">
-                      <%= l.lote %> <span style="color:var(--punteado)">· <%= l.camiones %> cam.</span>
-                    </span>
-                    <span class="mono" style="font:500 13px/1 var(--mono)"><%= kg(l.neto) %></span>
-                  </div>
-                <% } %>
-              <% }); %>
-            </div>
-          </div>
-        <% }); %>
-      </div>
-    <% } else { %>
-      <div class="tarjeta" style="gap:6px">
-        <span class="cuerpo-fuerte">Todavía no hay reguladas cerradas</span>
-        <span class="txt">El neto del día aparece cuando los camiones cierran la regulada.</span>
-      </div>
-    <% } %>
+    <%# La tarjeta "Por grano" se sacó de acá: era un corte fijo de un solo día,
+        y ahora "Ver datos" hace ese corte y otros cinco, en cualquier rango.
+        Lo que se conserva es el kilaje por grano del día, pegado al neto. %>
 
     <%# Buscar va acá, pegado a los números del día: es lo que se hace cuando en
         este día no está el camión que se busca. %>
@@ -126,7 +109,7 @@
     <%# Los totales de un rango de fechas, cortados por grano, lote, campo,
         socio, transporte o balanza. Va antes del Excel a propósito: para mirar
         un número ya no hace falta bajar el archivo y filtrarlo afuera. %>
-    <a class="btn btn-borde-suave" href="/app/totales?periodo=hoy&corte=grano">Ver totales</a>
+    <a class="btn btn-borde-suave" href="/app/datos?periodo=hoy&corte=grano">Ver datos</a>
 
     <%# Exportar a Excel: el mismo archivo que el botón de la web, con las mismas
         hojas. Un solo botón, que abre el desde–hasta ya puesto en el día que se

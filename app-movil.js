@@ -3038,7 +3038,14 @@ module.exports = function crearAppMovil(deps) {
     return { desde: hoy, hasta: hoy, periodo: 'hoy' };
   }
 
-  router.get('/totales', exigirApp, async (req, res) => {
+  /* La dirección vieja sigue viva por si alguien la guardó en el teléfono los
+     primeros días: manda a la nueva sin perder el corte ni el período. */
+  router.get('/totales', exigirApp, (req, res) => {
+    const q = new URLSearchParams(req.query || {}).toString();
+    return res.redirect(301, '/app/datos' + (q ? '?' + q : ''));
+  });
+
+  router.get('/datos', exigirApp, async (req, res) => {
     try {
       const s = sesionApp(req);
       const visibles = balanzasVisibles(s);
@@ -3099,9 +3106,9 @@ module.exports = function crearAppMovil(deps) {
           porcentaje: total > 0 ? Math.round((f.neto / total) * 100) : 0,
         }));
 
-      return res.render('app/totales', {
+      return res.render('app/datos', {
         layout: 'app/layout',
-        titulo: 'Totales',
+        titulo: 'Datos',
         corte,
         cortes: Object.keys(CORTES).map((k) => ({ clave: k, etiqueta: CORTES[k].etiqueta })),
         periodo,

@@ -484,7 +484,7 @@ async function main() {
   r = await ir('GET', '/app/sw.js');
   ok('el service worker no guarda /app/buscar', /SIN_GUARDAR/.test(r.texto) && /'\/app\/buscar'/.test(r.texto));
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
-  ok('la versión subió', /pesada-app-v21/.test(r.texto));
+  ok('la versión subió', /pesada-app-v22/.test(r.texto));
 
   /* ═══════════════════════════════════════════════════════════════════════
    * "PARA REVISAR": EL AVISO Y LA PANTALLA TIENEN QUE IR JUNTOS
@@ -592,7 +592,7 @@ async function main() {
   /* ═══════════════════════════════════════════════════════════════════════
    * TOTALES (ref. 8b) — mirar los números sin bajar el Excel
    * ═════════════════════════════════════════════════════════════════════ */
-  seccion('Totales por período y por corte');
+  seccion('Ver datos: por período y por corte');
 
   /* Escenario propio, en un día que no usa ninguna otra prueba: el archivo ya
      tiene ~100 tickets en HOY (la prueba del tope de resultados) y cualquier
@@ -620,10 +620,13 @@ async function main() {
   ok('entra el código de ver registros', r.estado === 200, r.texto.slice(0, 150));
 
   r = await ir('GET', '/app/general');
-  ok('el resumen ofrece "Ver totales"', /href="\/app\/totales/.test(r.texto));
+  ok('el resumen ofrece "Ver datos"',
+    /href="\/app\/datos/.test(r.texto) && />Ver datos</.test(r.texto));
+  ok('y ya NO tiene la tarjeta fija "Por grano"', !/>Por grano</.test(r.texto));
+  ok('los kg por grano se ven en el neto del día', /granos-dia/.test(r.texto));
 
-  r = await ir('GET', '/app/totales?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=grano');
-  ok('la pantalla abre', r.estado === 200 && /Totales/.test(r.texto), r.estado);
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=grano');
+  ok('la pantalla abre', r.estado === 200 && /t-pantalla">Datos</.test(r.texto), r.estado);
   ok('corta por grano', /SOJA/.test(r.texto) && /MAÍZ/.test(r.texto));
   // 40.000 + 10.000 (SOJA) + 50.000 (MAÍZ) = 100.000. Ni el anulado, ni el que
   // no cerró la regulada, ni el de la otra balanza.
@@ -636,32 +639,32 @@ async function main() {
   ok('dice que cuenta solo las reguladas cerradas',
     /solo los camiones con la regulada cerrada/.test(r.texto));
 
-  r = await ir('GET', '/app/totales?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=socio');
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=socio');
   ok('corta por socio', /ProvInvest/.test(r.texto) && /Zunesma/.test(r.texto), r.estado);
   ok('lo de AMH se agrupa aparte', /AMH/.test(r.texto));
 
-  r = await ir('GET', '/app/totales?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=transporte');
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=transporte');
   ok('corta por transporte', /Serden/.test(r.texto) && /Ciriaci/.test(r.texto));
 
-  r = await ir('GET', '/app/totales?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=campo');
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=campo');
   ok('corta por campo', r.estado === 200 && /Quimili/.test(r.texto));
 
-  r = await ir('GET', '/app/totales?corte=grano&desde=' + AYER + '&hasta=' + HOY);
-  ok('un rango a mano abre y trae más días', r.estado === 200 && /Totales/.test(r.texto), r.estado);
+  r = await ir('GET', '/app/datos?corte=grano&desde=' + AYER + '&hasta=' + HOY);
+  ok('un rango a mano abre y trae más días', r.estado === 200 && /t-pantalla">Datos</.test(r.texto), r.estado);
 
   // Al revés se da vuelta, como en el Excel: el formulario vuelve ordenado y
   // el total es el del rango, no vacío.
-  r = await ir('GET', '/app/totales?corte=grano&desde=' + HOY + '&hasta=' + DIA_TOT);
+  r = await ir('GET', '/app/datos?corte=grano&desde=' + HOY + '&hasta=' + DIA_TOT);
   ok('un rango al revés se da vuelta en vez de venir vacío',
     r.estado === 200 &&
     r.texto.indexOf('name="desde" value="' + DIA_TOT + '"') !== -1 &&
     r.texto.indexOf('name="hasta" value="' + HOY + '"') !== -1,
     (r.texto.match(/name="(desde|hasta)" value="[^"]*"/g) || []).join(' · '));
 
-  r = await ir('GET', '/app/totales?corte=inventado&desde=' + DIA_TOT + '&hasta=' + DIA_TOT);
+  r = await ir('GET', '/app/datos?corte=inventado&desde=' + DIA_TOT + '&hasta=' + DIA_TOT);
   ok('un corte inventado no rompe: se cae a grano', r.estado === 200 && /SOJA/.test(r.texto), r.estado);
 
-  r = await ir('GET', '/app/totales?periodo=campana&corte=lote');
+  r = await ir('GET', '/app/datos?periodo=campana&corte=lote');
   ok('el período campaña y el corte por lote abren', r.estado === 200, r.estado);
   ok('avisa que un viaje con varios lotes se reparte',
     /reparte su neto en partes iguales/.test(r.texto));
@@ -669,7 +672,7 @@ async function main() {
   // El alcance, que es donde esta clase de pantalla ya se nos escapó dos veces.
   cookies = {};
   await ir('POST', '/app/api/ingreso', { code: VER_TODO }, { desde: '10.9.4.2' });
-  r = await ir('GET', '/app/totales?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=balanza');
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=balanza');
   ok('GENERAL sí ve las dos balanzas', r.estado === 200 && /Quimili/.test(r.texto) && /Mataco/.test(r.texto),
     r.estado);
   ok('y su total incluye el de la otra balanza', /177\.000/.test(r.texto),
@@ -677,7 +680,15 @@ async function main() {
 
   // El service worker no la puede guardar: los números cambian con cada regulada.
   r = await ir('GET', '/app/sw.js');
-  ok('el service worker no guarda /app/totales', /'\/app\/totales'/.test(r.texto));
+  ok('el service worker no guarda /app/datos', /'\/app\/datos'/.test(r.texto));
+
+  // La dirección vieja siguió viva: alguien pudo guardarla los primeros días.
+  r = await ir('GET', '/app/totales?corte=socio&periodo=hoy');
+  ok('la dirección vieja redirige a la nueva',
+    (r.estado === 301 || r.estado === 302) && /^\/app\/datos\?/.test(r.ubicacion || ''),
+    r.estado + ' → ' + r.ubicacion);
+  ok('y no se pierde el corte ni el período',
+    /corte=socio/.test(r.ubicacion || '') && /periodo=hoy/.test(r.ubicacion || ''), r.ubicacion);
 
   console.log('\n════════════════════════════════════════');
   console.log(fallos === 0 ? '  TODO BIEN — ' + pruebas + ' comprobaciones' : '  ' + fallos + ' FALLAS de ' + pruebas);

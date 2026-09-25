@@ -1,5 +1,5 @@
 <%#
-  Totales entre dos fechas, cortados como se quiera — ref. 8b del diseño, que
+  Datos entre dos fechas, cortados como se quiera — ref. 8b del diseño, que
   había quedado para "una segunda etapa".
 
   Reemplaza el trabajo de bajar el Excel y filtrar afuera. Todo por GET: el
@@ -12,7 +12,7 @@
     <div class="enc-col">
       <a href="/app/general" class="volver"><span class="flecha">‹</span><span class="texto">Resumen</span></a>
       <span class="etiqueta"><%= alcance %></span>
-      <span class="t-pantalla">Totales</span>
+      <span class="t-pantalla">Datos</span>
     </div>
     <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
       <span class="conexion en-linea" data-conexion>EN LÍNEA</span>
@@ -26,11 +26,11 @@
     <div class="chips">
       <% [['hoy','Hoy'],['semana','7 días'],['mes','30 días'],['campana','Campaña']].forEach(function (p) { %>
         <a class="chip-elegible<%= periodo === p[0] ? ' elegido' : '' %>"
-           href="/app/totales?corte=<%= corte %>&periodo=<%= p[0] %>"><%= p[1] %></a>
+           href="/app/datos?corte=<%= corte %>&periodo=<%= p[0] %>"><%= p[1] %></a>
       <% }); %>
     </div>
 
-    <form class="tarjeta tarjeta-chica" method="GET" action="/app/totales" style="gap:9px">
+    <form class="tarjeta tarjeta-chica" method="GET" action="/app/datos" style="gap:9px">
       <input type="hidden" name="corte" value="<%= corte %>">
       <span class="etiqueta">O un rango a mano</span>
       <div class="fila" style="gap:8px">
@@ -58,7 +58,7 @@
       <div class="chips" style="margin-top:6px">
         <% cortes.forEach(function (c) { %>
           <a class="chip-elegible<%= corte === c.clave ? ' elegido' : '' %>"
-             href="/app/totales?corte=<%= c.clave %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %>"><%= c.etiqueta %></a>
+             href="/app/datos?corte=<%= c.clave %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %>"><%= c.etiqueta %></a>
         <% }); %>
       </div>
     </div>

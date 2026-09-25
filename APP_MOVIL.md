@@ -906,12 +906,40 @@ Y donde había un **número** que juntaba los dos, ahora va el corte:
 Si no queda ninguno abierto, el KPI vuelve a decir `sin cerrar ahora` y la línea
 de la lista no aparece.
 
-## Totales: mirar los números sin bajar el Excel
+## El resumen del día: el neto arriba, a lo ancho
+
+El resumen tenía **dos recuadros al lado** (Neto del día / En curso) y más abajo
+una tarjeta fija **"Por grano"** con sus lotes indentados.
+
+Esa tarjeta se sacó. Era un corte fijo de **un solo día**, y "Ver datos" hace ese
+mismo corte y otros cinco, en **cualquier rango**. Lo que se conservó es el
+kilaje por grano del día, que es lo que más se mira: ahora va **adentro de la
+tarjeta del neto**, que pasó a ocupar el ancho completo.
+
+Los dos recuadros se apilaron: **Neto del día** arriba a lo ancho, **En curso**
+abajo con el número grande a la derecha. A lo ancho los granos entran con el
+mismo tamaño de número que "Por balanza"; en el recuadro angosto de antes había
+que achicarlos hasta que no se leían al sol.
+
+> **Lo que casi se pierde en el camino.** Al sacar "Por grano" también se iba el
+> cartel *"Todavía no hay reguladas cerradas"*, que es el que explica el `0` del
+> neto cuando el día recién arranca. Se repuso **dentro** de la tarjeta del neto,
+> que es donde tiene sentido: pegado al número que explica, no en una tarjeta
+> suelta más abajo.
+
+El detalle **por lote** dentro de cada grano ya no está en el resumen. Está en
+**Ver datos → agrupar por Lote**, y ahí además se mira en cualquier rango.
+
+## Ver datos: mirar los números sin bajar el Excel
 
 Estaba en el diseño original como pantalla **`8b` "Acumulado"**, marcada como
 *"dejarla para una segunda etapa"*. Reemplaza el trabajo de exportar a Excel y
-filtrar afuera. Está en **`/app/totales`**, con el botón **"Ver totales"** en el
+filtrar afuera. Está en **`/app/datos`**, con el botón **"Ver datos"** en el
 resumen, arriba del de Excel.
+
+> Se llamó **`/app/totales`** durante unos días. Esa dirección **redirige** a la
+> nueva conservando el corte y el período, por si alguien la guardó en el
+> teléfono. No se borra: cuesta tres líneas y evita un 404 sin aviso.
 
 **Período**: chips *Hoy · 7 días · 30 días · Campaña*, más un desde–hasta a mano.
 **Agrupar por**: *Grano · Lote · Campo · Socio · Transporte · Balanza*. Cambiar
@@ -1278,7 +1306,8 @@ probado que si se rompe el acumulado, esta sigue estando.
 | `/app/excel` | bajar el Excel de registros (el mismo de la web) |
 | `/app/general/repetidos` | camiones repetidos en dos balanzas |
 | `/app/general/sin-regular` | camiones que quedaron sin regular |
-| `/app/totales` | totales de un rango, cortados por grano, lote, campo, socio, transporte o balanza |
+| `/app/datos` | totales de un rango, cortados por grano, lote, campo, socio, transporte o balanza |
+| `/app/totales` | el nombre viejo de la anterior: redirige |
 
 ---
 

@@ -668,6 +668,16 @@ a { color: inherit; text-decoration: none; }
   cursor: pointer;
 }
 
+/* Kilaje por grano, adentro de la tarjeta del neto del día */
+.granos-dia {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 9px;
+  padding-top: 11px;
+  border-top: 1px solid var(--divisor);
+}
+
 /* Barra de proporción de los totales: hace comparable de un vistazo lo que
    los números sueltos no. Decorativa, así que no lleva texto ni rol. */
 .proporcion {
