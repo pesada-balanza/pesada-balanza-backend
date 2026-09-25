@@ -130,6 +130,24 @@ que se suban: si no, se perderían.
 
 ---
 
+## El encabezado del ticket
+
+`Ticket 1-0579 · Paco-pascual` es el dato con el que se habla de un ticket por
+teléfono. Estaba con la etiqueta común de la app —**9 px, liviana y gris**—, o
+sea que se leía peor que cualquier otra cosa de esa pantalla.
+
+Ahora usa `.etiqueta-titulo`: **10 px, negrita y en tinta**. El salto que se nota
+no es el tamaño sino el **color**: a 10 px la negrita sola casi no se distingue
+del gris apagado.
+
+> **Por qué no del tamaño de la patente.** Era lo primero que se probó. Con los
+> 24 px de la patente, `Ticket 1-0579 · Paco-pascual` no entra en el ancho que
+> queda al lado de "EN LÍNEA / Salir" y se parte en dos renglones —en teléfono
+> chico, cortando la palabra: `Paco-` / `pascual`—. El encabezado pasaba a tres
+> líneas y el nombre de la balanza quedaba partido al medio. Con 10 px entra en
+> una sola línea **en los dos tamaños de teléfono**, incluso con `Paco-pascual`,
+> que es el nombre de balanza más largo de los ocho que hay.
+
 ## El ticket del chofer
 
 - Mide **19 × 4,5 cm**, sobre hoja **A4 vertical** con 1 cm de margen.

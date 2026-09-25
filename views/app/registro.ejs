@@ -5,7 +5,10 @@
   <div class="enc">
     <div class="enc-col">
       <a href="/app/patio" class="volver"><span class="flecha">‹</span><span class="texto">Patio</span></a>
-      <span class="etiqueta">Ticket <%= r.nro %> · <%= r.balanza %></span>
+      <%# Un punto más grande que la etiqueta común y en negrita: es el dato con
+          el que se habla del ticket por teléfono, y en 9 px liviano se leía
+          peor que cualquier otra cosa de la pantalla. %>
+      <span class="etiqueta-titulo">Ticket <%= r.nro %> · <%= r.balanza %></span>
       <span class="t-pantalla mono"><%= r.patentes %></span>
     </div>
     <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">

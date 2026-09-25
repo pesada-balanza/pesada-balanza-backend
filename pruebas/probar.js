@@ -1355,6 +1355,29 @@ async function main() {
     r.estado === 200 && !!r.json.repetido, JSON.stringify(r.json.repetido || null));
 
   /* ═════════════════════════════════════════════════════════════════════
+   * EL ENCABEZADO DEL TICKET
+   * ---------------------------------------------------------------------
+   * "Ticket 1-0579 · Paco-pascual" es el dato con el que se habla del ticket
+   * por teléfono. Estaba en 9 px liviano y gris: se leía peor que cualquier
+   * otra cosa de la pantalla.
+   * ═══════════════════════════════════════════════════════════════════ */
+  seccion('El número de ticket se lee');
+
+  cookies = Object.assign({}, cookies5679);
+  r = await ir('GET', '/app/registro/' + idCamion);
+  ok('el encabezado usa su propio estilo, no la etiqueta chica',
+    /class="etiqueta-titulo">Ticket /.test(r.texto),
+    (r.texto.match(/class="[a-z-]*">Ticket [^<]*/) || [''])[0]);
+
+  r = await ir('GET', '/app/estatico/app.css');
+  const estilo = (r.texto.match(/\.etiqueta-titulo \{[^}]*\}/) || [''])[0];
+  ok('es más grande que la etiqueta común (9 px) y va en negrita',
+    /700 10px/.test(estilo), estilo.replace(/\s+/g, ' ').slice(0, 120));
+  ok('y en tinta, no en el gris apagado',
+    /color: var\(--tinta\)/.test(estilo) && !/--mono-label/.test(estilo),
+    estilo.replace(/\s+/g, ' ').slice(0, 160));
+
+  /* ═════════════════════════════════════════════════════════════════════
    * UN CAMPO RENOMBRADO
    * ---------------------------------------------------------------------
    * "La Juanita - Ciriaci  (Ex Lote Lalo) - …" pasó a llamarse
