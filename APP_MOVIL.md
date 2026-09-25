@@ -941,7 +941,10 @@ resumen, arriba del de Excel.
 > nueva conservando el corte y el período, por si alguien la guardó en el
 > teléfono. No se borra: cuesta tres líneas y evita un 404 sin aviso.
 
-**Período**: chips *Hoy · 7 días · 30 días · Campaña*, más un desde–hasta a mano.
+**Período**: chips *Hoy · 7 días · 30 días*, más un desde–hasta a mano. No hay
+chip de **Campaña**: para eso está el desde–hasta. Como chip invitaba a traerse
+miles de tickets de todas las balanzas de un toque, casi siempre sin querer. La
+dirección `periodo=campana` **sigue resolviendo**, por si quedó guardada.
 **Agrupar por**: *Grano · Lote · Campo · Socio · Transporte · Balanza ·
 Silobolsa*. Cambiar el corte no cambia el período, y al revés. Todo por `GET`: el "atrás" del
 teléfono vuelve al corte anterior y la dirección se puede compartir.

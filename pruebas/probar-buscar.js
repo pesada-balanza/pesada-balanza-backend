@@ -766,10 +766,17 @@ async function main() {
   r = await ir('GET', '/app/datos?corte=inventado&desde=' + DIA_TOT + '&hasta=' + DIA_TOT);
   ok('un corte inventado no rompe: se cae a grano', r.estado === 200 && /SOJA/.test(r.texto), r.estado);
 
-  r = await ir('GET', '/app/datos?periodo=campana&corte=lote');
-  ok('el período campaña y el corte por lote abren', r.estado === 200, r.estado);
+  r = await ir('GET', '/app/datos?periodo=mes&corte=lote');
+  ok('el corte por lote abre', r.estado === 200, r.estado);
   ok('avisa que un viaje con varios lotes se reparte',
     /reparte su neto en partes iguales/.test(r.texto));
+
+  // "Campaña" se sacó de los chips: para eso está el desde–hasta. La dirección
+  // sigue resolviendo, por si quedó guardada de los primeros días.
+  r = await ir('GET', '/app/datos?corte=grano&periodo=hoy');
+  ok('ya no se ofrece el chip Campaña', !/Campaña/.test(r.texto));
+  r = await ir('GET', '/app/datos?periodo=campana&corte=grano');
+  ok('pero una dirección vieja con campaña sigue abriendo', r.estado === 200, r.estado);
 
   // El alcance, que es donde esta clase de pantalla ya se nos escapó dos veces.
   cookies = {};

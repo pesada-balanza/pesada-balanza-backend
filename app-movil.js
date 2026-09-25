@@ -3061,6 +3061,8 @@ module.exports = function crearAppMovil(deps) {
     if (cual === 'hoy') return { desde: hoy, hasta: hoy, periodo: 'hoy' };
     if (cual === 'semana') return { desde: nDias(6), hasta: hoy, periodo: 'semana' };
     if (cual === 'mes') return { desde: nDias(29), hasta: hoy, periodo: 'mes' };
+    // "Campaña" ya no es un chip de la pantalla, pero se sigue resolviendo:
+    // puede estar en una dirección guardada de los primeros días.
     if (cual === 'campana') {
       const c = typeof rangoCampana === 'function' ? rangoCampana(hoy) : null;
       return { desde: c ? c.desde : nDias(29), hasta: hoy, periodo: 'campana' };

@@ -30,7 +30,10 @@
 
     <%# 1. Qué período. Los cuatro de un toque, y el desde–hasta abajo. %>
     <div class="chips">
-      <% [['hoy','Hoy'],['semana','7 días'],['mes','30 días'],['campana','Campaña']].forEach(function (p) { %>
+      <%# Sin "Campaña": para mirar toda la campaña está el desde–hasta de abajo.
+          Como chip invitaba a traerse miles de tickets de todas las balanzas de
+          un toque, casi siempre sin querer. %>
+      <% [['hoy','Hoy'],['semana','7 días'],['mes','30 días']].forEach(function (p) { %>
         <a class="chip-elegible<%= periodo === p[0] ? ' elegido' : '' %>"
            href="/app/datos?corte=<%= corte %>&periodo=<%= p[0] %><%= filtrosEnUrl %>"><%= p[1] %></a>
       <% }); %>
