@@ -962,22 +962,40 @@ Si esta pantalla dice un número distinto al del Excel, deja de servir. Por eso:
 Se filtra por **`fecha`**, el mismo campo que usa el botón de Excel, para que el
 mismo rango dé el mismo número en los dos lados.
 
+### Encadenar filtros
+
+Se arranca por la **fecha**, se elige un **corte**, y desde ahí **tocando un
+renglón** ese valor pasa a ser un filtro y se puede seguir cortando por otra
+cosa: *fecha → silobolsa → socio → grano → …*, hasta **6** filtros.
+
+Cada filtro viaja en la dirección como `f=<corte>:<valor>`, así que la pantalla
+no guarda estado: el "atrás" del teléfono deshace un paso de la cadena y la
+dirección se puede compartir tal cual.
+
+Los filtros activos se muestran arriba como chips con una **✕**. Sacar uno del
+medio **no tira abajo los que vienen después**: el enlace rearma la lista sin
+ese y conserva el resto.
+
+Un filtro se resuelve con la **misma función `de()`** con la que se agrupa. Eso
+no es un detalle: garantiza que filtrar y agrupar no puedan discrepar nunca, o
+sea que lo que ves en un renglón es exactamente lo que queda si lo tocás.
+
+> **Un filtro no abre ninguna puerta.** El alcance por balanza se aplica en la
+> consulta, antes que los filtros: pedir `f=balanza:El Mataco` con un código que
+> no la ve devuelve **cero**, no sus datos. Va probado.
+
+Si el filtro es de un corte que **reparte** (los lotes) y el viaje tocó varios,
+solo entra la parte que le toca a ese lote; si no, filtrar por un lote sumaría el
+viaje entero y el total daría de más.
+
 ### El orden de la lista
 
-Con treinta silobolsas a la vista, **un orden que no se explica no se entiende**.
-Por eso cada renglón muestra **la fecha de su último ticket** (`último 25/09`),
-ordene por lo que ordene, y el orden se elige con un chip:
+Lo **último registrado arriba**, y punto: no hay selector. Cuando varios
+renglones empatan en fecha —una balanza cierra varias bolsas el mismo día—
+desempatan por kilos, para que el orden sea estable y no uno al azar.
 
-| Ordenar por | Para qué |
-| --- | --- |
-| **Último registro** *(por omisión)* | qué se está usando ahora. Con muchas bolsas, importa más que cuál pesó más en toda la campaña |
-| **Kilos** | de mayor a menor, que era el único orden que había |
-
-Cuando varios renglones empatan en fecha —una balanza cierra varias bolsas el
-mismo día— desempatan por kilos, para que el orden sea estable y no uno al azar.
-
-El renglón `primero` (hoy, "Sin número") queda arriba **con cualquiera de los
-dos órdenes**: es una lista de pendientes, no compite por tamaño.
+El renglón `primero` (hoy, "Sin número") queda arriba igual: es una lista de
+pendientes, no compite por tamaño.
 
 ### El corte por silobolsa: campo + número
 

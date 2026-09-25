@@ -681,35 +681,65 @@ async function main() {
   // hubieran mezclado, el renglón daría 15.000.
   ok('y no se suman entre sí', !/15\.000/.test(r.texto), r.estado);
 
-  /* ── El orden de la lista ──────────────────────────────────────────────
-     Con treinta silobolsas, un orden que no se explica no se entiende. Por eso
-     la fecha del último ticket va SIEMPRE a la vista y el orden se elige. */
+  /* ── El orden y el encadenado ──────────────────────────────────────────
+     El orden es fijo: lo último registrado arriba. El selector de orden se
+     sacó, y con él el subtítulo de cada renglón. */
   const rangoBolsas = 'desde=' + haceDias(7) + '&hasta=' + haceDias(4) + '&corte=silobolsa';
 
   r = await ir('GET', '/app/datos?' + rangoBolsas);
-  ok('cada renglón muestra la fecha de su último ticket',
-    /último \d\d\/\d\d/.test(r.texto), (r.texto.match(/último \d\d\/\d\d/) || [''])[0]);
-  ok('por omisión ordena por el último registro: la bolsa nueva va antes que la grande',
+  ok('la bolsa con el registro más nuevo va antes que la más grande',
     r.texto.indexOf('81 ·') < r.texto.indexOf('80 ·'),
     r.texto.indexOf('81 ·') + ' / ' + r.texto.indexOf('80 ·'));
+  ok('ya no está el selector de orden', !/Ordenar por/.test(r.texto));
+  ok('ni el subtítulo de camiones y fecha en cada renglón',
+    !/último \d\d\/\d\d/.test(r.texto), (r.texto.match(/último [^<]*/) || [''])[0]);
 
-  r = await ir('GET', '/app/datos?' + rangoBolsas + '&orden=kg');
-  ok('eligiendo Kilos se da vuelta: manda la grande',
-    r.texto.indexOf('80 ·') < r.texto.indexOf('81 ·'),
-    r.texto.indexOf('80 ·') + ' / ' + r.texto.indexOf('81 ·'));
+  /* Encadenar: tocando un renglón, su valor pasa a ser un filtro y se puede
+     seguir cortando por otra cosa. */
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=socio');
+  ok('sin filtros, el total es el del día entero',
+    /105\.000/.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+  ok('cada renglón lleva a agregarlo como filtro',
+    /f=socio%3A/.test(r.texto), (r.texto.match(/f=socio%3A[^"&]*/) || [''])[0]);
 
-  r = await ir('GET', '/app/datos?' + rangoBolsas + '&orden=inventado');
-  ok('un orden inventado no rompe: se cae al último registro',
-    r.estado === 200 && r.texto.indexOf('81 ·') < r.texto.indexOf('80 ·'), r.estado);
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
+    '&corte=grano&f=' + encodeURIComponent('socio:ProvInvest'));
+  ok('con un filtro, el total baja al de ese socio',
+    /40\.000/.test(r.texto) && !/105\.000/.test(r.texto),
+    (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+  ok('el filtro queda a la vista', /Socio: ProvInvest/.test(r.texto));
+  ok('y se puede sacar', /✕/.test(r.texto));
 
-  // "Sin número" sigue anclado arriba ordene por lo que ordene.
-  for (const o of ['fecha', 'kg']) {
-    r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
-      '&corte=silobolsa&orden=' + o);
-    ok('"Sin número" queda primero también ordenando por ' + o,
-      r.texto.indexOf('Sin número') < r.texto.indexOf('17 · Quimili'),
-      r.texto.indexOf('Sin número') + ' / ' + r.texto.indexOf('17 · Quimili'));
-  }
+  // Dos filtros de cortes distintos se acumulan, no se pisan.
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
+    '&corte=balanza&f=' + encodeURIComponent('socio:ProvInvest') +
+    '&f=' + encodeURIComponent('grano:SOJA'));
+  ok('dos filtros encadenados se aplican juntos',
+    /40\.000/.test(r.texto) && /Socio: ProvInvest/.test(r.texto) && /Grano: SOJA/.test(r.texto),
+    (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
+    '&corte=grano&f=' + encodeURIComponent('socio:ProvInvest') +
+    '&f=' + encodeURIComponent('socio:Zunesma'));
+  ok('dos filtros que se excluyen dan cero, no un total inventado',
+    /dato-xg">0</.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
+    '&corte=grano&f=' + encodeURIComponent('inventado:X') + '&f=sinDosPuntos');
+  ok('un filtro inventado se ignora en vez de romper',
+    r.estado === 200 && /105\.000/.test(r.texto), r.estado);
+
+  // El alcance no se puede saltar con un filtro: sigue siendo su balanza.
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
+    '&corte=grano&f=' + encodeURIComponent('balanza:' + 'El Mataco'));
+  ok('filtrar por otra balanza no abre la puerta a sus datos',
+    /dato-xg">0</.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+
+  // "Sin número" sigue anclado arriba, aunque no sea lo último registrado.
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=silobolsa');
+  ok('"Sin número" queda primero igual',
+    r.texto.indexOf('Sin número') < r.texto.indexOf('17 · Quimili'),
+    r.texto.indexOf('Sin número') + ' / ' + r.texto.indexOf('17 · Quimili'));
   ok('y ese renglón va PRIMERO, aunque sume menos',
     r.texto.indexOf('Sin número') < r.texto.indexOf('17 · Quimili'),
     r.texto.indexOf('Sin número') + ' / ' + r.texto.indexOf('17 · Quimili'));

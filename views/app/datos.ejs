@@ -6,6 +6,12 @@
   botón "atrás" del teléfono vuelve al corte anterior y la dirección se puede
   compartir tal cual.
 %>
+<%
+  // Los filtros ya elegidos, listos para pegar en cualquier enlace.
+  var filtrosEnUrl = filtros.map(function (f) {
+    return '&f=' + encodeURIComponent(f.crudo);
+  }).join('');
+%>
 <div class="pantalla">
 
   <div class="enc">
@@ -26,13 +32,13 @@
     <div class="chips">
       <% [['hoy','Hoy'],['semana','7 días'],['mes','30 días'],['campana','Campaña']].forEach(function (p) { %>
         <a class="chip-elegible<%= periodo === p[0] ? ' elegido' : '' %>"
-           href="/app/datos?corte=<%= corte %>&periodo=<%= p[0] %>&orden=<%= orden %>"><%= p[1] %></a>
+           href="/app/datos?corte=<%= corte %>&periodo=<%= p[0] %><%= filtrosEnUrl %>"><%= p[1] %></a>
       <% }); %>
     </div>
 
     <form class="tarjeta tarjeta-chica" method="GET" action="/app/datos" style="gap:9px">
       <input type="hidden" name="corte" value="<%= corte %>">
-      <input type="hidden" name="orden" value="<%= orden %>">
+      <% filtros.forEach(function (f) { %><input type="hidden" name="f" value="<%= f.crudo %>"><% }); %>
       <span class="etiqueta">O un rango a mano</span>
       <div class="fila" style="gap:8px">
         <input type="date" name="desde" value="<%= desde %>" max="<%= hoy %>" style="flex:1">
@@ -40,6 +46,24 @@
         <button type="submit" class="btn btn-borde-suave" style="width:auto; padding:0 16px">Ir</button>
       </div>
     </form>
+
+    <%# Los filtros encadenados, a la vista y desarmables de a uno. Sin esto,
+        el número grande de abajo es un total del que no se sabe de qué es. %>
+    <% if (filtros.length) { %>
+      <div class="campo">
+        <span class="etiqueta">Filtrando por</span>
+        <div class="chips" style="margin-top:6px">
+          <% filtros.forEach(function (f, i) { %>
+            <%# El enlace rearma la lista SIN este filtro: sacar uno del medio
+                no tiene que tirar abajo los que vienen después. %>
+            <a class="chip-elegible elegido"
+               href="/app/datos?corte=<%= corte %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %><%
+                 filtros.forEach(function (o, j) { if (j !== i) { %>&f=<%= encodeURIComponent(o.crudo) %><% } });
+               %>"><%= f.etiqueta %>: <%= f.valor %> &nbsp;✕</a>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
 
     <%# 2. El número grande, con lo que hay que saber para leerlo bien. %>
     <div class="tarjeta" style="gap:6px">
@@ -59,7 +83,7 @@
       <div class="chips" style="margin-top:6px">
         <% cortes.forEach(function (c) { %>
           <a class="chip-elegible<%= corte === c.clave ? ' elegido' : '' %>"
-             href="/app/datos?corte=<%= c.clave %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %>&orden=<%= orden %>"><%= c.etiqueta %></a>
+             href="/app/datos?corte=<%= c.clave %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %><%= filtrosEnUrl %>"><%= c.etiqueta %></a>
         <% }); %>
       </div>
     </div>
@@ -70,18 +94,6 @@
         <span class="txt">Probá con un período más largo, o fijate en el resumen del día si hay camiones en curso.</span>
       </div>
     <% } else { %>
-      <%# Con treinta renglones el orden tiene que estar a la vista y poder
-          cambiarse: si no, la lista aparece en un orden que no se entiende. %>
-      <div class="campo">
-        <span class="etiqueta">Ordenar por</span>
-        <div class="chips" style="margin-top:6px">
-          <% [['fecha','Último registro'],['kg','Kilos']].forEach(function (o) { %>
-            <a class="chip-elegible<%= orden === o[0] ? ' elegido' : '' %>"
-               href="/app/datos?corte=<%= corte %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %>&orden=<%= o[0] %>"><%= o[1] %></a>
-          <% }); %>
-        </div>
-      </div>
-
       <div class="tarjeta" style="gap:13px">
         <div class="fila-base">
           <span class="cuerpo-fuerte">Por <%= (cortes.find(function (c) { return c.clave === corte; }) || {}).etiqueta.toLowerCase() %></span>
@@ -91,21 +103,25 @@
         <div style="display:flex; flex-direction:column; gap:12px">
           <% filas.forEach(function (f, i) { %>
             <% if (i > 0) { %><div class="divisor"></div><% } %>
+            <%# Tocar el renglón lo agrega como filtro: así se encadena
+                fecha → silobolsa → socio → grano, sin volver atrás. %>
+            <% var urlFila = '/app/datos?corte=' + corte + '&periodo=' + periodo +
+                 '&desde=' + desde + '&hasta=' + hasta + filtrosEnUrl +
+                 '&f=' + encodeURIComponent(f.filtro); %>
+            <% if (puedeFiltrarMas) { %><a href="<%= urlFila %>" style="text-decoration:none; color:inherit"><% } %>
             <div style="display:flex; flex-direction:column; gap:6px">
               <div class="fila-base">
                 <span class="cuerpo-fuerte" style="font-size:15px"><%= f.nombre %></span>
                 <span class="mono" style="font:600 16px/1 var(--mono)"><%= kg(f.neto) %></span>
               </div>
-              <div class="fila-base">
-                <span class="txt-aux">
-                  <%= f.camiones %> <%= f.camiones === 1 ? 'camión' : 'camiones' %><%= f.ultima ? ' · último ' + f.ultima : '' %>
-                </span>
-                <span class="txt-aux"><%= f.porcentaje %>%</span>
-              </div>
               <%# La barra hace comparable de un vistazo lo que los números
                   sueltos no: cuál pesa y cuál es marginal. %>
-              <div class="proporcion"><span style="width:<%= f.porcentaje %>%"></span></div>
+              <div class="fila" style="gap:9px">
+                <div class="proporcion" style="flex:1"><span style="width:<%= f.porcentaje %>%"></span></div>
+                <span class="txt-aux" style="min-width:2.2em; text-align:right"><%= f.porcentaje %>%</span>
+              </div>
             </div>
+            <% if (puedeFiltrarMas) { %></a><% } %>
           <% }); %>
         </div>
       </div>

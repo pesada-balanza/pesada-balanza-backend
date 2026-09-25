@@ -3005,6 +3005,11 @@ module.exports = function crearAppMovil(deps) {
    * el mismo rango dé el mismo número en los dos lados.
    * ======================================================================= */
 
+  /* Tope de filtros encadenados. Cada uno viaja en la dirección, y la
+     dirección se comparte y se guarda: con media docena ya no queda nada que
+     filtrar y la pantalla se vuelve ilegible. */
+  const MAXIMO_FILTROS = 6;
+
   /** Cargó de silobolsa pero no se tipeó el número: es lo que falta completar. */
   const SIN_NUMERO = 'Sin número';
 
@@ -3089,9 +3094,25 @@ module.exports = function crearAppMovil(deps) {
         ? String(req.query.corte)
         : 'grano';
       const { desde, hasta, periodo } = periodoElegido(req.query);
-      // Por omisión, el último registro arriba: con treinta silobolsas, lo que
-      // se está usando ahora importa más que lo que más pesó en la campaña.
-      const orden = String(req.query.orden) === 'kg' ? 'kg' : 'fecha';
+
+      /* Filtros encadenados. Cada uno llega como `f=<corte>:<valor>` y se
+         acumulan: fecha → silobolsa → socio → grano → … Se resuelven con la
+         MISMA función `de()` con la que se agrupa, así filtrar y agrupar no
+         pueden discrepar nunca: lo que ves en un renglón es exactamente lo que
+         queda si lo tocás. */
+      const filtros = [];
+      const crudos = [].concat(req.query.f || []);
+      for (const bruto of crudos) {
+        const txt = String(bruto || '');
+        const corteEn = txt.indexOf(':');
+        if (corteEn === -1) continue;
+        const clave = txt.slice(0, corteEn);
+        const valor = txt.slice(corteEn + 1);
+        if (!Object.prototype.hasOwnProperty.call(CORTES, clave) || !valor) continue;
+        if (filtros.some((x) => x.corte === clave && x.valor === valor)) continue;
+        filtros.push({ corte: clave, valor, etiqueta: CORTES[clave].etiqueta, crudo: txt });
+        if (filtros.length >= MAXIMO_FILTROS) break;
+      }
 
       // Mismo alcance que el buscador y el Excel: cada código ve SOLO su
       // balanza, el 12341 todas. Va acá y no en la vista a propósito: es un
@@ -3116,9 +3137,27 @@ module.exports = function crearAppMovil(deps) {
       const def = CORTES[corte];
       const acum = {};
       let total = 0;
+      let camionesContados = 0;
       for (const r of docs) {
-        const neto = Number(r.neto) || 0;
+        /* ¿Pasa los filtros encadenados? Si un filtro es de un corte que
+           REPARTE (los lotes) y el viaje tocó varios, solo entra la parte que
+           le corresponde a ese lote: si no, filtrar por un lote sumaría el
+           viaje entero y el total daría de más. Cuando el filtro es del mismo
+           corte por el que se agrupa no se divide acá, porque abajo ya lo hace
+           el agrupado. */
+        let pasa = true;
+        let factor = 1;
+        for (const f of filtros) {
+          const dFiltro = CORTES[f.corte];
+          const suyas = dFiltro.de(r);
+          if (suyas.indexOf(f.valor) === -1) { pasa = false; break; }
+          if (dFiltro.reparte && suyas.length > 1 && f.corte !== corte) factor /= suyas.length;
+        }
+        if (!pasa) continue;
+
+        const neto = (Number(r.neto) || 0) * factor;
         total += neto;
+        camionesContados++;
         const claves = def.de(r);
         // El viaje se reparte solo en los cortes que lo piden (los lotes). En
         // los demás cada viaje tiene una sola clave y entra entero.
@@ -3141,9 +3180,8 @@ module.exports = function crearAppMovil(deps) {
             if (a.nombre === def.primero) return -1;
             if (b.nombre === def.primero) return 1;
           }
-          if (orden === 'kg') return b.neto - a.neto;
-          // Por fecha del último ticket. Empatan muchos renglones el mismo día
-          // (una balanza cierra varias bolsas en la misma jornada), así que el
+          // Lo más nuevo arriba. Empatan muchos renglones el mismo día (una
+          // balanza cierra varias bolsas en la misma jornada), así que el
           // desempate por kilos deja un orden estable y no uno al azar.
           if (a.ultima !== b.ultima) return a.ultima < b.ultima ? 1 : -1;
           return b.neto - a.neto;
@@ -3153,9 +3191,8 @@ module.exports = function crearAppMovil(deps) {
           neto: Math.round(f.neto),
           camiones: f.camiones,
           porcentaje: total > 0 ? Math.round((f.neto / total) * 100) : 0,
-          // La fecha va SIEMPRE a la vista, ordene por lo que ordene: sin ella
-          // la lista aparece en un orden que no se entiende.
-          ultima: f.ultima ? fechaCorta(f.ultima) : '',
+          // Para encadenar: tocando el renglón, su valor pasa a ser un filtro.
+          filtro: corte + ':' + f.nombre,
         }));
 
       return res.render('app/datos', {
@@ -3164,14 +3201,15 @@ module.exports = function crearAppMovil(deps) {
         corte,
         cortes: Object.keys(CORTES).map((k) => ({ clave: k, etiqueta: CORTES[k].etiqueta })),
         periodo,
-        orden,
+        filtros,
+        puedeFiltrarMas: filtros.length < MAXIMO_FILTROS,
         desde,
         hasta,
         desdeBonito: fechaCorta(desde),
         hastaBonito: fechaCorta(hasta),
         filas,
         total: Math.round(total),
-        camiones: docs.length,
+        camiones: camionesContados,
         reparteLotes: !!def.reparte,
         alcance: s.esGeneral ? 'TODAS LAS BALANZAS' : nombreBalanza(visibles[0]) || 'MI BALANZA',
         hoy: hoyStr(),
