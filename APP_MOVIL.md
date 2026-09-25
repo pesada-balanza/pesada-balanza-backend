@@ -1062,6 +1062,41 @@ GENERAL puede pedir una campaña entera de todas las balanzas, donde el índice
 `{ codigoIngreso, fecha }` no sirve porque no hay balanza que filtrar. Por eso se
 agregó **`{ fecha: -1 }`**.
 
+## Renombrar un campo sin romper los tickets ya cargados
+
+Los **campos** son una lista dentro de `app.js` (no están en el Excel). Cambiar
+el nombre de uno **no es solo editar el texto**: los tickets guardan el nombre
+tal cual estaba, y la **planilla de siembra se busca por ese nombre**. Renombrar
+a secas deja a los tickets viejos sin ningún grano ni lote para elegir al abrir
+su regulada — o sea, el balancero trabado con el camión en la balanza.
+
+Por eso hay una tabla `camposRenombrados` en `app.js`, de nombre viejo a nombre
+vigente. Con ella el nombre viejo:
+
+- **se acepta** al validar, así un ticket en curso cierra su regulada;
+- **encuentra su siembra**, así la pantalla ofrece los granos y lotes de siempre;
+- **se guarda ya con el nombre nuevo**, así los datos se van limpiando solos;
+- **se cuenta junto con el nuevo** en "Ver datos", en vez de salir en dos
+  renglones donde ninguno tiene el total.
+
+Se puede vaciar cuando no queden tickets con el nombre viejo.
+
+### El caso que la estrenó
+
+Había **dos** campos llamados "La Juanita" en la misma localidad:
+
+```
+La Juanita - Ciriaci  (Ex Lote Lalo) - H. M. Miraval - SE
+La Juanita - H.M. MIRAVAL - SE
+```
+
+Cortados en el primer guion —que es como se muestran cuando el nombre entero no
+entra— los dos quedaban **"La Juanita"**. El primero pasó a llamarse
+`La Juanita Ciriaci - Ex lote Lalo - H. M. Miraval - SE`, así se distinguen de
+entrada. Hay que cambiarlo en **tres** lugares de `app.js`: la lista `campos`, el
+mapa `campoUsuario` (a qué balanza va) y `datosSiembra` (sus granos y lotes). Si
+falta uno, el campo deja de derivar a su balanza o se queda sin siembra.
+
 ## El socio sale de una lista, no se tipea
 
 Antes era texto libre. Con eso `ProvInvest`, `PROVINVEST` y `Provinvest SA`

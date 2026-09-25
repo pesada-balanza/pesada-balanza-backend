@@ -14,7 +14,7 @@ process.env.SESSION_SECRET = 'prueba-local-secreta';
 process.env.APP_MOVIL = process.env.APP_MOVIL || '1';
 process.env.PORT = process.env.PORT || '3199';
 
-const { BaseFalsa } = require('./doble-mongo');
+const { BaseFalsa, ObjectId } = require('./doble-mongo');
 const baseFalsa = new BaseFalsa();
 
 /* ── Stub de connect-mongo: sesión en memoria ─────────────────────────── */
@@ -1353,6 +1353,72 @@ async function main() {
   r = await ir('GET', '/app/api/repetido?patentes=RE%20PET%2002', null, { desde: OFICINA });
   ok('sin campo todavía elegido, la consulta previa sigue respondiendo',
     r.estado === 200 && !!r.json.repetido, JSON.stringify(r.json.repetido || null));
+
+  /* ═════════════════════════════════════════════════════════════════════
+   * UN CAMPO RENOMBRADO
+   * ---------------------------------------------------------------------
+   * "La Juanita - Ciriaci  (Ex Lote Lalo) - …" pasó a llamarse
+   * "La Juanita Ciriaci - Ex lote Lalo - …", porque cortado en el primer
+   * guion quedaba igual que el otro "La Juanita" de la misma localidad.
+   *
+   * Renombrar a secas rompe los tickets ya cargados: la planilla de siembra
+   * se busca POR EL NOMBRE, así que al abrir su regulada no aparecería
+   * ningún grano ni lote y el balancero se queda trabado con el camión en la
+   * balanza. Por eso el nombre viejo se sigue entendiendo.
+   * ═══════════════════════════════════════════════════════════════════ */
+  seccion('Un campo renombrado sigue entendiendo el nombre viejo');
+
+  const hoyDeHoy = new Date().toISOString().split('T')[0];
+  const VIEJO = 'La Juanita - Ciriaci  (Ex Lote Lalo) - H. M. Miraval - SE';
+  const NUEVO = 'La Juanita Ciriaci - Ex lote Lalo - H. M. Miraval - SE';
+
+  r = await ir('GET', '/app/api/tablas');
+  ok('la lista ofrece el nombre nuevo', r.json.datos.campos.indexOf(NUEVO) !== -1);
+  ok('y ya no el viejo', r.json.datos.campos.indexOf(VIEJO) === -1);
+  ok('el nuevo tiene su planilla de siembra', !!r.json.datos.siembra[NUEVO]);
+  ok('el otro "La Juanita" sigue estando aparte',
+    r.json.datos.campos.indexOf('La Juanita - H.M. MIRAVAL - SE') !== -1);
+  ok('y ahora se distinguen por el nombre corto',
+    NUEVO.split(' - ')[0] !== 'La Juanita - H.M. MIRAVAL - SE'.split(' - ')[0],
+    NUEVO.split(' - ')[0] + ' vs ' + 'La Juanita - H.M. MIRAVAL - SE'.split(' - ')[0]);
+
+  // Un ticket YA CARGADO con el nombre viejo: es el caso que se rompía.
+  const viejoDoc = {
+    _id: new ObjectId(), idTicket: 9500, nroApp: '1-9500', origen: 'app',
+    fecha: hoyDeHoy, usuario: 'Oficina', pesadaPara: 'CAMIONES', cargaPara: 'AMH',
+    transporte: 'Ciriaci', patentes: 'RN 111 OM', chofer: 'Renombrado',
+    campo: VIEJO, brutoEstimado: 45000, tara: 14000, netoEstimado: 31000,
+    codigoIngreso: '5679', anulado: false, confirmada: false, modificaciones: 0,
+    fechaTaraFinal: hoyDeHoy, creadoEn: new Date(),
+  };
+  baseFalsa.collection('registros').docs.push(viejoDoc);
+
+  cookies = Object.assign({}, cookies5679);
+  r = await ir('GET', '/app/regulada/' + String(viejoDoc._id));
+  ok('su pantalla de regulada abre', r.estado === 200, r.estado);
+  ok('y OFRECE los granos de ese campo (sin esto no se puede cerrar)',
+    /MAIZ/.test(r.texto), (r.texto.match(/MAIZ|SOJA/) || ['(ninguno)'])[0]);
+
+  r = await ir('POST', '/app/api/regulada', {
+    id: String(viejoDoc._id), campo: VIEJO, grano: 'MAIZ', lote: ['Lote Lalo'],
+    cargoDe: 'SILOBOLSA', silobolsa: '9', brutoLote: '44000', bruto: '45000',
+    confirmarTara: 'SI',
+  });
+  ok('la regulada de un ticket con el nombre viejo se guarda',
+    r.estado === 200, r.texto.slice(0, 200));
+  const yaRegulado = baseFalsa.collection('registros').docs.find((d) => String(d._id) === String(viejoDoc._id));
+  ok('y queda guardado con el nombre NUEVO', yaRegulado.campo === NUEVO, yaRegulado.campo);
+
+  // Al mirar los datos, los dos nombres son el mismo campo.
+  baseFalsa.collection('registros').docs.push(Object.assign({}, viejoDoc, {
+    _id: new ObjectId(), idTicket: 9501, nroApp: '1-9501', patentes: 'RN 222 OM',
+    campo: VIEJO, neto: 10000, fechaRegulada: hoyDeHoy, confirmada: true, pesadaPara: 'REGULADA',
+  }));
+  cookies = {};
+  await ir('POST', '/app/api/ingreso', { code: '12341' }, { desde: '10.44.0.1' });
+  r = await ir('GET', '/app/datos?periodo=hoy&corte=campo');
+  ok('el nombre viejo no sale como un campo aparte', !r.texto.includes(VIEJO));
+  ok('se cuenta junto con el nuevo', r.texto.includes(NUEVO), NUEVO);
 
   /* ═════════════════════════════════════════════════════════════════════
    * RESUMEN

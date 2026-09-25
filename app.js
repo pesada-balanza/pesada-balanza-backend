@@ -204,7 +204,7 @@ const campos = [
   "Grifa - Zunesma - TINTINA - SE",
   "Hidalgo - TINTINA - SE",
   "La Chuchi - Avelleira y Cesar",
-  "La Juanita - Ciriaci  (Ex Lote Lalo) - H. M. Miraval - SE",
+  "La Juanita Ciriaci - Ex lote Lalo - H. M. Miraval - SE",
   "La Juanita - H.M. MIRAVAL - SE",
   "La Porfía - ARBOL BLANCO - SE",
   "La Pradera - ARBOL BLANCO - SE",
@@ -249,7 +249,7 @@ const campoUsuario = {
 
   "Doble Cero (Fermaneli) - AEROLITO - SE": "5683",
   "El Búfalo - H. MEJ. MIRAVAL - SE": "5683",
-  "La Juanita - Ciriaci  (Ex Lote Lalo) - H. M. Miraval - SE": "5683",
+  "La Juanita Ciriaci - Ex lote Lalo - H. M. Miraval - SE": "5683",
   "La Juanita - H.M. MIRAVAL - SE": "5683",
   "Martina - ALHUAMPA - SE": "5683",
 
@@ -581,7 +581,7 @@ const datosSiembra = {
       "Lote 4 Hidalgo"
     ]
   },
-  "La Juanita - Ciriaci  (Ex Lote Lalo) - H. M. Miraval - SE": {
+  "La Juanita Ciriaci - Ex lote Lalo - H. M. Miraval - SE": {
     "MAIZ": [
       "Lote Lalo"
     ]
@@ -1124,6 +1124,40 @@ function validarNumero(v, min = 0, max = 60000) {
  * reciben por res.locals, así el teléfono valida con el mismo número que el
  * servidor y no hay forma de que queden desparejos.
  * -------------------------------------------*/
+/* ---------------------------------------------
+ * CAMPOS RENOMBRADOS
+ * ---------------------------------------------
+ * Clave: como se escribía antes. Valor: como se escribe ahora.
+ *
+ * Renombrar un campo a secas rompe los tickets ya cargados con el nombre
+ * viejo: la planilla de siembra se busca POR EL NOMBRE, así que al abrir la
+ * regulada de uno de esos tickets no aparecería ningún grano ni lote para
+ * elegir, y el balancero se queda trabado con el camión en la balanza.
+ *
+ * Con esta tabla el nombre viejo se sigue entendiendo —se acepta al validar,
+ * encuentra su siembra y se guarda ya con el nombre nuevo— y además los dos se
+ * juntan en un solo renglón al mirar los datos, en vez de salir partidos.
+ *
+ * Se puede vaciar cuando no queden tickets con el nombre viejo.
+ * -------------------------------------------*/
+const camposRenombrados = {
+  // "La Juanita" a secas era otro campo distinto, en la misma localidad: con
+  // el nombre cortado en el primer guion los dos quedaban como "La Juanita".
+  "La Juanita - Ciriaci  (Ex Lote Lalo) - H. M. Miraval - SE":
+    "La Juanita Ciriaci - Ex lote Lalo - H. M. Miraval - SE",
+};
+
+/** El nombre vigente de un campo. Si no cambió nunca, devuelve el mismo. */
+function normalizarCampo(c) {
+  const v = String(c || '').trim();
+  return camposRenombrados[v] || v;
+}
+
+/** ¿Está en la lista oficial? Acepta el nombre viejo de un campo renombrado. */
+function campoValido(c) {
+  return campos.includes(normalizarCampo(c));
+}
+
 const TARA_MIN = 1000;
 const TARA_MAX = 40000;
 const TARA_ESTIMADA_MIN = 0;
@@ -1144,6 +1178,7 @@ if (process.env.APP_MOVIL === '1') {
     codigosIngreso, codigosObservacion, ingresoAObservacion,
     ymd, validarNumero, ticketVigente, notificar, resolverNombreCodigo,
     TARA_MIN, TARA_MAX, TARA_ESTIMADA_MIN,
+    normalizarCampo, campoValido,
     rangoCampana,
     // El mismo reporte que el botón "Exportar a Excel" de la web: se arma en un
     // solo lugar y la app decide qué registros entran según con qué código se
@@ -1655,7 +1690,7 @@ app.post('/guardar-tara', async (req, res) => {
     }
 
     // VUL-04: validar que el campo recibido pertenezca a la lista oficial
-    if (!campos.includes(req.body.campo)) {
+    if (!campoValido(req.body.campo)) {
       return res.status(400).render('error', { error: 'Campo inválido o no reconocido.' });
     }
 

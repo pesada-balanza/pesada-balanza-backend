@@ -48,6 +48,9 @@ module.exports = function crearAppMovil(deps) {
     TARA_MIN,
     TARA_MAX,
     TARA_ESTIMADA_MIN,
+    // Un campo renombrado se sigue entendiendo por su nombre viejo.
+    normalizarCampo,
+    campoValido,
     rangoCampana,
     construirLibroRegistros,
   } = deps;
@@ -1234,9 +1237,10 @@ module.exports = function crearAppMovil(deps) {
         return fallar(res, 400, 'Faltan datos: ' + faltan.join(', '));
       }
 
-      if (!campos.includes(req.body.campo)) {
+      if (!campoValido(req.body.campo)) {
         return fallar(res, 400, 'El campo elegido no está en la lista.');
       }
+      const campoDelTicket = normalizarCampo(req.body.campo);
 
       const vBruto = validarNumero(req.body.brutoEstimado, 1000, 60000);
       if (!vBruto.ok) return fallar(res, 400, 'Bruto estimado: ' + vBruto.error);
@@ -1273,7 +1277,7 @@ module.exports = function crearAppMovil(deps) {
         transporte: String(req.body.transporte).trim(),
         patentes: String(req.body.patentes).trim().toUpperCase(),
         chofer: String(req.body.chofer).trim(),
-        campo: req.body.campo,
+        campo: campoDelTicket,
         brutoEstimado: brutoEst,
         tara,
         netoEstimado: brutoEst - tara,
@@ -1288,7 +1292,7 @@ module.exports = function crearAppMovil(deps) {
         //
         // (La web hace que el campo mande siempre, para cualquier código. Acá se
         // hizo distinto a pedido: ver APP_MOVIL.md, "De quién es cada ticket".)
-        codigoIngreso: balanzaDelTicket(s.codigoIngreso, req.body.campo),
+        codigoIngreso: balanzaDelTicket(s.codigoIngreso, campoDelTicket),
 
         // ── Campos propios de la app (opcionales, la web los ignora)
         origen: 'app',
@@ -1536,7 +1540,7 @@ module.exports = function crearAppMovil(deps) {
         layout: 'app/layout',
         titulo: 'Regulada',
         r: vistaRegistro(r),
-        siembraDelCampo: datosSiembra[r.campo] || {},
+        siembraDelCampo: datosSiembra[normalizarCampo(r.campo)] || {},
         kg,
       });
     } catch (err) {
@@ -1589,13 +1593,15 @@ module.exports = function crearAppMovil(deps) {
 
       // El campo se puede corregir en la regulada (la web también lo permite:
       // /guardar-regulada guarda `campo`). Si no viene, queda el del ticket.
-      let campoElegido = r.campo;
+      // `normalizarCampo` es lo que hace que un ticket cargado con el nombre
+      // viejo de un campo renombrado encuentre su siembra y pueda cerrarse.
+      let campoElegido = normalizarCampo(r.campo);
       const campoRecibido = String(req.body.campo || '').trim();
-      if (campoRecibido && campoRecibido !== r.campo) {
-        if (!campos.includes(campoRecibido)) {
+      if (campoRecibido && normalizarCampo(campoRecibido) !== campoElegido) {
+        if (!campoValido(campoRecibido)) {
           return fallar(res, 400, 'El campo elegido no está en la lista.');
         }
-        campoElegido = campoRecibido;
+        campoElegido = normalizarCampo(campoRecibido);
       }
 
       // El grano y los lotes tienen que pertenecer al campo (al corregido, si se cambió).
@@ -3025,7 +3031,9 @@ module.exports = function crearAppMovil(deps) {
   const CORTES = {
     grano:      { etiqueta: 'Grano',      de: (r) => [r.grano || 'Sin grano'] },
     lote:       { etiqueta: 'Lote',       de: (r) => (Array.isArray(r.lote) ? r.lote : r.lote ? [String(r.lote)] : ['Sin lote']), reparte: true },
-    campo:      { etiqueta: 'Campo',      de: (r) => [r.campo || 'Sin campo'] },
+    /* Un campo renombrado se cuenta junto con su nombre viejo: si no, el mismo
+       campo sale en dos renglones y ninguno de los dos tiene el total. */
+    campo:      { etiqueta: 'Campo',      de: (r) => [normalizarCampo(r.campo) || 'Sin campo'] },
     socio:      { etiqueta: 'Socio',      de: (r) => [r.cargaPara === 'SOCIO' && r.socio ? r.socio : 'AMH'] },
     transporte: { etiqueta: 'Transporte', de: (r) => [r.transporte || 'Sin transporte'] },
     balanza:    { etiqueta: 'Balanza',    de: (r) => [nombreBalanza(r.codigoIngreso) || 'Sin balanza'] },
@@ -3051,7 +3059,7 @@ module.exports = function crearAppMovil(deps) {
         if (r.cargoDe !== 'SILOBOLSA') return ['Sin dato de carga'];
         const nro = String(r.silobolsa || '').trim();
         if (!nro) return [SIN_NUMERO];
-        return [nro + ' · ' + (nombreCampoCorto(r.campo) || 'sin campo')];
+        return [nro + ' · ' + (nombreCampoCorto(normalizarCampo(r.campo)) || 'sin campo')];
       },
     },
   };
