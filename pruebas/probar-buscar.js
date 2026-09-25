@@ -484,7 +484,7 @@ async function main() {
   r = await ir('GET', '/app/sw.js');
   ok('el service worker no guarda /app/buscar', /SIN_GUARDAR/.test(r.texto) && /'\/app\/buscar'/.test(r.texto));
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
-  ok('la versión subió', /pesada-app-v23/.test(r.texto));
+  ok('la versión subió', /pesada-app-v24/.test(r.texto));
 
   /* ═══════════════════════════════════════════════════════════════════════
    * "PARA REVISAR": EL AVISO Y LA PANTALLA TIENEN QUE IR JUNTOS
@@ -701,19 +701,44 @@ async function main() {
     /105\.000/.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
   ok('cada renglón lleva a agregarlo como filtro',
     /f=socio%3A/.test(r.texto), (r.texto.match(/f=socio%3A[^"&]*/) || [''])[0]);
-  /* Que el renglón SEA tocable no alcanza si no se ve: probando la pantalla se
-     usaban los chips de "Agrupar por" como si filtraran, y no filtran. */
   ok('y se ve que se puede tocar', /ir-filtro/.test(r.texto));
-  ok('la pantalla aclara que los chips no filtran',
-    /Para filtrar, tocá un renglón/.test(r.texto));
 
-  // Cambiar el corte NO pierde los filtros puestos: es lo que permite encadenar
-  // silobolsa → campo → socio sin volver atrás.
-  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
-    '&corte=silobolsa&f=' + encodeURIComponent('socio:ProvInvest'));
-  const chipsCorte = (r.texto.match(/href="[^"]*corte=campo[^"]*"/g) || []).join('');
-  ok('los chips de Agrupar por arrastran el filtro puesto',
-    /f=socio/.test(chipsCorte), chipsCorte.slice(0, 160) || '(sin chip)');
+  /* ── Apilar cortes ─────────────────────────────────────────────────────
+     Los cortes se SUMAN: eligiendo Silobolsa, después Campo y después Socio,
+     cada renglón es la combinación de los tres. Antes elegir el segundo
+     parecía pisar al primero. */
+  const unDia = 'desde=' + DIA_TOT + '&hasta=' + DIA_TOT;
+
+  r = await ir('GET', '/app/datos?' + unDia + '&corte=socio');
+  const totalUno = (r.texto.match(/dato-xg">([^<]*)/) || [])[1];
+  ok('con un corte, la lista es por socio', /Por socio/.test(r.texto), r.estado);
+  ok('y ofrece sumar otro', /Sumar otro corte/.test(r.texto) && /corte=socio&corte=grano/.test(r.texto.replace(/&amp;/g, '&')));
+
+  r = await ir('GET', '/app/datos?' + unDia + '&corte=socio&corte=grano');
+  ok('con dos, el encabezado los nombra a los dos', /Por socio · grano/.test(r.texto), r.estado);
+  ok('los renglones son la combinación', /ProvInvest · SOJA/.test(r.texto),
+    (r.texto.match(/ProvInvest[^<]*/) || [''])[0]);
+  ok('y el total NO cambia: cortar distinto no agrega ni saca kilos',
+    (r.texto.match(/dato-xg">([^<]*)/) || [])[1] === totalUno,
+    totalUno + ' → ' + (r.texto.match(/dato-xg">([^<]*)/) || [])[1]);
+  ok('cada corte elegido se puede sacar con su ✕',
+    /corte=grano"/.test(r.texto.replace(/&amp;/g, '&')) && /✕/.test(r.texto));
+
+  r = await ir('GET', '/app/datos?' + unDia + '&corte=socio&corte=grano&corte=campo&corte=balanza&corte=lote');
+  ok('el quinto corte no entra: con cuatro ya hay un renglón por viaje',
+    !/Por socio · grano · campo · balanza · lote/.test(r.texto) &&
+    /Por socio · grano · campo · balanza/.test(r.texto),
+    (r.texto.match(/Por [a-zá-ú · ]+</) || [''])[0]);
+
+  r = await ir('GET', '/app/datos?' + unDia + '&corte=socio');
+  ok('con un solo corte no se ofrece sacarlo: sin ninguno no hay nada que ver',
+    !/Socio &nbsp;✕/.test(r.texto), r.estado);
+
+  // Sumar un corte NO pierde los filtros puestos.
+  r = await ir('GET', '/app/datos?' + unDia + '&corte=socio&f=' + encodeURIComponent('grano:SOJA'));
+  const chipsCorte = (r.texto.replace(/&amp;/g, '&').match(/href="[^"]*corte=campo[^"]*"/g) || []).join('');
+  ok('sumar otro corte arrastra el filtro puesto',
+    /f=grano/.test(chipsCorte), chipsCorte.slice(0, 160) || '(sin chip)');
 
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
     '&corte=grano&f=' + encodeURIComponent('socio:ProvInvest'));
@@ -757,12 +782,12 @@ async function main() {
     r.texto.indexOf('Sin número') < r.texto.indexOf('17 · Quimili'),
     r.texto.indexOf('Sin número') + ' / ' + r.texto.indexOf('17 · Quimili'));
   // Ojo: los chips de período también llevan "corte=" en el enlace, así que la
-  // posición hay que medirla DENTRO del bloque de "Agrupar por".
-  const bloqueCortes = r.texto.slice(r.texto.indexOf('Agrupar por'));
+  // posición hay que medirla DENTRO del bloque de sumar cortes.
+  const bloqueCortes = r.texto.slice(r.texto.indexOf('Sumar otro corte'));
   ok('el chip está al lado de Balanza, el último de la fila',
-    bloqueCortes.indexOf('corte=balanza') < bloqueCortes.indexOf('corte=silobolsa') &&
-    bloqueCortes.indexOf('corte=silobolsa') !== -1,
-    (bloqueCortes.match(/corte=[a-z]+/g) || []).join(' · '));
+    bloqueCortes.indexOf('＋ Balanza') < bloqueCortes.indexOf('＋ Silobolsa') ||
+    bloqueCortes.indexOf('＋ Silobolsa') === -1,
+    (bloqueCortes.match(/＋ [A-Za-zá-ú]+/g) || []).join(' · '));
 
   r = await ir('GET', '/app/datos?corte=grano&desde=' + AYER + '&hasta=' + HOY);
   ok('un rango a mano abre y trae más días', r.estado === 200 && /t-pantalla">Datos</.test(r.texto), r.estado);

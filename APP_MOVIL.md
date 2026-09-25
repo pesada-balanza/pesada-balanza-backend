@@ -945,8 +945,14 @@ resumen, arriba del de Excel.
 chip de **Campaña**: para eso está el desde–hasta. Como chip invitaba a traerse
 miles de tickets de todas las balanzas de un toque, casi siempre sin querer. La
 dirección `periodo=campana` **sigue resolviendo**, por si quedó guardada.
-**Agrupar por**: *Grano · Lote · Campo · Socio · Transporte · Balanza ·
-Silobolsa*. Cambiar el corte no cambia el período, y al revés. Todo por `GET`: el "atrás" del
+**Mostrando kg por**: los cortes se **apilan**, hasta **4**. Se elige Silobolsa,
+se suma Campo, se suma Socio, y cada renglón pasa a ser la **combinación** de los
+tres: `3 · Quimili - QUIMILI - SE · ProvInvest`. Cada corte elegido se saca con su
+**✕**; el último no, porque sin ningún corte no hay nada que mostrar.
+
+Sumar un corte **no cambia el total** —cortar distinto no agrega ni saca kilos—,
+solo lo reparte en más renglones. Eso va probado: es la forma de detectar si
+alguna vez un corte empieza a contar de más. Todo por `GET`: el "atrás" del
 teléfono vuelve al corte anterior y la dirección se puede compartir.
 
 ### Las tres reglas que hacen que los números cierren
@@ -971,12 +977,12 @@ Se arranca por la **fecha**, se elige un **corte**, y desde ahí **tocando un
 renglón** ese valor pasa a ser un filtro y se puede seguir cortando por otra
 cosa: *fecha → silobolsa → socio → grano → …*, hasta **6** filtros.
 
-> **Los chips de "Agrupar por" NO filtran.** Cambian cómo se corta el mismo
-> total. Probando la pantalla se los usa como si filtraran —se elige Silobolsa,
-> después Campo, y parece que el segundo pisó al primero—, cuando en realidad
-> solo cambió el corte. Por eso el bloque lo aclara en una línea y cada renglón
-> lleva una **›**: sin señal visual, que el renglón sea tocable no lo descubre
-> nadie. Los chips **sí arrastran** los filtros ya puestos, y va probado.
+> **Dos cosas distintas, y conviene no confundirlas.** *Apilar cortes* abre el
+> mismo total en más renglones; *filtrar* deja afuera lo que no coincide y baja
+> el total. La primera era la que se esperaba al tocar los chips —y por eso los
+> chips ahora **suman** en vez de reemplazar—; la segunda sigue estando al tocar
+> un renglón, con la **›** como señal. Sumar un corte **no pierde** los filtros
+> puestos, y va probado.
 
 Cada filtro viaja en la dirección como `f=<corte>:<valor>`, así que la pantalla
 no guarda estado: el "atrás" del teléfono deshace un paso de la cadena y la
@@ -1005,7 +1011,14 @@ renglones empatan en fecha —una balanza cierra varias bolsas el mismo día—
 desempatan por kilos, para que el orden sea estable y no uno al azar.
 
 El renglón `primero` (hoy, "Sin número") queda arriba igual: es una lista de
-pendientes, no compite por tamaño.
+pendientes, no compite por tamaño. Con **varios cortes apilados** deja de
+aplicarse: el renglón ya no es "Sin número" sino "Sin número · Quimili · AMH", y
+anclar uno de esos no significa nada.
+
+Cuando el corte **Campo** está puesto junto con **Silobolsa**, el renglón no
+repite el campo al lado del número (`3 · Quimili · Quimili - QUIMILI - SE`): se
+muestra solo el número. Cambia **lo que se lee**, no la clave interna —de ella
+dependen los filtros guardados en la dirección—.
 
 ### El corte por silobolsa: campo + número
 

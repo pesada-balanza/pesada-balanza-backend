@@ -7,10 +7,19 @@
   compartir tal cual.
 %>
 <%
-  // Los filtros ya elegidos, listos para pegar en cualquier enlace.
+  // Lo ya elegido, listo para pegar en cualquier enlace. Todo viaja en la
+  // dirección: no hay estado guardado, el "atrás" del teléfono deshace un paso
+  // y el link se puede compartir tal cual.
   var filtrosEnUrl = filtros.map(function (f) {
     return '&f=' + encodeURIComponent(f.crudo);
   }).join('');
+  var cortesEnUrl = cortes.map(function (c) { return '&corte=' + c; }).join('');
+  // Los cortes SIN uno: es lo que hace la ✕ de cada corte elegido.
+  function cortesSalvo(quitar) {
+    return cortes.filter(function (c) { return c !== quitar; })
+      .map(function (c) { return '&corte=' + c; }).join('');
+  }
+  var fechaEnUrl = '&periodo=' + periodo + '&desde=' + desde + '&hasta=' + hasta;
 %>
 <div class="pantalla">
 
@@ -35,12 +44,12 @@
           un toque, casi siempre sin querer. %>
       <% [['hoy','Hoy'],['semana','7 días'],['mes','30 días']].forEach(function (p) { %>
         <a class="chip-elegible<%= periodo === p[0] ? ' elegido' : '' %>"
-           href="/app/datos?corte=<%= corte %>&periodo=<%= p[0] %><%= filtrosEnUrl %>"><%= p[1] %></a>
+           href="/app/datos?periodo=<%= p[0] %><%= cortesEnUrl %><%= filtrosEnUrl %>"><%= p[1] %></a>
       <% }); %>
     </div>
 
     <form class="tarjeta tarjeta-chica" method="GET" action="/app/datos" style="gap:9px">
-      <input type="hidden" name="corte" value="<%= corte %>">
+      <% cortes.forEach(function (c) { %><input type="hidden" name="corte" value="<%= c %>"><% }); %>
       <% filtros.forEach(function (f) { %><input type="hidden" name="f" value="<%= f.crudo %>"><% }); %>
       <span class="etiqueta">O un rango a mano</span>
       <div class="fila" style="gap:8px">
@@ -60,7 +69,7 @@
             <%# El enlace rearma la lista SIN este filtro: sacar uno del medio
                 no tiene que tirar abajo los que vienen después. %>
             <a class="chip-elegible elegido"
-               href="/app/datos?corte=<%= corte %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %><%
+               href="/app/datos?<%= fechaEnUrl.slice(1) %><%= cortesEnUrl %><%
                  filtros.forEach(function (o, j) { if (j !== i) { %>&f=<%= encodeURIComponent(o.crudo) %><% } });
                %>"><%= f.etiqueta %>: <%= f.valor %> &nbsp;✕</a>
           <% }); %>
@@ -81,20 +90,37 @@
     </div>
 
     <%# 3. Cómo se corta. Cambiar de corte no cambia el período. %>
+    <%# Los cortes elegidos, arriba y desarmables de a uno. Se suman: eligiendo
+        Silobolsa, después Campo y después Socio, cada renglón de abajo es la
+        combinación de los tres. %>
     <div class="campo">
-      <span class="etiqueta">Agrupar por</span>
-      <%# Los chips NO filtran: cambian cómo se corta el mismo total. Filtrar es
-          tocar un renglón. Decirlo, porque probándolo no se adivina. %>
-      <span class="txt-aux" style="margin-top:2px">
-        Cambia cómo se corta el total. Para filtrar, tocá un renglón de abajo.
-      </span>
+      <span class="etiqueta">Mostrando kg por</span>
       <div class="chips" style="margin-top:6px">
-        <% cortes.forEach(function (c) { %>
-          <a class="chip-elegible<%= corte === c.clave ? ' elegido' : '' %>"
-             href="/app/datos?corte=<%= c.clave %>&periodo=<%= periodo %>&desde=<%= desde %>&hasta=<%= hasta %><%= filtrosEnUrl %>"><%= c.etiqueta %></a>
+        <% cortes.forEach(function (c, i) { %>
+          <% if (cortes.length > 1) { %>
+            <a class="chip-elegible elegido"
+               href="/app/datos?<%= fechaEnUrl.slice(1) %><%= cortesSalvo(c) %><%= filtrosEnUrl %>"><%= cortesEtiquetas[i] %> &nbsp;✕</a>
+          <% } else { %>
+            <%# El último no se saca: sin ningún corte no hay nada que mostrar. %>
+            <span class="chip-elegible elegido"><%= cortesEtiquetas[i] %></span>
+          <% } %>
         <% }); %>
       </div>
     </div>
+
+    <% if (puedeSumarCorte) { %>
+      <div class="campo">
+        <span class="etiqueta">Sumar otro corte</span>
+        <div class="chips" style="margin-top:6px">
+          <% disponibles.forEach(function (c) { %>
+            <% if (!c.elegido) { %>
+              <a class="chip-elegible"
+                 href="/app/datos?<%= fechaEnUrl.slice(1) %><%= cortesEnUrl %>&corte=<%= c.clave %><%= filtrosEnUrl %>">＋ <%= c.etiqueta %></a>
+            <% } %>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
 
     <% if (!filas.length) { %>
       <div class="tarjeta" style="gap:6px">
@@ -107,7 +133,7 @@
       <% } %>
       <div class="tarjeta" style="gap:13px">
         <div class="fila-base">
-          <span class="cuerpo-fuerte">Por <%= (cortes.find(function (c) { return c.clave === corte; }) || {}).etiqueta.toLowerCase() %></span>
+          <span class="cuerpo-fuerte">Por <%= cortesEtiquetas.join(' · ').toLowerCase() %></span>
           <span class="mono-chico" style="letter-spacing:.06em"><%= filas.length %></span>
         </div>
 
@@ -116,9 +142,8 @@
             <% if (i > 0) { %><div class="divisor"></div><% } %>
             <%# Tocar el renglón lo agrega como filtro: así se encadena
                 fecha → silobolsa → socio → grano, sin volver atrás. %>
-            <% var urlFila = '/app/datos?corte=' + corte + '&periodo=' + periodo +
-                 '&desde=' + desde + '&hasta=' + hasta + filtrosEnUrl +
-                 '&f=' + encodeURIComponent(f.filtro); %>
+            <% var urlFila = '/app/datos?' + fechaEnUrl.slice(1) + cortesEnUrl + filtrosEnUrl +
+                 f.filtros.map(function (x) { return '&f=' + encodeURIComponent(x); }).join(''); %>
             <% if (puedeFiltrarMas) { %><a href="<%= urlFila %>" style="text-decoration:none; color:inherit"><% } %>
             <div style="display:flex; flex-direction:column; gap:6px">
               <div class="fila-base">

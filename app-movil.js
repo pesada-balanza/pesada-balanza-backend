@@ -3010,6 +3010,10 @@ module.exports = function crearAppMovil(deps) {
      filtrar y la pantalla se vuelve ilegible. */
   const MAXIMO_FILTROS = 6;
 
+  /* Tope de cortes combinados. Con cuatro, el renglón ya es un renglón por
+     viaje y la pantalla deja de resumir nada. */
+  const MAXIMO_CORTES = 4;
+
   /** Cargó de silobolsa pero no se tipeó el número: es lo que falta completar. */
   const SIN_NUMERO = 'Sin número';
 
@@ -3092,9 +3096,19 @@ module.exports = function crearAppMovil(deps) {
         return pantallaError(res, 'Sin permiso', 'Este código no tiene registros para mirar.', '/app/general');
       }
 
-      const corte = Object.prototype.hasOwnProperty.call(CORTES, String(req.query.corte))
-        ? String(req.query.corte)
-        : 'grano';
+      /* Se eligen VARIOS cortes a la vez y la lista muestra la combinación:
+         silobolsa × campo × socio en el mismo renglón. Antes era uno solo y
+         elegir el segundo parecía pisar al primero. Llegan como `corte`
+         repetido, así una dirección vieja con un solo corte sigue andando. */
+      const cortes = [];
+      for (const bruto of [].concat(req.query.corte || [])) {
+        const c = String(bruto || '');
+        if (Object.prototype.hasOwnProperty.call(CORTES, c) && cortes.indexOf(c) === -1) {
+          cortes.push(c);
+        }
+        if (cortes.length >= MAXIMO_CORTES) break;
+      }
+      if (!cortes.length) cortes.push('grano');
       const { desde, hasta, periodo } = periodoElegido(req.query);
 
       /* Filtros encadenados. Cada uno llega como `f=<corte>:<valor>` y se
@@ -3136,7 +3150,7 @@ module.exports = function crearAppMovil(deps) {
         })
         .toArray();
 
-      const def = CORTES[corte];
+      const defs = cortes.map((c) => CORTES[c]);
       const acum = {};
       let total = 0;
       let camionesContados = 0;
@@ -3153,20 +3167,31 @@ module.exports = function crearAppMovil(deps) {
           const dFiltro = CORTES[f.corte];
           const suyas = dFiltro.de(r);
           if (suyas.indexOf(f.valor) === -1) { pasa = false; break; }
-          if (dFiltro.reparte && suyas.length > 1 && f.corte !== corte) factor /= suyas.length;
+          if (dFiltro.reparte && suyas.length > 1 && cortes.indexOf(f.corte) === -1) factor /= suyas.length;
         }
         if (!pasa) continue;
 
         const neto = (Number(r.neto) || 0) * factor;
         total += neto;
         camionesContados++;
-        const claves = def.de(r);
-        // El viaje se reparte solo en los cortes que lo piden (los lotes). En
-        // los demás cada viaje tiene una sola clave y entra entero.
-        const parte = def.reparte && claves.length > 1 ? neto / claves.length : neto;
-        for (const k of claves) {
-          const clave = String(k || '—');
-          if (!acum[clave]) acum[clave] = { nombre: clave, neto: 0, camiones: 0, ultima: '' };
+        /* Un renglón por COMBINACIÓN. Casi todos los cortes dan una sola clave
+           por viaje, así que esto suele ser una sola combinación; el lote es el
+           único que da varias, y entonces el viaje se reparte en partes
+           iguales entre ellas —si no, el mismo viaje se contaría entero en
+           cada lote y el total daría de más—. */
+        let combos = [[]];
+        for (const d of defs) {
+          const suyas = d.de(r);
+          const siguiente = [];
+          for (const base of combos) {
+            for (const k of suyas) siguiente.push(base.concat(String(k || '—')));
+          }
+          combos = siguiente;
+        }
+        const parte = combos.length > 1 ? neto / combos.length : neto;
+        for (const combo of combos) {
+          const clave = combo.join(' · ');
+          if (!acum[clave]) acum[clave] = { nombre: clave, partes: combo, neto: 0, camiones: 0, ultima: '' };
           acum[clave].neto += parte;
           acum[clave].camiones++;
           // Las fechas son YYYY-MM-DD: se comparan como texto sin convertir.
@@ -3177,10 +3202,13 @@ module.exports = function crearAppMovil(deps) {
       const filas = Object.keys(acum)
         .map((k) => acum[k])
         .sort((a, b) => {
-          // El renglón `primero` va arriba aunque sume menos que los demás.
-          if (def.primero) {
-            if (a.nombre === def.primero) return -1;
-            if (b.nombre === def.primero) return 1;
+          /* El renglón `primero` va arriba aunque sume menos. Con varios cortes
+             combinados deja de tener sentido anclar uno solo —el renglón ya no
+             es "Sin número" sino "Sin número · Quimili · AMH"—, así que aplica
+             únicamente cuando se mira un corte a la vez. */
+          if (defs.length === 1 && defs[0].primero) {
+            if (a.nombre === defs[0].primero) return -1;
+            if (b.nombre === defs[0].primero) return 1;
           }
           // Lo más nuevo arriba. Empatan muchos renglones el mismo día (una
           // balanza cierra varias bolsas en la misma jornada), así que el
@@ -3189,19 +3217,35 @@ module.exports = function crearAppMovil(deps) {
           return b.neto - a.neto;
         })
         .map((f) => ({
-          nombre: f.nombre,
+          /* El nombre que se LEE. La clave interna no cambia —de ella dependen
+             los filtros guardados en la dirección—, pero si el corte Campo ya
+             está puesto, el silobolsa no repite el campo al lado del número:
+             "3 · Quimili · Quimili - QUIMILI - SE" se lee "3 · Quimili - …". */
+          nombre: f.partes
+            .map((v, i) => (cortes[i] === 'silobolsa' && cortes.indexOf('campo') !== -1
+              ? String(v).split(' · ')[0]
+              : v))
+            .join(' · '),
           neto: Math.round(f.neto),
           camiones: f.camiones,
           porcentaje: total > 0 ? Math.round((f.neto / total) * 100) : 0,
-          // Para encadenar: tocando el renglón, su valor pasa a ser un filtro.
-          filtro: corte + ':' + f.nombre,
+          // Para acotar a un valor: tocando el renglón, cada parte se agrega
+          // como filtro del corte que le corresponde.
+          filtros: f.partes.map((v, i) => cortes[i] + ':' + v),
         }));
 
       return res.render('app/datos', {
         layout: 'app/layout',
         titulo: 'Datos',
-        corte,
-        cortes: Object.keys(CORTES).map((k) => ({ clave: k, etiqueta: CORTES[k].etiqueta })),
+        cortes,
+        cortesEtiquetas: cortes.map((c) => CORTES[c].etiqueta),
+        disponibles: Object.keys(CORTES).map((k) => ({
+          clave: k,
+          etiqueta: CORTES[k].etiqueta,
+          elegido: cortes.indexOf(k) !== -1,
+        })),
+        puedeSumarCorte: cortes.length < MAXIMO_CORTES,
+        reparteLotes: cortes.indexOf('lote') !== -1,
         periodo,
         filtros,
         puedeFiltrarMas: filtros.length < MAXIMO_FILTROS,
@@ -3212,7 +3256,6 @@ module.exports = function crearAppMovil(deps) {
         filas,
         total: Math.round(total),
         camiones: camionesContados,
-        reparteLotes: !!def.reparte,
         alcance: s.esGeneral ? 'TODAS LAS BALANZAS' : nombreBalanza(visibles[0]) || 'MI BALANZA',
         hoy: hoyStr(),
         kg,
