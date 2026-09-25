@@ -942,8 +942,8 @@ resumen, arriba del de Excel.
 > teléfono. No se borra: cuesta tres líneas y evita un 404 sin aviso.
 
 **Período**: chips *Hoy · 7 días · 30 días · Campaña*, más un desde–hasta a mano.
-**Agrupar por**: *Grano · Lote · Campo · Socio · Transporte · Balanza*. Cambiar
-el corte no cambia el período, y al revés. Todo por `GET`: el "atrás" del
+**Agrupar por**: *Grano · Lote · Campo · Socio · Transporte · Balanza ·
+Silobolsa*. Cambiar el corte no cambia el período, y al revés. Todo por `GET`: el "atrás" del
 teléfono vuelve al corte anterior y la dirección se puede compartir.
 
 ### Las tres reglas que hacen que los números cierren
@@ -961,6 +961,21 @@ Si esta pantalla dice un número distinto al del Excel, deja de servir. Por eso:
 
 Se filtra por **`fecha`**, el mismo campo que usa el botón de Excel, para que el
 mismo rango dé el mismo número en los dos lados.
+
+### El corte por silobolsa
+
+El número de silobolsa se **tipea en la regulada** y solo existe si ahí se eligió
+"Silobolsa". Los otros dos casos van a su **propio renglón** en vez de caer en
+una bolsa común: que el viaje lo haya cargado un **contratista** no es lo mismo
+que **no tener el dato**, y mezclarlos escondería justamente los tickets a los
+que les falta cargar de dónde salieron. Así, además, el total sigue cerrando con
+el de arriba.
+
+> **Cuidado si dos campos repiten el número.** El silobolsa se agrupa por el
+> número tal como se tipeó. Para un código de balanza eso está bien, pero el
+> `12341` ve todas: si en dos establecimientos hay un "silobolsa 3", los dos
+> caen en el mismo renglón. Si eso pasa en la práctica, hay que agrupar por
+> campo + número en vez de por número solo.
 
 ### Alcance y señal
 

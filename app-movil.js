@@ -3013,6 +3013,16 @@ module.exports = function crearAppMovil(deps) {
     socio:      { etiqueta: 'Socio',      de: (r) => [r.cargaPara === 'SOCIO' && r.socio ? r.socio : 'AMH'] },
     transporte: { etiqueta: 'Transporte', de: (r) => [r.transporte || 'Sin transporte'] },
     balanza:    { etiqueta: 'Balanza',    de: (r) => [nombreBalanza(r.codigoIngreso) || 'Sin balanza'] },
+    /* El silobolsa es un número que se tipea en la regulada, y solo existe si
+       se eligió "Silobolsa". Los otros dos casos van a su propio renglón en vez
+       de mezclarse en un "sin dato": que el viaje lo haya cargado un
+       contratista no es lo mismo que no saber de dónde salió. Así el total de
+       la pantalla sigue cerrando con el de arriba. */
+    silobolsa:  { etiqueta: 'Silobolsa',  de: (r) => {
+      if (r.cargoDe === 'SILOBOLSA') return [r.silobolsa ? String(r.silobolsa) : 'Silobolsa sin número'];
+      if (r.cargoDe === 'CONTRATISTA') return ['Cargó un contratista'];
+      return ['Sin dato de carga'];
+    } },
   };
 
   /** Los períodos de un toque. El desde–hasta a mano sigue estando. */
@@ -3073,7 +3083,7 @@ module.exports = function crearAppMovil(deps) {
         .find(filtro, {
           projection: {
             neto: 1, grano: 1, lote: 1, campo: 1, cargaPara: 1, socio: 1,
-            transporte: 1, codigoIngreso: 1,
+            transporte: 1, codigoIngreso: 1, cargoDe: 1, silobolsa: 1,
           },
         })
         .toArray();

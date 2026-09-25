@@ -601,9 +601,11 @@ async function main() {
   const totDia = (extra) => meterTicket(Object.assign(
     { fecha: DIA_TOT, fechaTaraFinal: DIA_TOT, fechaRegulada: DIA_TOT }, extra));
   totDia({ patentes: 'TT 001 AA', chofer: 'Tot Uno', grano: 'SOJA', lote: 'L9',
-    neto: 40000, cargaPara: 'SOCIO', socio: 'ProvInvest', transporte: 'Serden' });
+    neto: 40000, cargaPara: 'SOCIO', socio: 'ProvInvest', transporte: 'Serden',
+    cargoDe: 'SILOBOLSA', silobolsa: '17' });
   totDia({ patentes: 'TT 002 BB', chofer: 'Tot Dos', grano: 'SOJA', lote: 'L9',
-    neto: 10000, cargaPara: 'SOCIO', socio: 'Zunesma', transporte: 'Serden' });
+    neto: 10000, cargaPara: 'SOCIO', socio: 'Zunesma', transporte: 'Serden',
+    cargoDe: 'CONTRATISTA', contratista: 'Villa Marcelo' });
   totDia({ patentes: 'TT 003 CC', chofer: 'Tot Tres', grano: 'MAÍZ', lote: 'L9',
     neto: 50000, cargaPara: 'AMH', socio: '', transporte: 'Ciriaci' });
   // No cuentan: uno anulado y uno sin regular.
@@ -648,6 +650,20 @@ async function main() {
 
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=campo');
   ok('corta por campo', r.estado === 200 && /Quimili/.test(r.texto));
+
+  /* Silobolsa. El número solo existe si en la regulada se eligió SILOBOLSA;
+     los otros dos casos van a su propio renglón para que el total cierre. */
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=silobolsa');
+  ok('corta por silobolsa', r.estado === 200 && />17</.test(r.texto), r.estado);
+  ok('el que cargó un contratista va aparte', /Cargó un contratista/.test(r.texto));
+  ok('y el que no tiene el dato también', /Sin dato de carga/.test(r.texto));
+  // Ojo: los chips de período también llevan "corte=" en el enlace, así que la
+  // posición hay que medirla DENTRO del bloque de "Agrupar por".
+  const bloqueCortes = r.texto.slice(r.texto.indexOf('Agrupar por'));
+  ok('el chip está al lado de Balanza, el último de la fila',
+    bloqueCortes.indexOf('corte=balanza') < bloqueCortes.indexOf('corte=silobolsa') &&
+    bloqueCortes.indexOf('corte=silobolsa') !== -1,
+    (bloqueCortes.match(/corte=[a-z]+/g) || []).join(' · '));
 
   r = await ir('GET', '/app/datos?corte=grano&desde=' + AYER + '&hasta=' + HOY);
   ok('un rango a mano abre y trae más días', r.estado === 200 && /t-pantalla">Datos</.test(r.texto), r.estado);
