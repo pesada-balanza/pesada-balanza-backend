@@ -971,6 +971,13 @@ Se arranca por la **fecha**, se elige un **corte**, y desde ahí **tocando un
 renglón** ese valor pasa a ser un filtro y se puede seguir cortando por otra
 cosa: *fecha → silobolsa → socio → grano → …*, hasta **6** filtros.
 
+> **Los chips de "Agrupar por" NO filtran.** Cambian cómo se corta el mismo
+> total. Probando la pantalla se los usa como si filtraran —se elige Silobolsa,
+> después Campo, y parece que el segundo pisó al primero—, cuando en realidad
+> solo cambió el corte. Por eso el bloque lo aclara en una línea y cada renglón
+> lleva una **›**: sin señal visual, que el renglón sea tocable no lo descubre
+> nadie. Los chips **sí arrastran** los filtros ya puestos, y va probado.
+
 Cada filtro viaja en la dirección como `f=<corte>:<valor>`, así que la pantalla
 no guarda estado: el "atrás" del teléfono deshace un paso de la cadena y la
 dirección se puede compartir tal cual.

@@ -83,6 +83,11 @@
     <%# 3. Cómo se corta. Cambiar de corte no cambia el período. %>
     <div class="campo">
       <span class="etiqueta">Agrupar por</span>
+      <%# Los chips NO filtran: cambian cómo se corta el mismo total. Filtrar es
+          tocar un renglón. Decirlo, porque probándolo no se adivina. %>
+      <span class="txt-aux" style="margin-top:2px">
+        Cambia cómo se corta el total. Para filtrar, tocá un renglón de abajo.
+      </span>
       <div class="chips" style="margin-top:6px">
         <% cortes.forEach(function (c) { %>
           <a class="chip-elegible<%= corte === c.clave ? ' elegido' : '' %>"
@@ -97,6 +102,9 @@
         <span class="txt">Probá con un período más largo, o fijate en el resumen del día si hay camiones en curso.</span>
       </div>
     <% } else { %>
+      <% if (!puedeFiltrarMas) { %>
+        <span class="txt-aux">Llegaste al máximo de filtros encadenados. Sacá uno de arriba para seguir.</span>
+      <% } %>
       <div class="tarjeta" style="gap:13px">
         <div class="fila-base">
           <span class="cuerpo-fuerte">Por <%= (cortes.find(function (c) { return c.clave === corte; }) || {}).etiqueta.toLowerCase() %></span>
@@ -114,7 +122,9 @@
             <% if (puedeFiltrarMas) { %><a href="<%= urlFila %>" style="text-decoration:none; color:inherit"><% } %>
             <div style="display:flex; flex-direction:column; gap:6px">
               <div class="fila-base">
-                <span class="cuerpo-fuerte" style="font-size:15px"><%= f.nombre %></span>
+                <span class="cuerpo-fuerte" style="font-size:15px">
+                  <%= f.nombre %><% if (puedeFiltrarMas) { %><span class="ir-filtro">›</span><% } %>
+                </span>
                 <span class="mono" style="font:600 16px/1 var(--mono)"><%= kg(f.neto) %></span>
               </div>
               <%# La barra hace comparable de un vistazo lo que los números

@@ -484,7 +484,7 @@ async function main() {
   r = await ir('GET', '/app/sw.js');
   ok('el service worker no guarda /app/buscar', /SIN_GUARDAR/.test(r.texto) && /'\/app\/buscar'/.test(r.texto));
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
-  ok('la versión subió', /pesada-app-v22/.test(r.texto));
+  ok('la versión subió', /pesada-app-v23/.test(r.texto));
 
   /* ═══════════════════════════════════════════════════════════════════════
    * "PARA REVISAR": EL AVISO Y LA PANTALLA TIENEN QUE IR JUNTOS
@@ -701,6 +701,19 @@ async function main() {
     /105\.000/.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
   ok('cada renglón lleva a agregarlo como filtro',
     /f=socio%3A/.test(r.texto), (r.texto.match(/f=socio%3A[^"&]*/) || [''])[0]);
+  /* Que el renglón SEA tocable no alcanza si no se ve: probando la pantalla se
+     usaban los chips de "Agrupar por" como si filtraran, y no filtran. */
+  ok('y se ve que se puede tocar', /ir-filtro/.test(r.texto));
+  ok('la pantalla aclara que los chips no filtran',
+    /Para filtrar, tocá un renglón/.test(r.texto));
+
+  // Cambiar el corte NO pierde los filtros puestos: es lo que permite encadenar
+  // silobolsa → campo → socio sin volver atrás.
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
+    '&corte=silobolsa&f=' + encodeURIComponent('socio:ProvInvest'));
+  const chipsCorte = (r.texto.match(/href="[^"]*corte=campo[^"]*"/g) || []).join('');
+  ok('los chips de Agrupar por arrastran el filtro puesto',
+    /f=socio/.test(chipsCorte), chipsCorte.slice(0, 160) || '(sin chip)');
 
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
     '&corte=grano&f=' + encodeURIComponent('socio:ProvInvest'));
