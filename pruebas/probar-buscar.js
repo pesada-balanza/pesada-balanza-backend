@@ -659,6 +659,27 @@ async function main() {
   ok('corta por socio', /ProvInvest/.test(r.texto) && /Zunesma/.test(r.texto), r.estado);
   ok('lo de AMH se agrupa aparte', /AMH/.test(r.texto));
 
+  /* El mismo socio escrito de varias formas cuenta UNA vez. Los tickets viejos
+     se tipearon a mano y conviven "ProvInvest", "PROVINVEST" y "PROVOINVEST".
+     Van en un día propio para no mover los totales de las otras pruebas. */
+  const DIA_SOCIOS = haceDias(9);
+  const socioDia = (extra) => meterTicket(Object.assign(
+    { fecha: DIA_SOCIOS, fechaTaraFinal: DIA_SOCIOS, fechaRegulada: DIA_SOCIOS,
+      grano: 'SOJA', cargaPara: 'SOCIO' }, extra));
+  socioDia({ patentes: 'SC 001 AA', chofer: 'Tal Cual', socio: 'ProvInvest', neto: 10000 });
+  socioDia({ patentes: 'SC 002 BB', chofer: 'Mayusculas', socio: 'PROVINVEST', neto: 3000 });
+  socioDia({ patentes: 'SC 003 CC', chofer: 'Mal Tipeado', socio: 'PROVOINVEST', neto: 2000 });
+  socioDia({ patentes: 'SC 004 DD', chofer: 'Otro Socio', socio: 'ZUNESMA', neto: 7000 });
+
+  r = await ir('GET', '/app/datos?desde=' + DIA_SOCIOS + '&hasta=' + DIA_SOCIOS + '&corte=socio');
+  ok('las mayúsculas no hacen un socio aparte', !/PROVINVEST/.test(r.texto) && !/ZUNESMA/.test(r.texto),
+    (r.texto.match(/PROV[A-Z]*|ZUNESMA/g) || []).join(' | ') || '(ninguno suelto)');
+  ok('un error de tipeo conocido tampoco', !/PROVOINVEST/.test(r.texto));
+  ok('los tres de ProvInvest suman en un solo renglón', /15\.000/.test(r.texto),
+    (r.texto.match(/ProvInvest[\s\S]{0,140}/) || [''])[0].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' '));
+  ok('y Zunesma queda con su escritura de la lista',
+    /Zunesma/.test(r.texto) && /7\.000/.test(r.texto));
+
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=transporte');
   ok('corta por transporte', /Serden/.test(r.texto) && /Ciriaci/.test(r.texto));
 

@@ -391,6 +391,36 @@ async function main() {
     auditSocio.length === 1 && auditSocio[0].camposNuevos.socio === 'Zunesma',
     JSON.stringify((auditSocio[0] || {}).camposNuevos || {}).slice(0, 160));
 
+  /* Los tickets viejos se cargaron con el socio tipeado a mano. Corregir la
+     patente de uno de esos NO se puede trabar porque el socio que ya tenía no
+     está en la lista: es un dato de antes, no algo que se esté escribiendo. */
+  const tViejo = meterTicket({
+    idTicket: 382, nroApp: '1-0382', patentes: 'SO 333 EE',
+    cargaPara: 'SOCIO', socio: 'ESTABLECIMIENTO DOBLE CERO',
+  });
+  r = await ir('POST', '/app/api/corregir/' + String(tViejo._id), {
+    patentes: 'SO 333 FF', chofer: tViejo.chofer, tara: String(tViejo.tara),
+    cargaPara: 'SOCIO', socio: 'ESTABLECIMIENTO DOBLE CERO',
+  });
+  ok('se corrige otro dato sin tocar un socio viejo fuera de la lista',
+    r.estado === 200 && r.json.ok === true, r.texto.slice(0, 200));
+  ok('y el socio viejo queda como estaba',
+    registros().docs.find((d) => String(d._id) === String(tViejo._id)).socio === 'ESTABLECIMIENTO DOBLE CERO');
+
+  // Un socio mal tipeado conocido sí se endereza al de la lista.
+  const tTipeo = meterTicket({
+    idTicket: 383, nroApp: '1-0383', patentes: 'SO 444 GG',
+    cargaPara: 'SOCIO', socio: 'PROVOINVEST',
+  });
+  r = await ir('POST', '/app/api/corregir/' + String(tTipeo._id), {
+    patentes: 'SO 444 HH', chofer: tTipeo.chofer, tara: String(tTipeo.tara),
+    cargaPara: 'SOCIO', socio: 'PROVOINVEST',
+  });
+  ok('un socio mal tipeado se corrige solo al de la lista',
+    r.estado === 200 &&
+    registros().docs.find((d) => String(d._id) === String(tTipeo._id)).socio === 'ProvInvest',
+    registros().docs.find((d) => String(d._id) === String(tTipeo._id)).socio);
+
   // Un socio inventado no entra tampoco por acá.
   const tSocio2 = meterTicket({ idTicket: 381, nroApp: '1-0381', patentes: 'SO 222 DD' });
   r = await ir('POST', '/app/api/corregir/' + String(tSocio2._id), {

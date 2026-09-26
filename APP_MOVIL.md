@@ -1139,9 +1139,28 @@ Así todos los tickets del mismo socio se escriben igual y el total no se parte.
 Los **campos** (`campos`) y la **planilla de siembra** (`datosSiembra`) NO están
 en el Excel: son listas dentro de `app.js`. Cambiarlos es tocar código.
 
-> **Lo ya cargado no se arregla solo.** Los tickets viejos conservan el texto que
-> se tipeó. En la pantalla de corregir, un socio que no está en la lista aparece
-> marcado *"(fuera de la lista)"* para poder cambiarlo sin perderlo de vista.
+### Los nombres viejos se enderezan al mirar
+
+Los tickets cargados **antes** de la lista tienen el socio tipeado a mano, y
+conviven `ProvInvest`, `PROVINVEST` y `PROVOINVEST`. Al agrupar por socio salían
+como tres socios, cada uno con una parte del total.
+
+Ahora, al **mostrar y agrupar**, el nombre escrito se busca en la lista sin
+mirar mayúsculas ni acentos: `PROVINVEST` y `ZUNESMA` caen solos en `ProvInvest`
+y `Zunesma`. Para lo que así no se arregla —los errores de tipeo— está
+`SOCIOS_VIEJOS` en `app-movil.js`, que es una tabla de "como quedó escrito" a
+"cuál de la lista es". Se puede vaciar cuando no queden tickets con esos nombres.
+
+Los tickets **no se reescriben en la base**: se enderezan al leerlos, y cada uno
+queda con el nombre bueno la próxima vez que se guarde. Un nombre que no está en
+la lista ni en la tabla se muestra tal cual, para no inventar a qué socio
+pertenece.
+
+> **Corregir un ticket viejo no se traba por el socio.** Si el socio guardado no
+> está en la lista, `validarSocio` lo acepta **mientras sea el mismo que ya
+> tenía**: es un dato de antes, y no se puede impedir corregir la patente de un
+> ticket por un nombre que se tipeó hace un mes. Lo que sigue sin poder hacerse
+> es *escribir* uno nuevo fuera de la lista.
 
 ### El socio ahora se puede corregir
 

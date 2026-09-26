@@ -490,8 +490,48 @@ module.exports = function crearAppMovil(deps) {
    * configuración.
    * ======================================================================= */
 
-  /** Devuelve `{ valor }` con el nombre tal como está en la lista, o `{ error }`. */
-  function validarSocio(cargaPara, crudo) {
+  /* Socios de tickets viejos, de cuando el nombre se tipeaba a mano. Clave:
+     como quedó escrito (sin mayúsculas ni acentos). Valor: el socio de la lista
+     al que corresponde.
+
+     Acá NO hace falta poner lo que ya se arregla solo comparando sin mayúsculas
+     —"PROVINVEST" y "ZUNESMA" caen solos en "ProvInvest" y "Zunesma"—. Esto es
+     para los errores de tipeo, que de otra forma quedarían como un socio más.
+
+     Se puede vaciar cuando no queden tickets con esos nombres. */
+  const SOCIOS_VIEJOS = {
+    PROVOINVEST: 'ProvInvest',
+  };
+
+  /** El socio de la lista que corresponde a un nombre escrito, o `null`. */
+  function socioDeLaLista(escrito) {
+    const buscado = normalizar(escrito);
+    if (!buscado) return null;
+    const lista = getSocios() || [];
+    const hallado = lista.find((x) => normalizar(x) === buscado);
+    if (hallado) return hallado;
+    return SOCIOS_VIEJOS[buscado] || null;
+  }
+
+  /**
+   * Cómo se llama el socio de un ticket, para mostrarlo y para agrupar.
+   * Un mismo socio tipeado de tres formas distintas tiene que contar UNA vez.
+   */
+  function socioDelTicket(r) {
+    if (!r || r.cargaPara !== 'SOCIO' || !r.socio) return 'AMH';
+    const escrito = String(r.socio).trim();
+    return socioDeLaLista(escrito) || escrito;
+  }
+
+  /**
+   * Devuelve `{ valor }` con el nombre tal como está en la lista, o `{ error }`.
+   *
+   * `actual` es el socio que el ticket YA tenía. Si lo que llega es lo mismo que
+   * estaba, se acepta aunque no esté en la lista: son datos de antes, y no se
+   * puede trabar la corrección de la patente de un ticket viejo por un nombre de
+   * socio que se tipeó hace un mes.
+   */
+  function validarSocio(cargaPara, crudo, actual) {
     if (cargaPara !== 'SOCIO') return { valor: '' };
     const escrito = String(crudo || '').trim();
     if (!escrito) return { error: 'Falta el nombre del socio.' };
@@ -501,12 +541,13 @@ module.exports = function crearAppMovil(deps) {
 
     // Se compara sin mayúsculas ni acentos, pero se guarda como está en la
     // lista: así todos los tickets del mismo socio se escriben igual.
-    const buscado = normalizar(escrito);
-    const hallado = lista.find((x) => normalizar(x) === buscado);
-    if (!hallado) {
-      return { error: 'El socio "' + escrito + '" no está en la lista. Elegí uno de la lista.' };
-    }
-    return { valor: hallado };
+    const hallado = socioDeLaLista(escrito);
+    if (hallado) return { valor: hallado };
+
+    // No está en la lista: solo pasa si es exactamente lo que ya tenía.
+    if (actual && String(actual).trim() === escrito) return { valor: escrito.slice(0, 60) };
+
+    return { error: 'El socio "' + escrito + '" no está en la lista. Elegí uno de la lista.' };
   }
 
   /* =========================================================================
@@ -2179,7 +2220,7 @@ module.exports = function crearAppMovil(deps) {
       const cargaPara = ['AMH', 'SOCIO'].indexOf(String(req.body.cargaPara || '').toUpperCase()) !== -1
         ? String(req.body.cargaPara).toUpperCase()
         : (r.cargaPara || 'AMH');
-      const vSocio = validarSocio(cargaPara, cargaPara === 'SOCIO' ? (req.body.socio || r.socio) : '');
+      const vSocio = validarSocio(cargaPara, cargaPara === 'SOCIO' ? (req.body.socio || r.socio) : '', r.socio);
       if (vSocio.error) return fallar(res, 400, vSocio.error);
 
       const cambios = {
@@ -3034,7 +3075,10 @@ module.exports = function crearAppMovil(deps) {
     /* Un campo renombrado se cuenta junto con su nombre viejo: si no, el mismo
        campo sale en dos renglones y ninguno de los dos tiene el total. */
     campo:      { etiqueta: 'Campo',      de: (r) => [normalizarCampo(r.campo) || 'Sin campo'] },
-    socio:      { etiqueta: 'Socio',      de: (r) => [r.cargaPara === 'SOCIO' && r.socio ? r.socio : 'AMH'] },
+    /* Un mismo socio tipeado de tres formas distintas cuenta UNA vez: los
+       tickets viejos se cargaron a mano y hay "ProvInvest", "PROVINVEST" y
+       "PROVOINVEST" conviviendo. */
+    socio:      { etiqueta: 'Socio',      de: (r) => [socioDelTicket(r)] },
     transporte: { etiqueta: 'Transporte', de: (r) => [r.transporte || 'Sin transporte'] },
     balanza:    { etiqueta: 'Balanza',    de: (r) => [nombreBalanza(r.codigoIngreso) || 'Sin balanza'] },
     /* El silobolsa se agrupa por CAMPO + NÚMERO, no por el número solo: los
