@@ -1145,11 +1145,18 @@ Los tickets cargados **antes** de la lista tienen el socio tipeado a mano, y
 conviven `ProvInvest`, `PROVINVEST` y `PROVOINVEST`. Al agrupar por socio salían
 como tres socios, cada uno con una parte del total.
 
-Ahora, al **mostrar y agrupar**, el nombre escrito se busca en la lista sin
-mirar mayúsculas ni acentos: `PROVINVEST` y `ZUNESMA` caen solos en `ProvInvest`
-y `Zunesma`. Para lo que así no se arregla —los errores de tipeo— está
-`SOCIOS_VIEJOS` en `app-movil.js`, que es una tabla de "como quedó escrito" a
-"cuál de la lista es". Se puede vaciar cuando no queden tickets con esos nombres.
+Ahora el nombre escrito se busca en la lista sin mirar mayúsculas ni acentos:
+`PROVINVEST` y `ZUNESMA` caen solos en `ProvInvest` y `Zunesma`. Para lo que así
+no se arregla —los errores de tipeo y los nombres que nunca estuvieron en la
+lista— está `sociosRenombrados` en `app.js`, una tabla de "como quedó escrito" a
+"cuál de la lista es". Hoy tiene `PROVOINVEST` → `ProvInvest` y
+`ESTABLECIMIENTO DOBLE CERO` → `Fermanelli`. Se puede vaciar cuando no queden
+tickets con esos nombres.
+
+Vive en `app.js`, junto a la lista de socios y a los campos renombrados, porque
+**lo usan los tres lados**: la pantalla de datos, el **Excel** (si no, la hoja
+"Cargas SOCIO" se filtra en pedazos) y el **ticket** en pantalla y en PDF. Si
+estuviera solo en la app móvil, el Excel seguiría mostrando tres ProvInvest.
 
 Los tickets **no se reescriben en la base**: se enderezan al leerlos, y cada uno
 queda con el nombre bueno la próxima vez que se guarde. Un nombre que no está en

@@ -171,6 +171,11 @@ async function main() {
   // Quimili: dos de hoy y uno de ayer.
   meterTicket({ patentes: 'QUI 111 AA' });
   meterTicket({ patentes: 'QUI 222 BB', cargaPara: 'SOCIO', socio: 'PROVINVEST' });
+  // Tipeado mal y con un nombre que nunca estuvo en la lista: los dos tienen
+  // que salir con el socio de la lista, o la hoja "Cargas SOCIO" se filtra en
+  // pedazos igual que antes.
+  meterTicket({ patentes: 'QUI 444 DD', cargaPara: 'SOCIO', socio: 'PROVOINVEST' });
+  meterTicket({ patentes: 'QUI 555 EE', cargaPara: 'SOCIO', socio: 'ESTABLECIMIENTO DOBLE CERO' });
   meterTicket({ patentes: 'QUI 333 CC', fecha: AYER, fechaTaraFinal: AYER, fechaRegulada: AYER });
   // Otra balanza, que el código de Quimili NO tiene que ver nunca.
   meterTicket({
@@ -234,6 +239,18 @@ async function main() {
   ok('trae la hoja Registros', hojas.indexOf('Registros') !== -1, hojas.join(' | '));
   ok('trae la hoja IMPRIMIR', hojas.indexOf('IMPRIMIR') !== -1, hojas.join(' | '));
   ok('trae la hoja Cargas SOCIO', hojas.indexOf('Cargas SOCIO') !== -1, hojas.join(' | '));
+
+  /* El socio sale con el nombre de la lista, no como lo tipeó el balancero:
+     "PROVINVEST" y "PROVOINVEST" son ProvInvest, y "ESTABLECIMIENTO DOBLE CERO"
+     es Fermanelli. Si no, esta hoja se filtra en pedazos. */
+  const hojaSocio = ex.libro.getWorksheet('Cargas SOCIO');
+  const colSocio = (hojaSocio.getRow(1).values || []).indexOf('Socio');
+  const socios = [];
+  hojaSocio.eachRow((fila, i) => { if (i > 1) socios.push(String(fila.getCell(colSocio).value || '')); });
+  ok('el socio sale con el nombre de la lista',
+    socios.indexOf('ProvInvest') !== -1 && socios.indexOf('Fermanelli') !== -1, socios.join(' | '));
+  ok('y no como se tipeó',
+    !socios.some((x) => /PROVINVEST|PROVOINVEST|DOBLE CERO/.test(x)), socios.join(' | '));
   ok('y una hoja por campo', hojas.some((n) => /Quimili/.test(n)), hojas.join(' | '));
 
   const registrosHoja = ex.libro.getWorksheet('Registros');

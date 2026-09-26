@@ -51,6 +51,9 @@ module.exports = function crearAppMovil(deps) {
     // Un campo renombrado se sigue entendiendo por su nombre viejo.
     normalizarCampo,
     campoValido,
+    // Un socio tipeado a mano se endereza al de la lista.
+    normalizarSocio,
+    socioValido,
     rangoCampana,
     construirLibroRegistros,
   } = deps;
@@ -490,37 +493,17 @@ module.exports = function crearAppMovil(deps) {
    * configuración.
    * ======================================================================= */
 
-  /* Socios de tickets viejos, de cuando el nombre se tipeaba a mano. Clave:
-     como quedó escrito (sin mayúsculas ni acentos). Valor: el socio de la lista
-     al que corresponde.
-
-     Acá NO hace falta poner lo que ya se arregla solo comparando sin mayúsculas
-     —"PROVINVEST" y "ZUNESMA" caen solos en "ProvInvest" y "Zunesma"—. Esto es
-     para los errores de tipeo, que de otra forma quedarían como un socio más.
-
-     Se puede vaciar cuando no queden tickets con esos nombres. */
-  const SOCIOS_VIEJOS = {
-    PROVOINVEST: 'ProvInvest',
-  };
-
-  /** El socio de la lista que corresponde a un nombre escrito, o `null`. */
-  function socioDeLaLista(escrito) {
-    const buscado = normalizar(escrito);
-    if (!buscado) return null;
-    const lista = getSocios() || [];
-    const hallado = lista.find((x) => normalizar(x) === buscado);
-    if (hallado) return hallado;
-    return SOCIOS_VIEJOS[buscado] || null;
-  }
-
   /**
-   * Cómo se llama el socio de un ticket, para mostrarlo y para agrupar.
-   * Un mismo socio tipeado de tres formas distintas tiene que contar UNA vez.
+   * Cómo se llama el socio de un ticket, para mostrarlo y para agrupar. Un
+   * mismo socio tipeado de tres formas distintas tiene que contar UNA vez.
+   *
+   * La tabla de nombres viejos vive en `app.js`, junto a la de campos
+   * renombrados y a la lista de socios: así el Excel, el ticket y esta pantalla
+   * dicen todos lo mismo.
    */
   function socioDelTicket(r) {
     if (!r || r.cargaPara !== 'SOCIO' || !r.socio) return 'AMH';
-    const escrito = String(r.socio).trim();
-    return socioDeLaLista(escrito) || escrito;
+    return normalizarSocio(r.socio) || String(r.socio).trim();
   }
 
   /**
@@ -541,8 +524,7 @@ module.exports = function crearAppMovil(deps) {
 
     // Se compara sin mayúsculas ni acentos, pero se guarda como está en la
     // lista: así todos los tickets del mismo socio se escriben igual.
-    const hallado = socioDeLaLista(escrito);
-    if (hallado) return { valor: hallado };
+    if (socioValido(escrito)) return { valor: normalizarSocio(escrito) };
 
     // No está en la lista: solo pasa si es exactamente lo que ya tenía.
     if (actual && String(actual).trim() === escrito) return { valor: escrito.slice(0, 60) };
@@ -1756,7 +1738,7 @@ module.exports = function crearAppMovil(deps) {
       campo: r.campo || '',
       campoCorto: nombreCampoCorto(r.campo),
       cargaPara: r.cargaPara || '',
-      socio: r.socio || '',
+      socio: normalizarSocio(r.socio) || '',
       grano: r.grano || '',
       lote: lotes,
       loteTexto: lotes.join(', '),
@@ -1781,7 +1763,7 @@ module.exports = function crearAppMovil(deps) {
       cargadoPor: r.cargadoPor || r.usuario || '',
       balanza: nombreBalanza(r.codigoIngreso),
       // Encabezado del ticket: establecimiento del campo + AMH o Socio.
-      titular: r.cargaPara === 'SOCIO' && r.socio ? 'Socio ' + r.socio : 'AMH',
+      titular: r.cargaPara === 'SOCIO' && r.socio ? 'Socio ' + normalizarSocio(r.socio) : 'AMH',
       completo: !!r.fechaRegulada,
     };
   }

@@ -1158,6 +1158,50 @@ function campoValido(c) {
   return campos.includes(normalizarCampo(c));
 }
 
+/* ---------------------------------------------
+ * SOCIOS ESCRITOS A MANO
+ * ---------------------------------------------
+ * Los tickets cargados ANTES de que el socio saliera de una lista tienen el
+ * nombre tipeado, y conviven "ProvInvest", "PROVINVEST" y "PROVOINVEST". Al
+ * agrupar por socio salían como tres socios, cada uno con una parte del total.
+ *
+ * `normalizarSocio` busca el nombre escrito en la lista sin mirar mayúsculas ni
+ * acentos —con eso "PROVINVEST" y "ZUNESMA" caen solos donde corresponde— y,
+ * para lo que así no se arregla, usa esta tabla de "como quedó escrito" a "cuál
+ * de la lista es". Se puede vaciar cuando no queden tickets con esos nombres.
+ *
+ * Los tickets NO se reescriben en la base: se enderezan al leerlos, y cada uno
+ * queda con el nombre bueno la próxima vez que se guarde.
+ * -------------------------------------------*/
+const sociosRenombrados = {
+  PROVOINVEST: 'ProvInvest',
+  'ESTABLECIMIENTO DOBLE CERO': 'Fermanelli',
+};
+
+/** Sin mayúsculas ni acentos, para comparar nombres tipeados a mano. */
+function sinAdornos(v) {
+  return String(v || '')
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+/** El nombre vigente de un socio. Si no se reconoce, devuelve el mismo. */
+function normalizarSocio(nombre) {
+  const escrito = String(nombre || '').trim();
+  if (!escrito) return '';
+  const buscado = sinAdornos(escrito);
+  const hallado = socios.find((x) => sinAdornos(x) === buscado);
+  if (hallado) return hallado;
+  return sociosRenombrados[buscado] || escrito;
+}
+
+/** ¿El nombre corresponde a un socio de la lista? */
+function socioValido(nombre) {
+  return socios.indexOf(normalizarSocio(nombre)) !== -1;
+}
+
 const TARA_MIN = 1000;
 const TARA_MAX = 40000;
 const TARA_ESTIMADA_MIN = 0;
@@ -1179,6 +1223,7 @@ if (process.env.APP_MOVIL === '1') {
     ymd, validarNumero, ticketVigente, notificar, resolverNombreCodigo,
     TARA_MIN, TARA_MAX, TARA_ESTIMADA_MIN,
     normalizarCampo, campoValido,
+    normalizarSocio, socioValido,
     rangoCampana,
     // El mismo reporte que el botón "Exportar a Excel" de la web: se arma en un
     // solo lugar y la app decide qué registros entran según con qué código se
@@ -1404,6 +1449,9 @@ async function construirLibroRegistros(registros) {
         : '';
     const row = targetSheet.addRow({
       ...r,
+      // Un mismo socio tipeado de varias formas tiene que salir igual en todas
+      // las filas: si no, la hoja "Cargas SOCIO" se filtra en tres pedazos.
+      socio:       normalizarSocio(r.socio),
       // Aplanamos arrays multi-valor para que el Excel los muestre legibles
       lote:        flat(r.lote),
       contratista: flat(r.contratista),

@@ -394,18 +394,34 @@ async function main() {
   /* Los tickets viejos se cargaron con el socio tipeado a mano. Corregir la
      patente de uno de esos NO se puede trabar porque el socio que ya tenía no
      está en la lista: es un dato de antes, no algo que se esté escribiendo. */
+  const DESCONOCIDO = 'UN SOCIO QUE NADIE ANOTÓ';
   const tViejo = meterTicket({
     idTicket: 382, nroApp: '1-0382', patentes: 'SO 333 EE',
-    cargaPara: 'SOCIO', socio: 'ESTABLECIMIENTO DOBLE CERO',
+    cargaPara: 'SOCIO', socio: DESCONOCIDO,
   });
   r = await ir('POST', '/app/api/corregir/' + String(tViejo._id), {
     patentes: 'SO 333 FF', chofer: tViejo.chofer, tara: String(tViejo.tara),
-    cargaPara: 'SOCIO', socio: 'ESTABLECIMIENTO DOBLE CERO',
+    cargaPara: 'SOCIO', socio: DESCONOCIDO,
   });
   ok('se corrige otro dato sin tocar un socio viejo fuera de la lista',
     r.estado === 200 && r.json.ok === true, r.texto.slice(0, 200));
-  ok('y el socio viejo queda como estaba',
-    registros().docs.find((d) => String(d._id) === String(tViejo._id)).socio === 'ESTABLECIMIENTO DOBLE CERO');
+  ok('y un socio que no se reconoce queda como estaba, no se le inventa dueño',
+    registros().docs.find((d) => String(d._id) === String(tViejo._id)).socio === DESCONOCIDO,
+    registros().docs.find((d) => String(d._id) === String(tViejo._id)).socio);
+
+  // En cambio uno que SÍ está en la tabla de nombres viejos se endereza.
+  const tTabla = meterTicket({
+    idTicket: 384, nroApp: '1-0384', patentes: 'SO 555 II',
+    cargaPara: 'SOCIO', socio: 'ESTABLECIMIENTO DOBLE CERO',
+  });
+  r = await ir('POST', '/app/api/corregir/' + String(tTabla._id), {
+    patentes: 'SO 555 JJ', chofer: tTabla.chofer, tara: String(tTabla.tara),
+    cargaPara: 'SOCIO', socio: 'ESTABLECIMIENTO DOBLE CERO',
+  });
+  ok('"Establecimiento Doble Cero" queda como Fermanelli',
+    r.estado === 200 &&
+    registros().docs.find((d) => String(d._id) === String(tTabla._id)).socio === 'Fermanelli',
+    registros().docs.find((d) => String(d._id) === String(tTabla._id)).socio);
 
   // Un socio mal tipeado conocido sí se endereza al de la lista.
   const tTipeo = meterTicket({
