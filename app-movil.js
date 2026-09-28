@@ -535,6 +535,87 @@ module.exports = function crearAppMovil(deps) {
   }
 
   /* =========================================================================
+   * LAS BOLSAS DE UNA REGULADA
+   * -------------------------------------------------------------------------
+   * Un viaje puede salir de varias silobolsas. Antes era un campo de texto y el
+   * balancero escribía las dos adentro ("12 y 13"): los kg quedaban en un
+   * renglón que no era ninguna de las dos, y al mirar los datos ese viaje
+   * aparecía como una bolsa "12 y 13" que no existe.
+   *
+   * Ahora viaja una lista `[{ nro, kg }]` y la suma tiene que dar el NETO del
+   * viaje (bruto regulado − tara final). Se revisa acá y no solo en el teléfono
+   * porque la cola sin señal reenvía lo que tenga guardado.
+   *
+   * El campo `silobolsa` de siempre se sigue guardando con los números
+   * separados, para que el Excel y el reporte de las 19 hs no cambien.
+   * ======================================================================= */
+  const MAXIMO_SILOBOLSAS = 6;
+
+  function validarSilobolsas(crudo, neto) {
+    const lista = Array.isArray(crudo) ? crudo : [];
+    if (!lista.length) return { error: 'Falta el número de silobolsa.' };
+    if (lista.length > MAXIMO_SILOBOLSAS) {
+      return { error: 'Son demasiados silobolsas para un viaje (máximo ' + MAXIMO_SILOBOLSAS + ').' };
+    }
+
+    const bolsas = [];
+    let suma = 0;
+    for (const x of lista) {
+      const nro = String((x && x.nro) || '').trim();
+      if (!/^\d{1,3}$/.test(nro)) {
+        return { error: 'El número de silobolsa "' + nro + '" no sirve: van de 1 a 3 dígitos.' };
+      }
+      if (bolsas.some((b) => b.nro === nro)) {
+        return { error: 'El silobolsa ' + nro + ' está repetido en el mismo viaje.' };
+      }
+      const kg = Math.round(Number((x && x.kg) || 0));
+      if (!Number.isFinite(kg) || kg <= 0) {
+        return { error: 'Los kg del silobolsa ' + nro + ' tienen que ser mayores que cero.' };
+      }
+      suma += kg;
+      bolsas.push({ nro, kg });
+    }
+
+    // La suma tiene que dar el neto. Se tolera 1 kg por el redondeo de cada
+    // bolsa; más que eso es un dato mal armado y no se guarda.
+    if (Math.abs(suma - neto) > 1) {
+      return {
+        error: 'Los kg de los silobolsas suman ' + kg(suma) + ' y el neto del viaje es ' +
+          kg(neto) + '. Tienen que coincidir.',
+      };
+    }
+    return { bolsas };
+  }
+
+  /**
+   * El último número de silobolsa usado en un campo. Se mira el ticket más
+   * reciente de ese campo que haya cargado de silobolsa; si no hay ninguno,
+   * vuelve vacío y el balancero lo tipea una vez.
+   */
+  async function ultimoSilobolsaDelCampo(campo, codigoIngreso) {
+    if (!campo) return '';
+    try {
+      const doc = await colRegistros().findOne(
+        { campo, codigoIngreso, cargoDe: 'SILOBOLSA', anulado: { $ne: true } },
+        { sort: { idTicket: -1 }, projection: { silobolsa: 1, silobolsas: 1 } }
+      );
+      if (!doc) return '';
+      // Si el ticket ya usa la lista nueva, el último de sus bolsas.
+      if (Array.isArray(doc.silobolsas) && doc.silobolsas.length) {
+        const ultima = doc.silobolsas[doc.silobolsas.length - 1];
+        return String((ultima && ultima.nro) || '').slice(0, 3);
+      }
+      // Tickets viejos: el texto podía traer varias ("12 y 13"), así que se
+      // toma el primer número que aparezca y nada más.
+      const m = String(doc.silobolsa || '').match(/\d{1,3}/);
+      return m ? m[0] : '';
+    } catch (err) {
+      console.warn('[app-movil] no se pudo buscar el último silobolsa:', err.message);
+      return '';
+    }
+  }
+
+  /* =========================================================================
    * QUÉ PASO LE FALTA A UN TICKET
    * -------------------------------------------------------------------------
    * El recorrido real del camión, que es lo que estos dos estados cuentan:
@@ -1569,6 +1650,10 @@ module.exports = function crearAppMovil(deps) {
         titulo: 'Regulada',
         r: vistaRegistro(r),
         siembraDelCampo: datosSiembra[normalizarCampo(r.campo)] || {},
+        // El número que la pantalla propone en la primera fila. Una bolsa se
+        // carga durante varios viajes seguidos, así que lo normal es que el
+        // balancero no tenga que tocarlo.
+        ultimoSilobolsa: await ultimoSilobolsaDelCampo(normalizarCampo(r.campo), s.codigoIngreso),
         kg,
       });
     } catch (err) {
@@ -1662,6 +1747,17 @@ module.exports = function crearAppMovil(deps) {
       const bruto = vBruto.valor;
       const hoy = hoyStr();
 
+      /* Las bolsas y sus kg. Solo cuando cargó de silobolsa; si cargó de un
+         contratista no hay nada que repartir. Un ticket que llega sin la lista
+         —la cola de un teléfono que todavía no se actualizó— se acepta con el
+         texto de siempre: no se le traba la carga a nadie por una versión. */
+      let bolsas = [];
+      if (cargoDe === 'SILOBOLSA' && req.body.silobolsas) {
+        const vBolsas = validarSilobolsas(req.body.silobolsas, bruto - taraFinal);
+        if (vBolsas.error) return fallar(res, 400, vBolsas.error);
+        bolsas = vBolsas.bolsas;
+      }
+
       const set = {
         fecha: hoy,
         pesadaPara: 'REGULADA',
@@ -1669,7 +1765,15 @@ module.exports = function crearAppMovil(deps) {
         grano,
         lote: lotes,
         cargoDe,
-        silobolsa: cargoDe === 'SILOBOLSA' ? String(req.body.silobolsa || '').trim() : '',
+        // El texto de siempre: los números separados. Lo leen el Excel y el
+        // reporte de las 19 hs, que no cambian.
+        silobolsa: cargoDe === 'SILOBOLSA'
+          ? (bolsas.length
+            ? bolsas.map((b) => b.nro).join(' · ')
+            : String(req.body.silobolsa || '').trim())
+          : '',
+        // Campo nuevo, aditivo: la web lo ignora.
+        silobolsas: bolsas,
         contratista: cargoDe === 'CONTRATISTA' ? contratistas : [],
         tractor: cargoDe === 'CONTRATISTA' ? tractores : [],
         bruto,
@@ -3085,7 +3189,25 @@ module.exports = function crearAppMovil(deps) {
     silobolsa:  {
       etiqueta: 'Silobolsa',
       primero: SIN_NUMERO,
+      /* Los kg REALES de cada bolsa, cuando el ticket los tiene. Un viaje que
+         salió de dos bolsas ya no se reparte en partes iguales ni cae en un
+         renglón "12 y 13" que no existe: cada bolsa se lleva lo suyo. Los
+         tickets viejos no tienen la lista y siguen contando como antes. */
+      kgPorClave: (r) => {
+        if (r.cargoDe !== 'SILOBOLSA' || !Array.isArray(r.silobolsas) || !r.silobolsas.length) return null;
+        const campo = nombreCampoCorto(normalizarCampo(r.campo)) || 'sin campo';
+        const mapa = {};
+        for (const b of r.silobolsas) {
+          const clave = String(b.nro || '').trim() + ' · ' + campo;
+          mapa[clave] = (mapa[clave] || 0) + (Number(b.kg) || 0);
+        }
+        return mapa;
+      },
       de: (r) => {
+        if (r.cargoDe === 'SILOBOLSA' && Array.isArray(r.silobolsas) && r.silobolsas.length) {
+          const campo = nombreCampoCorto(normalizarCampo(r.campo)) || 'sin campo';
+          return r.silobolsas.map((b) => String(b.nro || '').trim() + ' · ' + campo);
+        }
         if (r.cargoDe === 'CONTRATISTA') return ['Cargó un contratista'];
         if (r.cargoDe !== 'SILOBOLSA') return ['Sin dato de carga'];
         const nro = String(r.silobolsa || '').trim();
@@ -3184,7 +3306,7 @@ module.exports = function crearAppMovil(deps) {
         .find(filtro, {
           projection: {
             fecha: 1, neto: 1, grano: 1, lote: 1, campo: 1, cargaPara: 1, socio: 1,
-            transporte: 1, codigoIngreso: 1, cargoDe: 1, silobolsa: 1,
+            transporte: 1, codigoIngreso: 1, cargoDe: 1, silobolsa: 1, silobolsas: 1,
           },
         })
         .toArray();
@@ -3219,6 +3341,9 @@ module.exports = function crearAppMovil(deps) {
            iguales entre ellas —si no, el mismo viaje se contaría entero en
            cada lote y el total daría de más—. */
         let combos = [[]];
+        // Cuántos kg le tocan a cada clave, para los cortes que lo saben de
+        // verdad (hoy, el silobolsa). `null` = repartir en partes iguales.
+        const pesos = defs.map((d) => (d.kgPorClave ? d.kgPorClave(r) : null));
         for (const d of defs) {
           const suyas = d.de(r);
           const siguiente = [];
@@ -3227,8 +3352,22 @@ module.exports = function crearAppMovil(deps) {
           }
           combos = siguiente;
         }
-        const parte = combos.length > 1 ? neto / combos.length : neto;
         for (const combo of combos) {
+          /* El peso del renglón: si algún corte sabe los kg exactos de su
+             clave, mandan esos; lo que quede sin saber se reparte en partes
+             iguales entre las combinaciones que genera. */
+          let parte = neto;
+          let sinSaber = 1;
+          for (let i = 0; i < defs.length; i++) {
+            if (pesos[i]) {
+              parte = Number(pesos[i][combo[i]]) || 0;
+            } else {
+              const cuantas = defs[i].de(r).length;
+              if (cuantas > 1) sinSaber *= cuantas;
+            }
+          }
+          if (sinSaber > 1) parte /= sinSaber;
+
           const clave = combo.join(' · ');
           if (!acum[clave]) acum[clave] = { nombre: clave, partes: combo, neto: 0, camiones: 0, ultima: '' };
           acum[clave].neto += parte;

@@ -408,6 +408,37 @@ a { color: inherit; text-decoration: none; }
 .opcion.elegida { background: var(--tinta); border-color: var(--tinta); color: var(--fondo); }
 .opcion .mono { font-family: var(--mono); }
 
+/* Silobolsas de la regulada: una fila por bolsa, con su número y sus kg.
+   El último casillero de kg es calculado (el resto), y se ve distinto para que
+   nadie lo confunda con un campo que quedó sin llenar. */
+.caja-silo { background: #fff; border: 1px solid var(--borde-fuerte); border-radius: 14px; }
+.fila-silo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 56px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--divisor);
+}
+.fila-silo:last-child { border-bottom: 0; }
+.fila-silo .marca { width: 22px; flex: 0 0 auto; text-align: center; font: 600 15px/1 var(--mono); color: var(--punteado); }
+.fila-silo .nro-silo { width: 66px; height: 44px; text-align: center; padding: 0 6px; font: 600 17px/1 var(--mono); }
+.fila-silo .der { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+.fila-silo .kg-silo { width: 104px; height: 44px; text-align: right; padding: 0 10px; font: 600 17px/1 var(--mono); }
+.fila-silo .kg-resto { background: var(--gris); border-style: dashed; }
+.fila-silo .unidad { font: 400 12px/1 var(--mono); color: var(--texto3); }
+.fila-silo .quitar { font: 400 20px/1 var(--sans); color: var(--texto3); background: none; border: 0; padding: 0 4px; min-height: 44px; }
+.mas-silo {
+  min-height: 52px;
+  width: 100%;
+  font: 600 15px/1 var(--sans);
+  color: var(--tinta);
+  background: #fff;
+  border: 1px dashed var(--borde-fuerte);
+  border-radius: 14px;
+  margin-top: 9px;
+}
+
 /* Lista de casillas (lotes, contratistas, tractores) */
 .lista-casillas {
   display: flex;

@@ -1038,14 +1038,74 @@ repite el campo al lado del número (`3 · Quimili · Quimili - QUIMILI - SE`): 
 muestra solo el número. Cambia **lo que se lee**, no la clave interna —de ella
 dependen los filtros guardados en la dirección—.
 
-### El corte por silobolsa: campo + número
+### Las silobolsas de una regulada
+
+Un viaje puede salir de **varias** silobolsas. Antes había **un campo de texto**
+y el balancero escribía las dos adentro: `12 y 13`, `4 - 3`, `5- - 6`. Los kg
+quedaban en un renglón que **no era ninguna de las dos**, y al mirar los datos
+aparecía una bolsa "12 y 13" que no existe.
+
+Ahora es **una fila por bolsa**: número (hasta 3 dígitos) y los kg que salieron
+de ella (hasta 5). Con `＋ Silobolsa` se suman las que hagan falta, hasta 6.
+
+### La regla del resto
+
+El **último** silobolsa no se tipea: es el **resto** del neto menos lo de arriba.
+
+- Con **una sola** bolsa, no hay nada que tipear: se lleva todo el neto.
+- Con **dos o más**, se tipean todas menos la última.
+- Si cambia el bruto regulado, el resto se reacomoda solo.
+
+Así **la suma siempre da el neto** y nunca queda un viaje con kg sin asignar. El
+único error posible es que lo tipeado se pase del neto; ahí el resto daría
+negativo, se avisa y no deja guardar.
+
+La suma se revisa **también en el servidor**, no solo en el teléfono: la cola sin
+señal reenvía lo que tenga guardado, y un teléfono viejo podría mandar otra cosa.
+Se tolera **1 kg** de diferencia por el redondeo de cada bolsa.
+
+### Por qué cambió el orden del formulario
+
+Quedó: **Grano · Lote · Bruto lote · Bruto regulado · Neto · Cargó de ·
+Observaciones**. "Cargó de" pasó **después de los pesos** porque los kg de cada
+bolsa salen de repartir el neto, y **el neto no existe hasta que se carga el
+bruto regulado**. De yapa, el bruto lote y el bruto regulado quedaron juntos, que
+es como se leen: los dos de la misma balanza y en el mismo momento.
+
+### Qué se guarda
+
+| Campo | Qué es |
+| --- | --- |
+| `silobolsas` | **nuevo**: `[{ nro, kg }]`, una entrada por bolsa |
+| `silobolsa` | el de siempre, con los números separados (`12 · 13`) |
+
+El campo viejo se sigue guardando para que **el Excel y el reporte de las 19 hs
+no cambien**. Un ticket que llega sin la lista —la cola de un teléfono que
+todavía no se actualizó— se acepta con el texto de siempre: no se le traba la
+carga a nadie por una versión.
+
+La primera fila viene con el **último número usado en ese campo**: una bolsa se
+carga durante varios viajes seguidos, así que lo normal es no tocarlo.
+
+> **El bruto lote no se reparte.** No tiene nada que ver con las bolsas: es el
+> peso del camión **antes de regular**. Si está pasado, esos kg van a la **tolva
+> reguladora** de la balanza; si le faltan, desde ahí se le agregan. La columna
+> "Bruto LOTE − Bruto Regulado" del Excel es lo que entró o salió de esa tolva, y
+> sirve para seguir **ese** stock. No es un control de diferencias.
+
+## El corte por silobolsa: campo + número
 
 El número de silobolsa se **tipea en la regulada** y solo existe si ahí se eligió
 "Silobolsa".
 
 **Los números se repiten entre establecimientos.** El "3" de Quimili y el "3" de
 El Mataco son bolsas distintas. Por eso se agrupa por **campo + número**, y el
-renglón se lee `3 · Quimili`. Agrupando por el número pelado, el `12341` —el
+renglón se lee `3 · Quimili`.
+
+Cuando el ticket trae la lista `silobolsas`, **cada bolsa se lleva sus kg
+reales** (`kgPorClave` del corte), no una parte igual del viaje. Los tickets
+viejos no tienen la lista y se siguen contando como antes: por eso ya no van a
+aparecer renglones como `12 y 13`, pero los que quedaron de antes siguen ahí. Agrupando por el número pelado, el `12341` —el
 único que ve todas las balanzas— sumaba dos bolsas en un renglón que no existe.
 
 **"Sin número" es solo para los que cargaron de silobolsa y no tipearon el

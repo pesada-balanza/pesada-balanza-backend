@@ -484,7 +484,7 @@ async function main() {
   r = await ir('GET', '/app/sw.js');
   ok('el service worker no guarda /app/buscar', /SIN_GUARDAR/.test(r.texto) && /'\/app\/buscar'/.test(r.texto));
   ok('tiene el mensaje propio del buscador sin señal', /El buscador necesita internet/.test(r.texto));
-  ok('la versión subió', /pesada-app-v25/.test(r.texto));
+  ok('la versión subió', /pesada-app-v26/.test(r.texto));
 
   /* ═══════════════════════════════════════════════════════════════════════
    * "PARA REVISAR": EL AVISO Y LA PANTALLA TIENEN QUE IR JUNTOS
@@ -644,8 +644,9 @@ async function main() {
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=grano');
   ok('la pantalla abre', r.estado === 200 && /t-pantalla">Datos</.test(r.texto), r.estado);
   ok('corta por grano', /SOJA/.test(r.texto) && /MAÍZ/.test(r.texto));
-  // 40.000 + 10.000 + 5.000 (SOJA) + 50.000 (MAÍZ) = 105.000. Ni el anulado, ni
-  // el que no cerró la regulada, ni el de la otra balanza.
+  /* 40.000 + 10.000 + 5.000 (SOJA) + 50.000 (MAÍZ) = 105.000. Ni el anulado, ni
+     el que no cerró la regulada, ni el de la otra balanza. OJO: el viaje de dos
+     silobolsas se agrega MÁS ABAJO, así que acá todavía no cuenta. */
   ok('el total suma solo reguladas cerradas de SU balanza',
     /105\.000/.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
   ok('deja afuera el ticket anulado y el que falta regular',
@@ -688,6 +689,21 @@ async function main() {
 
   /* Silobolsa. El número solo existe si en la regulada se eligió SILOBOLSA;
      los otros dos casos van a su propio renglón para que el total cierre. */
+  /* Un viaje que salió de DOS bolsas: cada una se lleva sus kg de verdad, no
+     la mitad. Antes esto caía en un renglón "12 y 13" que no era ninguna. */
+  totDia({ patentes: 'SB 001 AA', chofer: 'Dos Bolsas', grano: 'SOJA', neto: 30000,
+    campo: 'Quimili - QUIMILI - SE', cargoDe: 'SILOBOLSA', silobolsa: '40 · 41',
+    silobolsas: [{ nro: '40', kg: 22000 }, { nro: '41', kg: 8000 }] });
+
+  r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=silobolsa');
+  ok('un viaje de dos bolsas se abre en las dos',
+    /40 · Quimili/.test(r.texto) && /41 · Quimili/.test(r.texto),
+    (r.texto.match(/4[01] · [A-Za-zá-ú]+/g) || []).join(' | '));
+  ok('cada una con SUS kg, no la mitad',
+    /22\.000/.test(r.texto) && /8\.000/.test(r.texto) && !/15\.000/.test(r.texto),
+    (r.texto.match(/2[0-9]\.000|8\.000|15\.000/g) || []).join(' | '));
+  ok('y no queda ningún renglón "40 · 41"', !/40 · 41/.test(r.texto));
+
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=silobolsa');
   ok('corta por silobolsa, con el campo al lado del número',
     r.estado === 200 && /17 · Quimili/.test(r.texto), r.estado);
@@ -719,7 +735,7 @@ async function main() {
      seguir cortando por otra cosa. */
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=socio');
   ok('sin filtros, el total es el del día entero',
-    /105\.000/.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+    /135\.000/.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
   ok('cada renglón lleva a agregarlo como filtro',
     /f=socio%3A/.test(r.texto), (r.texto.match(/f=socio%3A[^"&]*/) || [''])[0]);
   ok('y se ve que se puede tocar', /ir-filtro/.test(r.texto));
@@ -786,7 +802,7 @@ async function main() {
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
     '&corte=grano&f=' + encodeURIComponent('inventado:X') + '&f=sinDosPuntos');
   ok('un filtro inventado se ignora en vez de romper',
-    r.estado === 200 && /105\.000/.test(r.texto), r.estado);
+    r.estado === 200 && /135\.000/.test(r.texto), r.estado);
 
   // El alcance no se puede saltar con un filtro: sigue siendo su balanza.
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT +
@@ -843,8 +859,8 @@ async function main() {
   r = await ir('GET', '/app/datos?desde=' + DIA_TOT + '&hasta=' + DIA_TOT + '&corte=balanza');
   ok('GENERAL sí ve las dos balanzas', r.estado === 200 && /Quimili/.test(r.texto) && /Mataco/.test(r.texto),
     r.estado);
-  // 105.000 de Quimili + 77.000 de El Mataco.
-  ok('y su total incluye el de la otra balanza', /182\.000/.test(r.texto),
+  // 135.000 de Quimili + 77.000 de El Mataco.
+  ok('y su total incluye el de la otra balanza', /212\.000/.test(r.texto),
     (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
 
   /* Lo que motivó agrupar por campo + número: los dos establecimientos usan un

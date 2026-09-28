@@ -78,35 +78,6 @@
         </div>
       </div>
 
-      <div class="campo">
-        <span class="etiqueta">Cargó de</span>
-        <div class="opciones" data-opciones="cargoDe">
-          <button type="button" class="opcion" data-valor="SILOBOLSA">Silobolsa</button>
-          <button type="button" class="opcion" data-valor="CONTRATISTA">Contratista</button>
-        </div>
-        <input type="hidden" name="cargoDe" value="">
-      </div>
-
-      <div class="campo oculto" id="campo-silobolsa">
-        <label class="etiqueta" for="silobolsa">Número de silobolsa</label>
-        <input type="text" id="silobolsa" name="silobolsa" maxlength="40">
-      </div>
-
-      <div class="campo oculto" id="campo-contratista">
-        <span class="etiqueta">Contratista <span style="text-transform:none; letter-spacing:0">(uno o más)</span></span>
-        <%# Los contratistas y sus tractores los pone el teléfono con lo que
-            tiene guardado, igual que los campos. %>
-        <div class="lista-casillas" id="lista-contratistas">
-          <div class="lista-vacia">Buscando los contratistas…</div>
-        </div>
-      </div>
-
-      <div class="campo oculto" id="campo-tractor">
-        <span class="etiqueta">Tractor <span style="text-transform:none; letter-spacing:0">(uno o más)</span></span>
-        <div class="lista-casillas" id="lista-tractores">
-          <div class="lista-vacia">Elegí primero el contratista.</div>
-        </div>
-      </div>
 
       <div class="campo">
         <label class="etiqueta" for="brutoLote">Bruto lote (kg)</label>
@@ -124,6 +95,51 @@
         <div class="fila-base">
           <span class="cuerpo-fuerte">Neto</span>
           <span class="dato-g mono" id="neto">—</span>
+        </div>
+      </div>
+
+      <%# "Cargó de" va DESPUÉS de los pesos a propósito: los kg de cada
+          silobolsa salen de repartir el neto, y el neto no existe hasta que se
+          carga el bruto regulado. De paso, el bruto lote y el bruto regulado
+          quedan juntos, que es como se leen: los dos de la misma balanza y en
+          el mismo momento. %>
+      <div class="campo">
+        <span class="etiqueta">Cargó de</span>
+        <div class="opciones" data-opciones="cargoDe">
+          <button type="button" class="opcion" data-valor="SILOBOLSA">Silobolsa</button>
+          <button type="button" class="opcion" data-valor="CONTRATISTA">Contratista</button>
+        </div>
+        <input type="hidden" name="cargoDe" value="">
+      </div>
+
+      <%# Una fila por silobolsa: número y los kg que salieron de ella. El
+          ÚLTIMO no se tipea, es el resto (neto menos lo ya repartido), así la
+          suma cierra sola y nunca queda un viaje con kg sin asignar. Con una
+          sola bolsa no hay nada que tipear: se lleva todo el neto.
+
+          Antes era un campo de texto libre, y el balancero escribía las dos
+          bolsas ahí adentro ("12 y 13", "4 - 3"): los kg quedaban en un renglón
+          que no era ninguna de las dos. %>
+      <div class="campo oculto" id="campo-silobolsa">
+        <span class="etiqueta">Silobolsa y kg</span>
+        <div class="caja-silo" id="filas-silo"></div>
+        <button type="button" class="mas-silo" id="mas-silo">＋ Silobolsa</button>
+        <span class="txt-aux" id="aviso-silo">&nbsp;</span>
+      </div>
+
+      <div class="campo oculto" id="campo-contratista">
+        <span class="etiqueta">Contratista <span style="text-transform:none; letter-spacing:0">(uno o más)</span></span>
+        <%# Los contratistas y sus tractores los pone el teléfono con lo que
+            tiene guardado, igual que los campos. %>
+        <div class="lista-casillas" id="lista-contratistas">
+          <div class="lista-vacia">Buscando los contratistas…</div>
+        </div>
+      </div>
+
+      <div class="campo oculto" id="campo-tractor">
+        <span class="etiqueta">Tractor <span style="text-transform:none; letter-spacing:0">(uno o más)</span></span>
+        <div class="lista-casillas" id="lista-tractores">
+          <div class="lista-vacia">Elegí primero el contratista.</div>
         </div>
       </div>
 
@@ -377,9 +393,116 @@
     } else {
       calculoNeto.hidden = true;
     }
+    if (typeof refrescarResto === 'function') refrescarResto();
   }
   inputBruto.addEventListener('input', calcularNeto);
   inputTaraNueva.addEventListener('input', calcularNeto);
+
+  /* ── Silobolsas: una fila por bolsa, con los kg que salieron de ella ───
+     El ÚLTIMO no se tipea: es el resto (neto menos lo de arriba). Así la suma
+     cierra sola y nunca queda un viaje con kg sin asignar. Con una sola bolsa
+     no hay nada que tipear. */
+  var filasSilo = document.getElementById('filas-silo');
+  var masSilo = document.getElementById('mas-silo');
+  var avisoSilo = document.getElementById('aviso-silo');
+  // Arranca con el último número usado en este campo: casi siempre es el mismo
+  // de varios viajes seguidos, así que lo normal es no tocarlo.
+  var silos = [{ nro: '<%= ultimoSilobolsa %>', kg: '' }];
+
+  function soloDigitos(v, cuantos) {
+    return String(v || '').replace(/\D/g, '').slice(0, cuantos);
+  }
+
+  function netoActual() {
+    var b = Number(inputBruto.value);
+    if (!isFinite(b) || b <= 0) return 0;
+    var n = b - taraEnUso();
+    return n > 0 ? n : 0;
+  }
+
+  /** Lo repartido en las bolsas que SÍ se tipean (todas menos la última). */
+  function repartidoSilo() {
+    var suma = 0;
+    for (var i = 0; i < silos.length - 1; i++) suma += Number(silos[i].kg) || 0;
+    return suma;
+  }
+
+  function restoSilo() { return netoActual() - repartidoSilo(); }
+
+  function avisarSilo() {
+    var neto = netoActual();
+    var resto = restoSilo();
+    if (!neto) {
+      avisoSilo.innerHTML = 'Cargá el bruto regulado y los kg se reparten solos.';
+    } else if (resto < 0) {
+      avisoSilo.innerHTML = '<span class="campo-error">Los kg puestos pasan el neto de ' +
+        App.miles(neto) + '. Bajá alguno para poder guardar.</span>';
+    } else if (silos.length === 1) {
+      avisoSilo.innerHTML = 'Se lleva todo el neto: ' + App.miles(neto) + ' kg.';
+    } else {
+      avisoSilo.innerHTML = 'El último es el resto: ' + App.miles(neto) + ' menos lo de arriba.';
+    }
+  }
+
+  /** Solo el casillero del último y el aviso: redibujar todo saltaría el cursor. */
+  function refrescarResto() {
+    var ultimo = filasSilo.querySelector('.kg-resto');
+    if (ultimo) ultimo.value = netoActual() ? App.miles(restoSilo()) : '';
+    avisarSilo();
+  }
+
+  function dibujarSilos() {
+    var html = '';
+    for (var i = 0; i < silos.length; i++) {
+      var esUltimo = i === silos.length - 1;
+      html += '<div class="fila-silo">' +
+        '<span class="marca">•</span>' +
+        '<input class="nro-silo" inputmode="numeric" maxlength="3" data-i="' + i + '" data-campo="nro" value="' +
+          App.esc(silos[i].nro || '') + '">' +
+        '<span class="der">' +
+          '<input class="kg-silo' + (esUltimo ? ' kg-resto' : '') + '" inputmode="numeric" maxlength="5" ' +
+            'data-i="' + i + '" data-campo="kg"' + (esUltimo ? ' readonly' : '') + ' value="' +
+            (esUltimo ? '' : App.esc(silos[i].kg || '')) + '">' +
+          '<span class="unidad">kg</span>' +
+          (silos.length > 1 ? '<button type="button" class="quitar" data-quitar="' + i + '">✕</button>' : '') +
+        '</span></div>';
+    }
+    filasSilo.innerHTML = html;
+    refrescarResto();
+  }
+
+  filasSilo.addEventListener('input', function (ev) {
+    var el = ev.target;
+    var i = Number(el.getAttribute('data-i'));
+    if (!el.getAttribute('data-campo')) return;
+    if (el.getAttribute('data-campo') === 'nro') {
+      el.value = soloDigitos(el.value, 3);
+      silos[i].nro = el.value;
+      return;
+    }
+    el.value = soloDigitos(el.value, 5);
+    silos[i].kg = el.value;
+    refrescarResto();
+  });
+
+  filasSilo.addEventListener('click', function (ev) {
+    var q = ev.target.getAttribute && ev.target.getAttribute('data-quitar');
+    if (q === null || q === undefined) return;
+    ev.preventDefault();
+    silos.splice(Number(q), 1);
+    dibujarSilos();
+  });
+
+  masSilo.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    // Lo que hasta ahora era el resto pasa a estar tipeado: la bolsa nueva toma
+    // el resto que quede. Si no, agregar una fila borraría lo ya asignado.
+    silos[silos.length - 1].kg = String(Math.max(0, restoSilo()));
+    silos.push({ nro: '', kg: '' });
+    dibujarSilos();
+  });
+
+  dibujarSilos();
 
   /* ── Guardar ──────────────────────────────────────────────────────────── */
   function guardar() {
@@ -410,6 +533,34 @@
     if (faltan.length) {
       error.innerHTML = 'Falta ' + App.esc(faltan.join(', '));
       return;
+    }
+
+    /* Las bolsas con sus kg. El último se calcula acá, no se lee del casillero:
+       lo que se guarda tiene que salir de la misma cuenta que se mostró. */
+    if (datos.cargoDe === 'SILOBOLSA') {
+      var resto = restoSilo();
+      if (resto < 0) {
+        error.innerHTML = 'Los kg de los silobolsas pasan el neto del viaje. Bajá alguno.';
+        return;
+      }
+      var lista = [];
+      for (var i = 0; i < silos.length; i++) {
+        var nro = String(silos[i].nro || '').trim();
+        if (!nro) {
+          error.innerHTML = 'Falta el número de alguno de los silobolsas.';
+          return;
+        }
+        var kg = i === silos.length - 1 ? resto : (Number(silos[i].kg) || 0);
+        if (kg <= 0) {
+          error.innerHTML = 'El silobolsa ' + App.esc(nro) + ' quedó en 0 kg. Sacalo o cambiá los kg.';
+          return;
+        }
+        lista.push({ nro: nro, kg: kg });
+      }
+      datos.silobolsas = lista;
+      // El campo de siempre se sigue mandando, con los números separados: el
+      // Excel y el reporte de las 19 hs lo leen y no tienen que cambiar.
+      datos.silobolsa = lista.map(function (x) { return x.nro; }).join(' · ');
     }
 
     if (corrigiendoTara) {

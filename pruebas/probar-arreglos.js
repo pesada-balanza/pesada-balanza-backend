@@ -203,14 +203,21 @@ async function main() {
   ok('y aparecen los lotes del campo nuevo', lotesNuevos.length > 0, lotesNuevos.slice(0, 3).join(','));
 
   await pg.check('input[name="lote"]');
-  await pg.click('[data-opciones="cargoDe"] [data-valor="SILOBOLSA"]');
-  await pg.fill('#silobolsa', '12');
+  /* El orden nuevo: los pesos van ANTES de "Cargó de", porque los kg de cada
+     silobolsa salen de repartir el neto y el neto no existe hasta el bruto. */
   await pg.fill('#brutoLote', '52000');
   await pg.fill('#bruto', '52500');
   await pg.waitForTimeout(200);
 
   const netoCalculado = await pg.textContent('#neto');
   ok('el neto se calcula solo (52500 - 15600)', /36\.900/.test(netoCalculado), netoCalculado);
+
+  await pg.click('[data-opciones="cargoDe"] [data-valor="SILOBOLSA"]');
+  await pg.waitForTimeout(150);
+  await pg.fill('.nro-silo', '12');
+  const kgSolo = await pg.inputValue('.kg-resto');
+  ok('con una sola bolsa, los kg salen solos y no se tipean',
+    /36\.900/.test(kgSolo), kgSolo);
 
   await pg.click('#guardar-reg');
   await pg.waitForTimeout(1500);
@@ -221,6 +228,68 @@ async function main() {
   ok('se guardó con el campo corregido', guardado.campo === 'La Pradera - ARBOL BLANCO - SE', guardado.campo);
   ok('con el grano del campo nuevo', guardado.grano === granosDespues[0], guardado.grano);
   ok('y con el neto correcto', guardado.neto === 36900, guardado.neto);
+  ok('la bolsa quedó guardada con TODO el neto',
+    Array.isArray(guardado.silobolsas) && guardado.silobolsas.length === 1 &&
+    guardado.silobolsas[0].nro === '12' && guardado.silobolsas[0].kg === 36900,
+    JSON.stringify(guardado.silobolsas));
+  ok('y el campo de siempre sigue con el número, para el Excel',
+    guardado.silobolsa === '12', guardado.silobolsa);
+
+  /* ═══════════════════════════════════════════════════════════════════
+   * VARIAS SILOBOLSAS EN UN VIAJE
+   * -------------------------------------------------------------------
+   * Antes el balancero escribía "12 y 13" en un campo de texto y los kg
+   * quedaban en un renglón que no era ninguna de las dos. Ahora es una fila
+   * por bolsa, y el ÚLTIMO kg no se tipea: es el resto.
+   * ═══════════════════════════════════════════════════════════════════ */
+  console.log('\n── Un viaje que sale de varias silobolsas');
+
+  const conTF2 = await baseFalsa.collection('registros').insertOne({
+    idTicket: 7702, nroApp: '1-7702', origen: 'app', fecha: hoy(),
+    fechaTaraFinal: hoy(), usuario: 'Juan Sosa', pesadaPara: 'CAMIONES',
+    cargaPara: 'AMH', transporte: 'Ciriaci', patentes: 'SB 222 MM',
+    chofer: 'Varias Bolsas', campo: 'El Mataco - SACHAYOJ - SE',
+    brutoEstimado: 52500, tara: 15600, netoEstimado: 36900,
+    codigoIngreso: '5679', anulado: false, confirmada: false, modificaciones: 0,
+  });
+
+  await pg.goto(BASE + '/app/regulada/' + String(conTF2.insertedId), { waitUntil: 'networkidle' });
+  const granos2 = await pg.$$eval('#grano option', (o) => o.map((x) => x.value).filter(Boolean));
+  await pg.selectOption('#grano', granos2[0]);
+  await pg.waitForTimeout(250);
+  await pg.check('input[name="lote"]');
+  await pg.fill('#brutoLote', '52000');
+  await pg.fill('#bruto', '52500');
+  await pg.click('[data-opciones="cargoDe"] [data-valor="SILOBOLSA"]');
+  await pg.waitForTimeout(150);
+
+  await pg.fill('.nro-silo', '12');
+  await pg.click('#mas-silo');
+  await pg.waitForTimeout(150);
+  let nros = await pg.$$('.nro-silo');
+  ok('al tocar ＋ Silobolsa aparece una segunda fila', nros.length === 2, nros.length);
+
+  // La primera pasa a tipearse; la segunda toma el resto.
+  await pg.fill('.fila-silo:nth-child(1) .kg-silo', '20000');
+  await pg.fill('.fila-silo:nth-child(2) .nro-silo', '13');
+  await pg.waitForTimeout(200);
+  const resto2 = await pg.inputValue('.kg-resto');
+  ok('la segunda toma el resto sola (36.900 − 20.000)', /16\.900/.test(resto2), resto2);
+
+  await pg.click('#guardar-reg');
+  await pg.waitForTimeout(1500);
+  const g2 = baseFalsa.collection('registros').docs.find(
+    (d) => String(d._id) === String(conTF2.insertedId)
+  );
+  ok('se guardaron las dos bolsas con sus kg',
+    Array.isArray(g2.silobolsas) && g2.silobolsas.length === 2 &&
+    g2.silobolsas[0].nro === '12' && g2.silobolsas[0].kg === 20000 &&
+    g2.silobolsas[1].nro === '13' && g2.silobolsas[1].kg === 16900,
+    JSON.stringify(g2.silobolsas));
+  ok('y la suma da exactamente el neto del viaje',
+    g2.silobolsas.reduce((a, b) => a + b.kg, 0) === g2.neto,
+    g2.silobolsas.reduce((a, b) => a + b.kg, 0) + ' vs ' + g2.neto);
+  ok('el campo de siempre trae los dos números', g2.silobolsa === '12 · 13', g2.silobolsa);
 
   /* ═══ 1. GENERAL: camino para ir a cargar ═══ */
   console.log('\n── GENERAL: cómo pasar a cargar');
