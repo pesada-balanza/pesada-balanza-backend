@@ -1431,8 +1431,18 @@ probado que si se rompe el acumulado, esta sigue estando.
 - Un ticket anulado **no se borra**: se marca `anulado` y su número no se reusa.
 - Las observaciones se editan hasta **2 veces** y hasta **1 día** después de la
   regulada.
-- El ticket de CAMIONES sirve **1 día** para la tara final; el de tara final,
-  **5 días** para la regulada.
+- El ticket de CAMIONES sirve **2 días** para la tara final; el de tara final,
+  **5 días** para la regulada. Los dos números viven en `app.js`
+  (`DIAS_CAMIONES_A_TARA_FINAL`, `DIAS_TARA_FINAL_A_REGULADA`) y viajan a la app
+  por `deps`: estaban escritos a mano en cinco lugares entre la web, el servidor
+  de la app y los mensajes de error, y subir uno olvidando otro deja al patio
+  mostrando camiones que después el servidor rechaza.
+
+  > **Por qué 2 y no 1.** Con 1 día, el fin de semana se lo comía: un camión
+  > cargado el **sábado** ya no aparecía como pendiente el **lunes** —son 2 días
+  > de diferencia— y tampoco dejaba cargarle la tara. Con 2, el sábado llega al
+  > lunes. **El viernes al lunes son 3 días, así que ese caso sigue afuera**: si
+  > aparece, hay que subirlo a 3.
 - La balanza del ticket la define el **campo** elegido (tabla `campoUsuario`).
 - La regulada la carga **el mismo operador** que cargó la tara final.
 - Rate limiting en el ingreso: 10 intentos cada 15 minutos por IP.

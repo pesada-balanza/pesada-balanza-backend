@@ -1355,6 +1355,51 @@ async function main() {
     r.estado === 200 && !!r.json.repetido, JSON.stringify(r.json.repetido || null));
 
   /* ═════════════════════════════════════════════════════════════════════
+   * EL PLAZO PARA LA TARA FINAL
+   * ---------------------------------------------------------------------
+   * Era 1 día, y el fin de semana se lo comía: un camión cargado el sábado
+   * ya no aparecía como pendiente el lunes, ni dejaba cargarle la tara. Son
+   * 2 días. El viernes al lunes son 3, así que ese caso sigue afuera y por
+   * eso se prueba también el límite.
+   * ═══════════════════════════════════════════════════════════════════ */
+  seccion('El ticket de camiones vive 2 días esperando la tara final');
+
+  const diasAtras = (n) => new Date(Date.now() - n * 86400000).toISOString().split('T')[0];
+  const abierto = (n, patente) => {
+    const d = {
+      _id: new ObjectId(), idTicket: 9600 + n, nroApp: '1-96' + n, origen: 'app',
+      fecha: diasAtras(n), usuario: 'Oficina', pesadaPara: 'CAMIONES', cargaPara: 'AMH',
+      transporte: 'Ciriaci', patentes: patente, chofer: 'Fin De Semana',
+      campo: 'El Mataco - SACHAYOJ - SE', brutoEstimado: 45000, tara: 0,
+      netoEstimado: 45000, codigoIngreso: '5679', anulado: false, confirmada: false,
+      modificaciones: 0, creadoEn: new Date(),
+    };
+    baseFalsa.collection('registros').docs.push(d);
+    return d;
+  };
+  const deAyer = abierto(1, 'PL 111 AY');
+  const deAnteayer = abierto(2, 'PL 222 AN');   // el sábado mirado el lunes
+  const deTresDias = abierto(3, 'PL 333 TR');   // el viernes mirado el lunes
+
+  cookies = Object.assign({}, cookies5679);
+  r = await ir('GET', '/app/patio');
+  ok('el de ayer sigue pendiente', /PL 111 AY/.test(r.texto));
+  ok('el de dos días TAMBIÉN sigue pendiente (era lo que se perdía)',
+    /PL 222 AN/.test(r.texto), 'fecha ' + deAnteayer.fecha);
+  ok('el de tres días ya no: el plazo es de 2', !/PL 333 TR/.test(r.texto),
+    'fecha ' + deTresDias.fecha);
+
+  r = await ir('POST', '/app/api/tara-final', { id: String(deAnteayer._id), taraNueva: 15000 });
+  ok('y al de dos días se le puede cargar la tara final',
+    r.estado === 200, r.texto.slice(0, 200));
+
+  r = await ir('POST', '/app/api/tara-final', { id: String(deTresDias._id), taraNueva: 15000 });
+  ok('al de tres días el servidor lo rechaza, coherente con el patio',
+    r.estado === 400 && /venció/.test(r.json.error), r.texto.slice(0, 200));
+  ok('y el mensaje dice el plazo real, no uno viejo',
+    /máximo 2 días/.test(r.json.error), r.json && r.json.error);
+
+  /* ═════════════════════════════════════════════════════════════════════
    * EL ENCABEZADO DEL TICKET
    * ---------------------------------------------------------------------
    * "Ticket 1-0579 · Paco-pascual" es el dato con el que se habla del ticket

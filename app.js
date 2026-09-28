@@ -1202,6 +1202,21 @@ function socioValido(nombre) {
   return socios.indexOf(normalizarSocio(nombre)) !== -1;
 }
 
+/* ---------------------------------------------
+ * PLAZOS DE CADA PASO
+ * ---------------------------------------------
+ * Cuántos días vive un ticket esperando el paso siguiente. Estaban escritos a
+ * mano acá y repetidos en app-movil.js: subir uno y olvidar el otro deja al
+ * patio mostrando camiones que después el servidor rechaza, o al revés.
+ *
+ * CAMIONES → TARA FINAL eran 1 día, y el fin de semana se lo comía: un camión
+ * cargado el sábado ya no aparecía como pendiente el lunes. Con 2 días el
+ * sábado llega al lunes. OJO: el viernes al lunes son 3 días, así que ese caso
+ * sigue quedando afuera.
+ * -------------------------------------------*/
+const DIAS_CAMIONES_A_TARA_FINAL = 2;
+const DIAS_TARA_FINAL_A_REGULADA = 5;
+
 const TARA_MIN = 1000;
 const TARA_MAX = 40000;
 const TARA_ESTIMADA_MIN = 0;
@@ -1224,6 +1239,7 @@ if (process.env.APP_MOVIL === '1') {
     TARA_MIN, TARA_MAX, TARA_ESTIMADA_MIN,
     normalizarCampo, campoValido,
     normalizarSocio, socioValido,
+    DIAS_CAMIONES_A_TARA_FINAL, DIAS_TARA_FINAL_A_REGULADA,
     rangoCampana,
     // El mismo reporte que el botón "Exportar a Excel" de la web: se arma en un
     // solo lugar y la app decide qué registros entran según con qué código se
@@ -1648,7 +1664,7 @@ app.get(
         })
         .sort({ idTicket: -1 })
         .toArray())
-        .filter(r => ticketVigente(r.fecha, 1));
+        .filter(r => ticketVigente(r.fecha, DIAS_CAMIONES_A_TARA_FINAL));
 
       // Registros con TARA FINAL disponibles para REGULADA.
       // Solo se muestran los del propio operador: TARA FINAL y REGULADA deben
@@ -1898,10 +1914,10 @@ app.post('/guardar-tara-final', async (req, res) => {
       });
     }
 
-    // VUL-10: el ticket de TARA no puede tener más de 1 día de antigüedad
-    if (!ticketVigente(taraDoc.fecha, 1)) {
+    // VUL-10: el ticket de CAMIONES vence (ver DIAS_CAMIONES_A_TARA_FINAL)
+    if (!ticketVigente(taraDoc.fecha, DIAS_CAMIONES_A_TARA_FINAL)) {
       return res.status(400).render('error', {
-        error: `El ticket de CAMIONES del ${taraDoc.fecha} venció (máximo 1 día). Debés anularlo y crear uno nuevo.`
+        error: `El ticket de CAMIONES del ${taraDoc.fecha} venció (máximo ${DIAS_CAMIONES_A_TARA_FINAL} días). Debés anularlo y crear uno nuevo.`
       });
     }
 
@@ -2160,10 +2176,10 @@ app.post('/guardar-regulada', async (req, res) => {
       });
     }
 
-    // VUL-10: el ticket de TARA no puede tener más de 5 días de antigüedad
-    if (!ticketVigente(taraDoc.fecha, 5)) {
+    // VUL-10: el ticket vence para la REGULADA (ver DIAS_TARA_FINAL_A_REGULADA)
+    if (!ticketVigente(taraDoc.fecha, DIAS_TARA_FINAL_A_REGULADA)) {
       return res.status(400).render('error', {
-        error: `El ticket de CAMIONES del ${taraDoc.fecha} venció (máximo 5 días). Debés anularlo y crear uno nuevo.`
+        error: `El ticket de CAMIONES del ${taraDoc.fecha} venció (máximo ${DIAS_TARA_FINAL_A_REGULADA} días). Debés anularlo y crear uno nuevo.`
       });
     }
 

@@ -54,6 +54,11 @@ module.exports = function crearAppMovil(deps) {
     // Un socio tipeado a mano se endereza al de la lista.
     normalizarSocio,
     socioValido,
+    // Cuántos días vive un ticket esperando el paso siguiente. Se definen en
+    // app.js y viajan por acá: si la web y la app tuvieran números distintos, el
+    // patio mostraría camiones que después el servidor rechaza.
+    DIAS_CAMIONES_A_TARA_FINAL,
+    DIAS_TARA_FINAL_A_REGULADA,
     rangoCampana,
     construirLibroRegistros,
   } = deps;
@@ -95,9 +100,6 @@ module.exports = function crearAppMovil(deps) {
   const CODIGO_GENERAL_INGRESO = '56781';
   const CODIGO_GENERAL_OBSERVACION = '12341';
 
-  // Vigencias: iguales a las de la web (app.js), para no inventar reglas nuevas.
-  const DIAS_CAMIONES_A_TARA_FINAL = 1;
-  const DIAS_TARA_FINAL_A_REGULADA = 5;
 
   const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
@@ -1440,7 +1442,8 @@ module.exports = function crearAppMovil(deps) {
         return pantallaError(
           res,
           'Ticket vencido',
-          'El ticket de CAMIONES del ' + fechaLarga(r.fecha) + ' venció (máximo 1 día). Hay que anularlo y cargar uno nuevo.'
+          'El ticket de CAMIONES del ' + fechaLarga(r.fecha) + ' venció (máximo ' +
+            DIAS_CAMIONES_A_TARA_FINAL + ' días). Hay que anularlo y cargar uno nuevo.'
         );
       }
       return res.render('app/tara-final', {
@@ -1482,7 +1485,8 @@ module.exports = function crearAppMovil(deps) {
         return fallar(
           res,
           400,
-          'El ticket de CAMIONES del ' + fechaLarga(r.fecha) + ' venció (máximo 1 día).'
+          'El ticket de CAMIONES del ' + fechaLarga(r.fecha) + ' venció (máximo ' +
+            DIAS_CAMIONES_A_TARA_FINAL + ' días).'
         );
       }
 
@@ -1551,7 +1555,8 @@ module.exports = function crearAppMovil(deps) {
         return pantallaError(
           res,
           'Ticket vencido',
-          'El ticket del ' + fechaLarga(r.fecha) + ' venció (máximo 5 días). Hay que anularlo y cargar uno nuevo.'
+          'El ticket del ' + fechaLarga(r.fecha) + ' venció (máximo ' +
+            DIAS_TARA_FINAL_A_REGULADA + ' días). Hay que anularlo y cargar uno nuevo.'
         );
       }
 
@@ -1593,7 +1598,7 @@ module.exports = function crearAppMovil(deps) {
       if (!r.fechaTaraFinal) return fallar(res, 400, 'Primero hay que cargar la tara final.');
       if (r.fechaRegulada) return fallar(res, 400, 'Este camión ya tiene la regulada cargada.');
       if (!ticketVigente(r.fecha, DIAS_TARA_FINAL_A_REGULADA)) {
-        return fallar(res, 400, 'El ticket del ' + fechaLarga(r.fecha) + ' venció (máximo 5 días).');
+        return fallar(res, 400, 'El ticket del ' + fechaLarga(r.fecha) + ' venció (máximo ' + DIAS_TARA_FINAL_A_REGULADA + ' días).');
       }
 
       const lotes = aArray(req.body.lote);
