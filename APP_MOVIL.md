@@ -548,6 +548,33 @@ se pueda desincronizar. Las hojas son las de siempre:
 
 Cada una con el total de neto al final y configurada en A4.
 
+### La columna "Kg por silobolsa"
+
+La columna **Silobolsa** dice de cuáles salió el viaje (`16 · 15`) pero no
+cuánto de cada una, y en el renglón único del ticket ese reparto no aparecía en
+ningún lado. Al lado va **"Kg por silobolsa"**: `16: 20.372 · 15: 16.668`.
+
+Se llena **solo cuando el viaje salió de más de una bolsa**. Con una sola, los
+kg de la bolsa son el neto del ticket, y repetirlo en los cientos de renglones
+normales llena la columna de ruido justo cuando lo que se busca es encontrar los
+casos raros de un vistazo: así, filtrar por "no vacío" los deja solos.
+
+Va en las **cuatro hojas** y también en el **reporte de las 19 hs** —que se arma
+con otra función, duplicada desde antes—. Si estuviera en un Excel y no en el
+otro, al cambiar de pestaña parecería que el dato se perdió.
+
+> **Un ticket sigue siendo un renglón.** No se abre en dos. De ese invariante
+> dependen la fila de total al pie, la hoja IMPRIMIR, las hojas por campo y el
+> mail de las 19 hs: con dos renglones habría que decidir si el Neto se parte o
+> se repite, el CP saldría duplicado y quien filtre por ID Ticket vería dos. El
+> detalle bolsa por bolsa, en renglones separados, ya está en la hoja
+> **Tickets** del Excel de "Ver datos", que es donde corresponde.
+
+El dato existe en los tickets cargados con la **pantalla nueva de regulada**.
+Los anteriores tienen el número tipeado a mano (`12 y 13`) y nada más: ese
+reparto no se puede inventar hacia atrás y esos renglones quedan vacíos, igual
+que los que cargaron de contratista o de camión.
+
 ### Quién exporta qué
 
 Lo único que cambia entre la web y la app es **qué registros entran**, y lo

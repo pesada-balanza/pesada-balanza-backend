@@ -1079,6 +1079,30 @@ function agregarTotalNeto(ws) {
 const EXCLUIR_SOCIO = ['cargaPara', 'cargoDe', 'tractor'];
 
 /**
+ * "16: 20.000 · 15: 17.040" — los kg que salieron de cada silobolsa.
+ *
+ * La columna Silobolsa dice de cuáles salió (`16 · 15`) pero no cuánto de cada
+ * una, y en el renglón único del ticket ese reparto no aparecía en ningún lado.
+ *
+ * Se llena SOLO cuando el viaje salió de más de una bolsa. Con una sola, los kg
+ * de la bolsa son el neto del ticket, y repetirlo en los cientos de renglones
+ * normales llena la columna de ruido justo cuando lo que se busca es encontrar
+ * los casos raros de un vistazo: así, filtrar por "no vacío" los deja solos.
+ *
+ * El dato existe en los tickets cargados con la pantalla nueva de regulada. Los
+ * anteriores tienen el número tipeado a mano y nada más: ese reparto no se
+ * puede inventar hacia atrás, y esos renglones quedan vacíos.
+ */
+function kgPorSilobolsa(r) {
+  const bolsas = Array.isArray(r && r.silobolsas) ? r.silobolsas : [];
+  if (bolsas.length < 2) return '';
+  return bolsas
+    .map(b => String((b && b.nro) || '?').trim() + ': ' +
+      (Number(b && b.kg) || 0).toLocaleString('es-AR'))
+    .join(' · ');
+}
+
+/**
  * VUL-10: Verifica que un ticket no tenga más de `diasMaximos` días de antigüedad.
  * Un ticket de TARA es válido por 5 días para completar TARA FINAL o REGULADA.
  */
@@ -1438,6 +1462,7 @@ async function construirLibroRegistros(registros) {
     { header: 'Lote', key: 'lote', width: 18 },
     { header: 'Cargo De', key: 'cargoDe', width: 15 },
     { header: 'Silobolsa', key: 'silobolsa', width: 15 },
+    { header: 'Kg por silobolsa', key: 'silobolsaKg', width: 26 },
     { header: 'Contratista', key: 'contratista', width: 15 },
     { header: 'Tractor', key: 'tractor', width: 15 },
     { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
@@ -1472,6 +1497,8 @@ async function construirLibroRegistros(registros) {
       lote:        flat(r.lote),
       contratista: flat(r.contratista),
       tractor:     flat(r.tractor),
+      // La columna Silobolsa dice de cuáles salió; esta, cuánto de cada una.
+      silobolsaKg: kgPorSilobolsa(r),
       neto: netoExport,
       difBrutoLoteBruto,
     });
@@ -1497,6 +1524,7 @@ async function construirLibroRegistros(registros) {
     { header: 'Grano', key: 'grano', width: 12 },
     { header: 'Lote', key: 'lote', width: 18 },
     { header: 'Silobolsa', key: 'silobolsa', width: 15 },
+    { header: 'Kg por silobolsa', key: 'silobolsaKg', width: 26 },
     { header: 'Contratista', key: 'contratista', width: 15 },
     { header: 'Tara', key: 'tara', width: 10 },
     { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
@@ -2765,6 +2793,7 @@ async function generarExcelReporteDiario() {
     { header: 'Lote',            key: 'lote',           width: 18 },
     { header: 'Cargo De',        key: 'cargoDe',        width: 15 },
     { header: 'Silobolsa',       key: 'silobolsa',      width: 15 },
+    { header: 'Kg por silobolsa', key: 'silobolsaKg',   width: 26 },
     { header: 'Contratista',     key: 'contratista',    width: 15 },
     { header: 'Tractor',         key: 'tractor',        width: 15 },
     { header: 'Bruto LOTE',      key: 'brutoLote',      width: 14 },
@@ -2798,6 +2827,8 @@ async function generarExcelReporteDiario() {
       lote:        flat(r.lote),
       contratista: flat(r.contratista),
       tractor:     flat(r.tractor),
+      // La columna Silobolsa dice de cuáles salió; esta, cuánto de cada una.
+      silobolsaKg: kgPorSilobolsa(r),
       neto: netoExport,
       difBrutoLoteBruto,
       anulado: r.anulado ? 'ANULADO' : '',
@@ -2824,6 +2855,7 @@ async function generarExcelReporteDiario() {
     { header: 'Grano', key: 'grano', width: 12 },
     { header: 'Lote', key: 'lote', width: 18 },
     { header: 'Silobolsa', key: 'silobolsa', width: 15 },
+    { header: 'Kg por silobolsa', key: 'silobolsaKg', width: 26 },
     { header: 'Contratista', key: 'contratista', width: 15 },
     { header: 'Tara', key: 'tara', width: 10 },
     { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
