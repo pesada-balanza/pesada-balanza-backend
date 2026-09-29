@@ -335,12 +335,165 @@ async function main() {
     ex.estado === 200 && patentesDe(ex.libro).length === 0, ex.estado);
 
   /* ═══════════════════════════════════════════════════════════════════════
+   * EL EXCEL DE "VER DATOS"
+   *
+   * Es otro archivo y otro botón: baja lo que se está mirando en la pantalla
+   * de datos —con sus cortes y sus filtros encadenados—, no el listado de
+   * registros. Lo que más importa es que sume EXACTAMENTE lo mismo que la
+   * pantalla de la que salió: si no, no hay forma de saber cuál de los dos
+   * miente. Por eso los dos salen de la misma función, `armarDatos`.
+   * ═════════════════════════════════════════════════════════════════════ */
+  seccion('El Excel de "Ver datos"');
+
+  // Día propio, para no mover los totales que se comprueban más arriba.
+  const DIA_VD = haceDias(3);
+  const vd = (extra) => meterTicket(Object.assign(
+    { fecha: DIA_VD, fechaTaraFinal: DIA_VD, fechaRegulada: DIA_VD, grano: 'MAIZ' }, extra));
+  // Un viaje que salió de DOS bolsas: es el caso que la hoja de detalle tiene
+  // que dejar claro, porque ocupa dos renglones con un solo neto.
+  vd({ patentes: 'VD 001 AA', lote: 'Lote 5', neto: 31200,
+    cargoDe: 'SILOBOLSA', silobolsa: '17 · 16',
+    silobolsas: [{ nro: '17', kg: 20000 }, { nro: '16', kg: 11200 }] });
+  vd({ patentes: 'VD 002 BB', lote: 'Lote 5', neto: 30000,
+    cargoDe: 'SILOBOLSA', silobolsa: '17', silobolsas: [{ nro: '17', kg: 30000 }] });
+  // De otra balanza: el código de Quimili no lo tiene que sacar nunca.
+  vd({ patentes: 'VD 003 CC', neto: 50000, codigoIngreso: '5679',
+    campo: 'La Pradera - ARBOL BLANCO - SE' });
+
+  cookies = {};
+  r = await ir('POST', '/app/api/ingreso', { code: VER_QUIMILI }, { desde: '10.7.1.1' });
+  ok('el código de ver registros entra', r.estado === 200, r.texto.slice(0, 150));
+
+  const unDia = 'desde=' + DIA_VD + '&hasta=' + DIA_VD;
+  const cortesVD = '&corte=grano&corte=silobolsa';
+  const filtroMaiz = '&f=' + encodeURIComponent('grano:MAIZ');
+
+  r = await ir('GET', '/app/datos?' + unDia + cortesVD + filtroMaiz);
+  ok('la pantalla de datos ofrece el botón', /id="abrir-excel"/.test(r.texto), r.estado);
+  ok('está entre los cortes y la lista, no al pie',
+    r.texto.indexOf('Sumar otro corte') < r.texto.indexOf('abrir-excel') &&
+    r.texto.indexOf('abrir-excel') < r.texto.indexOf('Por grano'),
+    r.texto.indexOf('Sumar otro corte') + ' / ' + r.texto.indexOf('abrir-excel') +
+    ' / ' + r.texto.indexOf('Por grano'));
+  ok('avisa que vienen las dos hojas', /Hoja <b>Datos<\/b>/.test(r.texto) && /Hoja <b>Tickets<\/b>/.test(r.texto));
+  // El error del iPhone otra vez: un enlace a un archivo reemplaza la app.
+  ok('NO hay un enlace que navegue al archivo',
+    !/href="\/app\/datos\/excel/.test(r.texto), (r.texto.match(/href="\/app\/datos\/excel[^"]*"/) || [''])[0]);
+  ok('el archivo lo entrega App.compartir', /App\.compartir\(/.test(r.texto));
+  // 20.000 + 11.200 + 30.000 = 61.200. El de la otra balanza no entra.
+  ok('la pantalla suma 61.200', /61\.200/.test(r.texto), (r.texto.match(/dato-xg">[^<]*/) || [''])[0]);
+  ok('y no sacó el de la otra balanza', !/111\.200/.test(r.texto));
+
+  // Sin renglones no hay nada que exportar: el botón no se dibuja.
+  const rVacio = await ir('GET', '/app/datos?desde=1999-01-01&hasta=1999-01-02&corte=grano');
+  ok('sin renglones no aparece el botón', !/id="abrir-excel"/.test(rVacio.texto), rVacio.estado);
+
+  ex = await bajarExcel('/app/datos/excel?' + unDia + cortesVD + filtroMaiz);
+  ok('el archivo baja', ex.estado === 200, ex.estado);
+  const hojasVD = ex.libro ? ex.libro.worksheets.map((h) => h.name) : [];
+  ok('trae las hojas Datos y Tickets',
+    hojasVD.indexOf('Datos') !== -1 && hojasVD.indexOf('Tickets') !== -1, hojasVD.join(' | '));
+
+  if (ex.libro && ex.libro.getWorksheet('Datos')) {
+    const hd = ex.libro.getWorksheet('Datos');
+    const titulos = (hd.getRow(8).values || []).slice(1).map(String);
+    ok('una columna por corte, no el texto pegado con "·"',
+      titulos[0] === 'Grano' && titulos[1] === 'Silobolsa', titulos.join(' | '));
+    ok('y las columnas de números al lado',
+      titulos.indexOf('Neto (kg)') !== -1 && titulos.indexOf('Neto (t)') !== -1 &&
+      titulos.indexOf('%') !== -1 && titulos.indexOf('Último registro') !== -1, titulos.join(' | '));
+    ok('el encabezado deja escrito el filtro aplicado',
+      String(hd.getCell('B4').value).indexOf('Grano: MAIZ') !== -1, hd.getCell('B4').value);
+    ok('y el período', String(hd.getCell('B2').value).indexOf(DIA_VD.slice(8)) !== -1, hd.getCell('B2').value);
+
+    // Los renglones, sin el encabezado ni la fila TOTAL ni los avisos del pie.
+    const colNeto = titulos.indexOf('Neto (kg)') + 1;
+    const cuerpo = [];
+    hd.eachRow((fila, n) => {
+      if (n <= 8) return;
+      const v = fila.getCell(colNeto).value;
+      if (typeof v === 'number') cuerpo.push({ n, clave: String(fila.getCell(2).value), kg: v });
+    });
+    const renglones = cuerpo.filter((f) => String(hd.getRow(f.n).getCell(1).value) !== 'TOTAL');
+    const filaTot = cuerpo.find((f) => String(hd.getRow(f.n).getCell(1).value) === 'TOTAL');
+    ok('el total del archivo es el mismo que el de la pantalla',
+      filaTot && filaTot.kg === 61200, filaTot ? filaTot.kg : '(sin fila TOTAL)');
+    ok('y los renglones suman ese total',
+      renglones.reduce((a, f) => a + f.kg, 0) === 61200,
+      renglones.map((f) => f.clave + '=' + f.kg).join(' | '));
+    ok('cada bolsa se lleva SUS kg, no la mitad del viaje',
+      renglones.some((f) => /^17/.test(f.clave) && f.kg === 50000) &&
+      renglones.some((f) => /^16/.test(f.clave) && f.kg === 11200),
+      renglones.map((f) => f.clave + '=' + f.kg).join(' | '));
+    ok('el de la otra balanza no está', !renglones.some((f) => f.kg === 50000 && /Pradera/.test(f.clave)));
+    ok('avisa en la hoja cómo leer la columna Camiones',
+      /suma de la columna puede dar más/.test(JSON.stringify(hd.getSheetValues())));
+  }
+
+  if (ex.libro && ex.libro.getWorksheet('Tickets')) {
+    const ht = ex.libro.getWorksheet('Tickets');
+    const patentesDet = (columna(ht, 'Patentes') || []).map(String);
+    ok('el viaje de dos bolsas ocupa dos renglones',
+      patentesDet.filter((p) => p === 'VD 001 AA').length === 2, patentesDet.join(' | '));
+    const kgDet = columna(ht, 'kg del renglón').filter((v) => typeof v === 'number');
+    ok('la hoja de detalle suma lo mismo que la de arriba',
+      kgDet.reduce((a, b) => a + b, 0) === 61200, kgDet.join(' + '));
+    const netos = columna(ht, 'Neto del viaje').filter((v) => typeof v === 'number');
+    ok('el neto del viaje va repetido al lado, sin sumarse dos veces',
+      netos.filter((v) => v === 31200).length === 2 &&
+      kgDet.indexOf(20000) !== -1 && kgDet.indexOf(11200) !== -1,
+      'netos: ' + netos.join(' | ') + '  ·  kg: ' + kgDet.join(' | '));
+    ok('y la otra balanza tampoco aparece acá', patentesDet.indexOf('VD 003 CC') === -1);
+  }
+
+  /* El nombre: se acumulan en Descargas, así que tiene que decir de qué es sin
+     abrirlo. El campo va por su nombre corto, no con el establecimiento y la
+     provincia pegados atrás. */
+  ok('el nombre lleva la fecha y el filtro',
+    ex.nombre.indexOf('VerDatos-' + DIA_VD.slice(2) + '-maiz.xlsx') !== -1, ex.nombre);
+
+  const exDos = await bajarExcel('/app/datos/excel?' + unDia + cortesVD + filtroMaiz +
+    '&f=' + encodeURIComponent('campo:Quimili - QUIMILI - SE'));
+  ok('con dos filtros, los dos van en el nombre',
+    exDos.nombre.indexOf('-maiz-quimili.xlsx') !== -1, exDos.nombre);
+
+  const exRango = await bajarExcel('/app/datos/excel?desde=' + DIA_VD + '&hasta=' + HOY + cortesVD + filtroMaiz);
+  ok('un rango de varios días lo dice en el nombre',
+    exRango.estado === 200 && /VerDatos-\d\d-\d\d-\d\d-al-[\d-]+-maiz\.xlsx/.test(exRango.nombre),
+    exRango.nombre);
+
+  const exSinFiltro = await bajarExcel('/app/datos/excel?' + unDia + '&corte=grano');
+  ok('sin filtros el nombre es solo la fecha',
+    exSinFiltro.nombre.indexOf('VerDatos-' + DIA_VD.slice(2) + '.xlsx') !== -1, exSinFiltro.nombre);
+
+  // El permiso, que es donde esta clase de pantalla ya se nos escapó una vez.
+  cookies = {};
+  await ir('POST', '/app/api/ingreso', { code: GENERAL }, { desde: '10.7.1.2' });
+  const exGen = await bajarExcel('/app/datos/excel?' + unDia + cortesVD + filtroMaiz);
+  const hojaGen = exGen.libro && exGen.libro.getWorksheet('Tickets');
+  ok('GENERAL sí saca las dos balanzas',
+    hojaGen && (columna(hojaGen, 'Patentes') || []).map(String).indexOf('VD 003 CC') !== -1,
+    hojaGen ? (columna(hojaGen, 'Patentes') || []).join(' | ') : exGen.estado);
+
+  // Un corte inventado y un filtro roto no pueden tirar abajo la descarga.
+  const exRaro = await bajarExcel('/app/datos/excel?' + unDia + '&corte=inventado&f=sinDosPuntos');
+  ok('un corte inventado no rompe el archivo', exRaro.estado === 200, exRaro.estado);
+
+  // El service worker no lo puede guardar: es un archivo y cambia todo el día.
+  r = await ir('GET', '/app/sw.js');
+  ok('el service worker no guarda /app/datos/excel', /'\/app\/datos\/excel'/.test(r.texto));
+
+  /* ═══════════════════════════════════════════════════════════════════════
    * SIN SESIÓN
    * ═════════════════════════════════════════════════════════════════════ */
   seccion('Sin sesión');
   cookies = {};
   ex = await bajarExcel('/app/excel?desde=' + HOY);
   ok('sin código no se baja nada',
+    ex.estado === 302 && ex.ubicacion === '/app/ingreso', ex.estado + ' ' + ex.ubicacion);
+
+  ex = await bajarExcel('/app/datos/excel?desde=' + HOY + '&corte=grano');
+  ok('el de "Ver datos" tampoco',
     ex.estado === 302 && ex.ubicacion === '/app/ingreso', ex.estado + ' ' + ex.ubicacion);
 
   /* ═══════════════════════════════════════════════════════════════════════

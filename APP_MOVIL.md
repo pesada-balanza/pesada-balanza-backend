@@ -530,6 +530,11 @@ mirar. La bandeja es para mirar el conjunto, no un ticket.
 El **mismo archivo** que da el botón "Exportar a Excel" de la web, ahora también
 en el resumen del día de la app, abajo de "Buscar un ticket".
 
+> **Son dos Excel distintos, y conviene no confundirlos.** Este es el **listado
+> de registros**: un renglón por ticket, con todas las columnas. El otro —el de
+> "Ver datos"— baja **lo que se está mirando en esa pantalla**, ya sumado por los
+> cortes y acotado por los filtros. Ver *"Bajar lo filtrado en Excel"* más abajo.
+
 No es un reporte nuevo: las dos puertas llaman a la misma función
 (`construirLibroRegistros` en `app.js`), así que no hay una segunda versión que
 se pueda desincronizar. Las hojas son las de siempre:
@@ -1037,6 +1042,68 @@ Cuando el corte **Campo** está puesto junto con **Silobolsa**, el renglón no
 repite el campo al lado del número (`3 · Quimili · Quimili - QUIMILI - SE`): se
 muestra solo el número. Cambia **lo que se lee**, no la clave interna —de ella
 dependen los filtros guardados en la dirección—.
+
+### Bajar lo filtrado en Excel
+
+El botón **"Bajar esto en Excel"** está **entre los cortes y la lista**, no al
+pie ni en el encabezado. Al pie no servía —con 24 renglones había que bajar
+media pantalla para llegar—, y en el encabezado quedaba **pegado a "Salir"**,
+que cierra la sesión y obliga a poner el código de nuevo. Donde está, arriba
+quedan el período, los filtros y los cortes: no hay forma de tocarlo sin ver qué
+se lleva. Si no hay renglones, el botón **no se dibuja**.
+
+Al tocarlo se abre una caja que deja escrito **qué se lleva el archivo** y avisa
+que vienen dos hojas. No repite el desde–hasta como el botón del resumen: el
+período ya está elegido arriba.
+
+> **No es un enlace.** Igual que el Excel del resumen: en el iPhone, con la app
+> agregada a la pantalla de inicio, un enlace a un archivo **reemplaza la app**
+> por la vista previa y no hay forma de volver. El archivo se baja a memoria con
+> `App.compartir` y se entrega desde ahí; la pantalla nunca se mueve.
+
+El archivo (`/app/datos/excel`) sale de la **misma función que la pantalla**,
+`armarDatos`. Eso no es prolijidad: si el archivo sumara distinto que la pantalla
+de la que salió, no habría forma de saber cuál de los dos miente. Va probado
+comparando el total del `.xlsx` contra el de la pantalla.
+
+**Hoja "Datos"** — arriba, en texto, el período, el alcance, los filtros
+aplicados y los cortes: el que abre el archivo la semana que viene no tiene la
+pantalla delante. Abajo la tabla, con **una columna por corte** en vez del texto
+pegado con `·` de la pantalla:
+
+| Grano | Campo | Silobolsa | Lote | Neto (kg) | Neto (t) | Camiones | % | Último registro |
+|---|---|---|---|---|---|---|---|---|
+
+En la pantalla lo que importa es **leer**; en el Excel, poder **filtrar y armar
+una tabla dinámica** sin separar el texto a mano. Fila TOTAL al pie, encabezado
+congelado y autofiltro puestos.
+
+**Hoja "Tickets"** — el detalle: un renglón por ticket **y por clave**. Un viaje
+que salió de dos bolsas ocupa dos renglones, cada uno con **sus** kg, y al lado
+el neto entero del camión repetido. Las dos columnas están separadas a propósito
+(`kg del renglón` / `Neto del viaje`): la primera es la que suma en la hoja
+Datos, la segunda **no se suma dos veces**, y lo dice una nota al pie de la hoja.
+
+> **La columna "Camiones" se lee con cuidado.** Cuenta los viajes que *tocaron*
+> el renglón, así que un viaje de dos bolsas cuenta en las dos y la suma de la
+> columna puede dar **más** que el total. La fila TOTAL lleva los camiones de
+> verdad. El aviso está escrito **en la hoja**, no solo en la pantalla: el
+> archivo viaja solo.
+
+**El nombre**: `VerDatos-26-09-22-al-28-maiz-la-porfia.xlsx`. Lleva adentro el
+rango **y** los filtros porque en el teléfono los archivos se amontonan en
+Descargas y tres exportes de la misma semana con distinto filtro tienen que
+distinguirse sin abrirlos. El año va adelante para que ordenados por nombre
+queden en orden de fecha; el campo va por su **nombre corto**, sin el
+establecimiento y la provincia pegados atrás; y si hay muchos filtros el sufijo
+se corta a 40 caracteres, porque hay sistemas de archivos que lo cortan solos en
+mitad de una palabra. Lo arma el **servidor** y la pantalla repite el mismo: si
+cada uno lo armara por su lado, el archivo bajaría con un nombre y se guardaría
+con otro.
+
+El alcance por balanza es el mismo de la pantalla y se aplica **en la consulta**:
+un código de balanza no saca la otra ni por el archivo. Va probado abriendo el
+`.xlsx` y leyendo las filas.
 
 ### Las silobolsas de una regulada
 

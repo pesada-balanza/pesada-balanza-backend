@@ -122,6 +122,29 @@
       </div>
     <% } %>
 
+    <%# El Excel de lo que se está mirando. Va acá, entre los cortes y la lista:
+        arriba quedan el período, los filtros y los cortes, así que no hay forma
+        de tocarlo sin ver qué se lleva. Al pie de la lista no servía —con 24
+        renglones había que bajar media pantalla para llegar—, y en el
+        encabezado quedaba pegado a "Salir", que cierra la sesión. %>
+    <% if (filas.length) { %>
+      <%# NO es un enlace, por el mismo motivo que en el resumen: en el iPhone,
+          con la app en la pantalla de inicio, un enlace a un archivo reemplaza
+          la app por la vista previa y no hay forma de volver. %>
+      <button type="button" class="btn btn-borde-suave" id="abrir-excel">Bajar esto en Excel</button>
+
+      <div class="tarjeta tarjeta-gris oculto" id="caja-excel" style="gap:9px">
+        <span class="etiqueta">El archivo se lleva</span>
+        <span class="txt"><%= desdeBonito %><%= desde === hasta ? '' : ' al ' + hastaBonito %><% filtros.forEach(function (f) { %> · <%= f.etiqueta %>: <%= f.valor %><% }); %></span>
+        <span class="txt-aux">
+          Hoja <b>Datos</b>: los <%= filas.length %> renglones, una columna por corte.<br>
+          Hoja <b>Tickets</b>: el detalle, un renglón por ticket y silobolsa.
+        </span>
+        <button type="button" class="btn" id="bajar-excel">Bajar el Excel</button>
+        <button type="button" class="btn btn-texto" id="cerrar-excel">Cancelar</button>
+      </div>
+    <% } %>
+
     <% if (!filas.length) { %>
       <div class="tarjeta" style="gap:6px">
         <span class="cuerpo-fuerte">No hay reguladas cerradas en esas fechas</span>
@@ -183,5 +206,40 @@
   // Al volver acá se vuelve a pedir: estos números cambian con cada regulada
   // que se cierra y no hay nada escrito que se pueda perder.
   App.refrescarAlVolver();
+
+  var abrir = document.getElementById('abrir-excel');
+  if (!abrir) return;   // no hay renglones: tampoco hay nada que exportar
+  var caja = document.getElementById('caja-excel');
+
+  var excel = App.compartir({
+    boton: document.getElementById('bajar-excel'),
+    // Exactamente lo que se está mirando: mismo período, mismos cortes, mismos
+    // filtros. Si acá se armara otra dirección, el archivo podría sumar
+    // distinto que la pantalla de la que salió.
+    url: '/app/datos/excel?<%= fechaEnUrl.slice(1) %><%= cortesEnUrl %><%= filtrosEnUrl %>',
+    // El nombre lo arma el servidor; acá se repite el mismo.
+    nombre: '<%= nombreExcel %>',
+    tipo: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    que: 'el Excel',
+    titulo: 'Ver datos de balanza',
+    // En la computadora se descarga y punto. El menú de compartir se usa solo
+    // en el iPhone y el iPad, que es donde descargar no funciona.
+    preferirBajar: true,
+    // No se baja al abrir la pantalla: la mayoría entra a mirar, no a
+    // exportar, y con un mes de datos el archivo pesa. Se prepara recién al
+    // abrir la caja, así el toque de "Bajar el Excel" ya lo encuentra listo,
+    // que es lo que exige Safari para compartirlo en el mismo toque.
+    prepararSolo: false,
+  });
+
+  abrir.addEventListener('click', function () {
+    caja.className = 'tarjeta tarjeta-gris';
+    abrir.className = 'btn btn-borde-suave oculto';
+    excel.preparar();
+  });
+  document.getElementById('cerrar-excel').addEventListener('click', function () {
+    caja.className = 'tarjeta tarjeta-gris oculto';
+    abrir.className = 'btn btn-borde-suave';
+  });
 })();
 </script>

@@ -26,6 +26,10 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
+// El Excel de "Ver datos" se arma acá porque sus hojas no se parecen en nada a
+// las del reporte de registros: ese sigue saliendo de `construirLibroRegistros`
+// en app.js, que llega por `deps`.
+const ExcelJS = require('exceljs');
 const { generarPdf, nombreArchivo } = require('./app-movil-pdf');
 
 module.exports = function crearAppMovil(deps) {
@@ -3249,192 +3253,442 @@ module.exports = function crearAppMovil(deps) {
     return res.redirect(301, '/app/datos' + (q ? '?' + q : ''));
   });
 
+  /**
+   * Los números de la pantalla de datos, en UNA sola función.
+   *
+   * La usan la pantalla y el Excel que baja de ella. Está acá y no copiada en
+   * cada ruta a propósito: si el archivo sumara distinto que la pantalla de la
+   * que salió, no habría forma de saber cuál de los dos miente. Es el mismo
+   * criterio que `construirLibroRegistros` en app.js.
+   *
+   * `conTickets` agrega, además de los renglones, el detalle ticket por ticket
+   * que va en la segunda hoja del Excel. La pantalla no lo pide: son miles de
+   * filas que no se dibujan.
+   */
+  async function armarDatos(s, query, opciones) {
+    const conTickets = !!(opciones && opciones.conTickets);
+    const visibles = balanzasVisibles(s);
+    if (!visibles.length) return null;
+
+    /* Se eligen VARIOS cortes a la vez y la lista muestra la combinación:
+       silobolsa × campo × socio en el mismo renglón. Antes era uno solo y
+       elegir el segundo parecía pisar al primero. Llegan como `corte`
+       repetido, así una dirección vieja con un solo corte sigue andando. */
+    const cortes = [];
+    for (const bruto of [].concat(query.corte || [])) {
+      const c = String(bruto || '');
+      if (Object.prototype.hasOwnProperty.call(CORTES, c) && cortes.indexOf(c) === -1) {
+        cortes.push(c);
+      }
+      if (cortes.length >= MAXIMO_CORTES) break;
+    }
+    if (!cortes.length) cortes.push('grano');
+    const { desde, hasta, periodo } = periodoElegido(query);
+
+    /* Filtros encadenados. Cada uno llega como `f=<corte>:<valor>` y se
+       acumulan: fecha → silobolsa → socio → grano → … Se resuelven con la
+       MISMA función `de()` con la que se agrupa, así filtrar y agrupar no
+       pueden discrepar nunca: lo que ves en un renglón es exactamente lo que
+       queda si lo tocás. */
+    const filtros = [];
+    const crudos = [].concat(query.f || []);
+    for (const bruto of crudos) {
+      const txt = String(bruto || '');
+      const corteEn = txt.indexOf(':');
+      if (corteEn === -1) continue;
+      const clave = txt.slice(0, corteEn);
+      const valor = txt.slice(corteEn + 1);
+      if (!Object.prototype.hasOwnProperty.call(CORTES, clave) || !valor) continue;
+      if (filtros.some((x) => x.corte === clave && x.valor === valor)) continue;
+      filtros.push({ corte: clave, valor, etiqueta: CORTES[clave].etiqueta, crudo: txt });
+      if (filtros.length >= MAXIMO_FILTROS) break;
+    }
+
+    // Mismo alcance que el buscador y el Excel: cada código ve SOLO su
+    // balanza, el 12341 todas. Va acá y no en la vista a propósito: es un
+    // filtro de la consulta, no algo que se dibuja o se deja de dibujar.
+    const filtro = {
+      fecha: { $gte: desde, $lte: hasta },
+      anulado: { $ne: true },
+      fechaRegulada: { $exists: true },
+    };
+    if (!s.esGeneral) filtro.codigoIngreso = { $in: visibles };
+
+    const proyeccion = {
+      fecha: 1, neto: 1, grano: 1, lote: 1, campo: 1, cargaPara: 1, socio: 1,
+      transporte: 1, codigoIngreso: 1, cargoDe: 1, silobolsa: 1, silobolsas: 1,
+    };
+    // Solo para la hoja de detalle: en la pantalla no se dibuja ni uno.
+    if (conTickets) Object.assign(proyeccion, { idTicket: 1, nroApp: 1, patentes: 1, chofer: 1 });
+
+    await asegurarIndices();
+    const docs = await colRegistros().find(filtro, { projection: proyeccion }).toArray();
+
+    const defs = cortes.map((c) => CORTES[c]);
+    const acum = {};
+    const tickets = [];
+    let total = 0;
+    let camionesContados = 0;
+    for (const r of docs) {
+      /* ¿Pasa los filtros encadenados? Si un filtro es de un corte que
+         REPARTE (los lotes) y el viaje tocó varios, solo entra la parte que
+         le corresponde a ese lote: si no, filtrar por un lote sumaría el
+         viaje entero y el total daría de más. Cuando el filtro es del mismo
+         corte por el que se agrupa no se divide acá, porque abajo ya lo hace
+         el agrupado. */
+      let pasa = true;
+      let factor = 1;
+      for (const f of filtros) {
+        const dFiltro = CORTES[f.corte];
+        const suyas = dFiltro.de(r);
+        if (suyas.indexOf(f.valor) === -1) { pasa = false; break; }
+        if (dFiltro.reparte && suyas.length > 1 && cortes.indexOf(f.corte) === -1) factor /= suyas.length;
+      }
+      if (!pasa) continue;
+
+      const neto = (Number(r.neto) || 0) * factor;
+      total += neto;
+      camionesContados++;
+      /* Un renglón por COMBINACIÓN. Casi todos los cortes dan una sola clave
+         por viaje, así que esto suele ser una sola combinación; el lote es el
+         único que da varias, y entonces el viaje se reparte en partes
+         iguales entre ellas —si no, el mismo viaje se contaría entero en
+         cada lote y el total daría de más—. */
+      let combos = [[]];
+      // Cuántos kg le tocan a cada clave, para los cortes que lo saben de
+      // verdad (hoy, el silobolsa). `null` = repartir en partes iguales.
+      const pesos = defs.map((d) => (d.kgPorClave ? d.kgPorClave(r) : null));
+      for (const d of defs) {
+        const suyas = d.de(r);
+        const siguiente = [];
+        for (const base of combos) {
+          for (const k of suyas) siguiente.push(base.concat(String(k || '—')));
+        }
+        combos = siguiente;
+      }
+      for (const combo of combos) {
+        /* El peso del renglón: si algún corte sabe los kg exactos de su
+           clave, mandan esos; lo que quede sin saber se reparte en partes
+           iguales entre las combinaciones que genera. */
+        let parte = neto;
+        let sinSaber = 1;
+        for (let i = 0; i < defs.length; i++) {
+          if (pesos[i]) {
+            parte = Number(pesos[i][combo[i]]) || 0;
+          } else {
+            const cuantas = defs[i].de(r).length;
+            if (cuantas > 1) sinSaber *= cuantas;
+          }
+        }
+        if (sinSaber > 1) parte /= sinSaber;
+
+        const clave = combo.join(' · ');
+        if (!acum[clave]) acum[clave] = { nombre: clave, partes: combo, neto: 0, camiones: 0, ultima: '' };
+        acum[clave].neto += parte;
+        acum[clave].camiones++;
+        // Las fechas son YYYY-MM-DD: se comparan como texto sin convertir.
+        if (String(r.fecha || '') > acum[clave].ultima) acum[clave].ultima = String(r.fecha || '');
+
+        if (conTickets) {
+          tickets.push({
+            ticket: r.nroApp || (r.idTicket != null ? String(r.idTicket) : ''),
+            fecha: String(r.fecha || ''),
+            patentes: r.patentes || '',
+            transporte: r.transporte || '',
+            cargaPara: r.cargaPara || '',
+            // Solo si de verdad es de un socio: `socioDelTicket` devuelve "AMH"
+            // para lo propio, y al lado de "Carga para: AMH" es repetir el dato.
+            socio: r.cargaPara === 'SOCIO' ? socioDelTicket(r) : '',
+            partes: combo,
+            kg: Math.round(parte),
+            neto: Math.round(neto),
+          });
+        }
+      }
+    }
+
+    /* El nombre que se LEE. La clave interna no cambia —de ella dependen los
+       filtros guardados en la dirección—, pero si el corte Campo ya está
+       puesto, el silobolsa no repite el campo al lado del número:
+       "3 · Quimili · Quimili - QUIMILI - SE" se lee "3 · Quimili - …". */
+    const mostrar = (v, i) => (cortes[i] === 'silobolsa' && cortes.indexOf('campo') !== -1
+      ? String(v).split(' · ')[0]
+      : v);
+
+    const filas = Object.keys(acum)
+      .map((k) => acum[k])
+      .sort((a, b) => {
+        /* El renglón `primero` va arriba aunque sume menos. Con varios cortes
+           combinados deja de tener sentido anclar uno solo —el renglón ya no
+           es "Sin número" sino "Sin número · Quimili · AMH"—, así que aplica
+           únicamente cuando se mira un corte a la vez. */
+        if (defs.length === 1 && defs[0].primero) {
+          if (a.nombre === defs[0].primero) return -1;
+          if (b.nombre === defs[0].primero) return 1;
+        }
+        // Lo más nuevo arriba. Empatan muchos renglones el mismo día (una
+        // balanza cierra varias bolsas en la misma jornada), así que el
+        // desempate por kilos deja un orden estable y no uno al azar.
+        if (a.ultima !== b.ultima) return a.ultima < b.ultima ? 1 : -1;
+        return b.neto - a.neto;
+      })
+      .map((f) => ({
+        // Una casilla por corte: la pantalla las pega con " · " y el Excel les
+        // da una columna a cada una, que es lo que se puede filtrar afuera.
+        columnas: f.partes.map(mostrar),
+        nombre: f.partes.map(mostrar).join(' · '),
+        neto: Math.round(f.neto),
+        camiones: f.camiones,
+        ultima: f.ultima,
+        porcentaje: total > 0 ? Math.round((f.neto / total) * 100) : 0,
+        fraccion: total > 0 ? f.neto / total : 0,
+        // Para acotar a un valor: tocando el renglón, cada parte se agrega
+        // como filtro del corte que le corresponde.
+        filtros: f.partes.map((v, i) => cortes[i] + ':' + v),
+      }));
+
+    if (conTickets) {
+      for (const t of tickets) t.columnas = t.partes.map(mostrar);
+      // Lo más nuevo arriba, igual que los renglones; adentro del día, por
+      // ticket, para que el detalle se lea como un libro de balanza.
+      tickets.sort((a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? 1 : -1)
+        : String(a.ticket).localeCompare(String(b.ticket))));
+    }
+
+    return {
+      cortes,
+      cortesEtiquetas: cortes.map((c) => CORTES[c].etiqueta),
+      filtros,
+      periodo,
+      desde,
+      hasta,
+      filas,
+      tickets,
+      total: Math.round(total),
+      camiones: camionesContados,
+      alcance: s.esGeneral ? 'TODAS LAS BALANZAS' : nombreBalanza(visibles[0]) || 'MI BALANZA',
+    };
+  }
+
+  /** Un pedazo de nombre de archivo: sin acentos, sin espacios, en minúsculas. */
+  function pedazoNombre(v) {
+    return String(v || '')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  /**
+   * El nombre del archivo: VerDatos-26-09-22-al-28-maiz-la-porfia.xlsx
+   *
+   * Lleva adentro el rango Y los filtros porque en el teléfono los archivos se
+   * amontonan en Descargas: tres exportes de la misma semana con distinto
+   * filtro tienen que poder distinguirse sin abrirlos. El año va adelante
+   * (26-09-22) para que ordenados por nombre queden en orden de fecha.
+   */
+  function nombreExcelDatos(desde, hasta, filtros) {
+    let rango = desde.slice(2);
+    if (hasta !== desde) {
+      // Si no cambia el mes alcanza con el día; si no cambia el año, mes y día.
+      const cola = desde.slice(0, 7) === hasta.slice(0, 7) ? hasta.slice(8)
+        : desde.slice(0, 4) === hasta.slice(0, 4) ? hasta.slice(5)
+          : hasta.slice(2);
+      rango += '-al-' + cola;
+    }
+    let sufijo = (filtros || [])
+      .map((f) => pedazoNombre(f.corte === 'campo' ? nombreCampoCorto(normalizarCampo(f.valor)) : f.valor))
+      .filter(Boolean)
+      .join('-');
+    // Con seis filtros encadenados el nombre se vuelve ilegible y hay sistemas
+    // de archivos que lo cortan por su cuenta en mitad de una palabra.
+    if (sufijo.length > 40) sufijo = sufijo.slice(0, 40).replace(/-+$/, '');
+    return 'VerDatos-' + rango + (sufijo ? '-' + sufijo : '') + '.xlsx';
+  }
+
+  /** dd/mm/aaaa a partir del aaaa-mm-dd que guarda la base. */
+  function fechaLarga(f) {
+    const p = String(f || '').split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(f || '');
+  }
+
+  /**
+   * El Excel de la pantalla de datos. Dos hojas:
+   *
+   *  - "Datos": los mismos renglones que se están mirando, pero con UNA COLUMNA
+   *    POR CORTE en vez del texto pegado con " · " de la pantalla. En la
+   *    pantalla lo que importa es leer; en el Excel, poder filtrar y armar una
+   *    tabla dinámica sin tener que separar el texto a mano.
+   *  - "Tickets": el detalle, un renglón por ticket y por clave. Un viaje que
+   *    salió de dos bolsas ocupa dos renglones, cada uno con SUS kg, y el neto
+   *    del viaje repetido al lado para que se vea que no se cuenta dos veces.
+   *
+   * Arriba de todo va el período, el alcance y los filtros escritos en texto:
+   * el que abre el archivo la semana que viene no tiene la pantalla delante.
+   */
+  function construirLibroDatos(d) {
+    const libro = new ExcelJS.Workbook();
+    libro.creator = 'Pesada de Balanza';
+    libro.created = new Date();
+
+    const etiquetas = d.cortesEtiquetas;
+    const nCortes = etiquetas.length;
+    const hoja = libro.addWorksheet('Datos');
+
+    const dias = Math.round(
+      (Date.parse(d.hasta + 'T00:00:00Z') - Date.parse(d.desde + 'T00:00:00Z')) / 86400000
+    ) + 1;
+    const encabezado = [
+      ['Ver datos · Pesada de Balanza'],
+      ['Período', fechaLarga(d.desde) + (d.desde === d.hasta ? '' : ' al ' + fechaLarga(d.hasta)) +
+        ' (' + dias + (dias === 1 ? ' día)' : ' días)')],
+      ['Alcance', d.alcance],
+      ['Filtros', d.filtros.length
+        ? d.filtros.map((f) => f.etiqueta + ': ' + f.valor).join(' · ')
+        : 'Sin filtros'],
+      ['Cortes', etiquetas.join(' · ')],
+      ['Total', d.total, 'kg · ' + (d.total / 1000).toLocaleString('es-AR', { maximumFractionDigits: 1 }) +
+        ' toneladas · ' + d.camiones + ' camiones · ' + d.filas.length + ' renglones'],
+    ];
+    encabezado.forEach((f, i) => {
+      const fila = hoja.addRow(f);
+      if (i === 0) fila.font = { bold: true, size: 13 };
+      else fila.getCell(1).font = { bold: true };
+    });
+    hoja.getCell('B6').numFmt = '#,##0';
+    hoja.addRow([]);
+
+    const FILA_TITULOS = 8;
+    const titulos = etiquetas.concat(['Neto (kg)', 'Neto (t)', 'Camiones', '%', 'Último registro']);
+    hoja.addRow(titulos).font = { bold: true };
+
+    for (const f of d.filas) {
+      hoja.addRow(f.columnas.concat([f.neto, f.neto / 1000, f.camiones, f.fraccion, fechaLarga(f.ultima)]));
+    }
+    const filaTotal = hoja.addRow(
+      ['TOTAL'].concat(new Array(nCortes - 1).fill(''))
+        .concat([d.total, d.total / 1000, d.camiones, d.total > 0 ? 1 : 0, ''])
+    );
+    filaTotal.font = { bold: true };
+
+    // Se congela el encabezado: con 24 renglones ya no se ve de qué es la
+    // columna cuando se baja.
+    hoja.views = [{ state: 'frozen', ySplit: FILA_TITULOS }];
+    // El rango va hasta el ÚLTIMO renglón, no hasta el final de la hoja: si no,
+    // Excel se lleva adentro del filtro la fila TOTAL y los avisos del pie, y
+    // al filtrar por un valor el total desaparece o queda tapado.
+    hoja.autoFilter = {
+      from: { row: FILA_TITULOS, column: 1 },
+      to: { row: FILA_TITULOS + d.filas.length, column: titulos.length },
+    };
+    for (let c = 1; c <= nCortes; c++) hoja.getColumn(c).width = 24;
+    hoja.getColumn(nCortes + 1).width = 14;
+    hoja.getColumn(nCortes + 2).width = 11;
+    hoja.getColumn(nCortes + 3).width = 11;
+    hoja.getColumn(nCortes + 4).width = 8;
+    hoja.getColumn(nCortes + 5).width = 16;
+    for (let f = FILA_TITULOS + 1; f <= hoja.rowCount; f++) {
+      hoja.getRow(f).getCell(nCortes + 1).numFmt = '#,##0';
+      hoja.getRow(f).getCell(nCortes + 2).numFmt = '#,##0.0';
+      hoja.getRow(f).getCell(nCortes + 3).numFmt = '#,##0';
+      hoja.getRow(f).getCell(nCortes + 4).numFmt = '0%';
+    }
+
+    /* Los dos avisos que evitan leer mal la columna "Camiones". Van escritos en
+       la hoja y no solo en la pantalla: el archivo viaja solo. */
+    hoja.addRow([]);
+    const avisos = ['Camiones cuenta los viajes que tocaron el renglón. Un viaje que salió de dos ' +
+      'silobolsas cuenta en las dos, así que la suma de la columna puede dar más que el total.'];
+    if (d.cortes.indexOf('lote') !== -1) {
+      avisos.push('Un viaje con más de un lote reparte su neto en partes iguales entre ellos.');
+    }
+    avisos.push('Cuenta solo los camiones con la regulada cerrada. Los anulados quedan afuera.');
+    for (const a of avisos) hoja.addRow([a]).font = { italic: true, size: 9 };
+
+    /* ── Hoja "Tickets": de dónde sale cada renglón ───────────────────────── */
+    const detalle = libro.addWorksheet('Tickets');
+    const titulosDet = ['Ticket', 'Fecha', 'Patentes', 'Transporte', 'Carga para', 'Socio']
+      .concat(etiquetas)
+      .concat(['kg del renglón', 'Neto del viaje']);
+    detalle.addRow(titulosDet).font = { bold: true };
+    for (const t of d.tickets) {
+      detalle.addRow([t.ticket, fechaLarga(t.fecha), t.patentes, t.transporte, t.cargaPara, t.socio]
+        .concat(t.columnas)
+        .concat([t.kg, t.neto]));
+    }
+    detalle.views = [{ state: 'frozen', ySplit: 1 }];
+    detalle.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1 + d.tickets.length, column: titulosDet.length },
+    };
+    [12, 12, 18, 18, 12, 18].forEach((w, i) => { detalle.getColumn(i + 1).width = w; });
+    for (let c = 7; c <= 6 + nCortes; c++) detalle.getColumn(c).width = 24;
+    detalle.getColumn(7 + nCortes).width = 15;
+    detalle.getColumn(8 + nCortes).width = 15;
+    for (let f = 2; f <= detalle.rowCount; f++) {
+      detalle.getRow(f).getCell(7 + nCortes).numFmt = '#,##0';
+      detalle.getRow(f).getCell(8 + nCortes).numFmt = '#,##0';
+    }
+    detalle.addRow([]);
+    detalle.addRow(['Un ticket ocupa un renglón por cada clave que tocó. "kg del renglón" es lo que ' +
+      'le toca a esa clave y es lo que suma en la hoja Datos; "Neto del viaje" es el neto entero del ' +
+      'camión, repetido, y NO se suma dos veces.']).font = { italic: true, size: 9 };
+
+    return libro;
+  }
+
+  router.get('/datos/excel', exigirApp, async (req, res) => {
+    try {
+      const s = sesionApp(req);
+      const d = await armarDatos(s, req.query, { conTickets: true });
+      if (!d) {
+        return pantallaError(res, 'Sin permiso', 'Este código no tiene registros para exportar.', '/app/general');
+      }
+      const libro = construirLibroDatos(d);
+      res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.attachment(nombreExcelDatos(d.desde, d.hasta, d.filtros));
+      await libro.xlsx.write(res);
+      return res.end();
+    } catch (err) {
+      return siguienteError(err, req, res);
+    }
+  });
+
   router.get('/datos', exigirApp, async (req, res) => {
     try {
       const s = sesionApp(req);
-      const visibles = balanzasVisibles(s);
-      if (!visibles.length) {
+      const d = await armarDatos(s, req.query);
+      if (!d) {
         return pantallaError(res, 'Sin permiso', 'Este código no tiene registros para mirar.', '/app/general');
       }
-
-      /* Se eligen VARIOS cortes a la vez y la lista muestra la combinación:
-         silobolsa × campo × socio en el mismo renglón. Antes era uno solo y
-         elegir el segundo parecía pisar al primero. Llegan como `corte`
-         repetido, así una dirección vieja con un solo corte sigue andando. */
-      const cortes = [];
-      for (const bruto of [].concat(req.query.corte || [])) {
-        const c = String(bruto || '');
-        if (Object.prototype.hasOwnProperty.call(CORTES, c) && cortes.indexOf(c) === -1) {
-          cortes.push(c);
-        }
-        if (cortes.length >= MAXIMO_CORTES) break;
-      }
-      if (!cortes.length) cortes.push('grano');
-      const { desde, hasta, periodo } = periodoElegido(req.query);
-
-      /* Filtros encadenados. Cada uno llega como `f=<corte>:<valor>` y se
-         acumulan: fecha → silobolsa → socio → grano → … Se resuelven con la
-         MISMA función `de()` con la que se agrupa, así filtrar y agrupar no
-         pueden discrepar nunca: lo que ves en un renglón es exactamente lo que
-         queda si lo tocás. */
-      const filtros = [];
-      const crudos = [].concat(req.query.f || []);
-      for (const bruto of crudos) {
-        const txt = String(bruto || '');
-        const corteEn = txt.indexOf(':');
-        if (corteEn === -1) continue;
-        const clave = txt.slice(0, corteEn);
-        const valor = txt.slice(corteEn + 1);
-        if (!Object.prototype.hasOwnProperty.call(CORTES, clave) || !valor) continue;
-        if (filtros.some((x) => x.corte === clave && x.valor === valor)) continue;
-        filtros.push({ corte: clave, valor, etiqueta: CORTES[clave].etiqueta, crudo: txt });
-        if (filtros.length >= MAXIMO_FILTROS) break;
-      }
-
-      // Mismo alcance que el buscador y el Excel: cada código ve SOLO su
-      // balanza, el 12341 todas. Va acá y no en la vista a propósito: es un
-      // filtro de la consulta, no algo que se dibuja o se deja de dibujar.
-      const filtro = {
-        fecha: { $gte: desde, $lte: hasta },
-        anulado: { $ne: true },
-        fechaRegulada: { $exists: true },
-      };
-      if (!s.esGeneral) filtro.codigoIngreso = { $in: visibles };
-
-      await asegurarIndices();
-      const docs = await colRegistros()
-        .find(filtro, {
-          projection: {
-            fecha: 1, neto: 1, grano: 1, lote: 1, campo: 1, cargaPara: 1, socio: 1,
-            transporte: 1, codigoIngreso: 1, cargoDe: 1, silobolsa: 1, silobolsas: 1,
-          },
-        })
-        .toArray();
-
-      const defs = cortes.map((c) => CORTES[c]);
-      const acum = {};
-      let total = 0;
-      let camionesContados = 0;
-      for (const r of docs) {
-        /* ¿Pasa los filtros encadenados? Si un filtro es de un corte que
-           REPARTE (los lotes) y el viaje tocó varios, solo entra la parte que
-           le corresponde a ese lote: si no, filtrar por un lote sumaría el
-           viaje entero y el total daría de más. Cuando el filtro es del mismo
-           corte por el que se agrupa no se divide acá, porque abajo ya lo hace
-           el agrupado. */
-        let pasa = true;
-        let factor = 1;
-        for (const f of filtros) {
-          const dFiltro = CORTES[f.corte];
-          const suyas = dFiltro.de(r);
-          if (suyas.indexOf(f.valor) === -1) { pasa = false; break; }
-          if (dFiltro.reparte && suyas.length > 1 && cortes.indexOf(f.corte) === -1) factor /= suyas.length;
-        }
-        if (!pasa) continue;
-
-        const neto = (Number(r.neto) || 0) * factor;
-        total += neto;
-        camionesContados++;
-        /* Un renglón por COMBINACIÓN. Casi todos los cortes dan una sola clave
-           por viaje, así que esto suele ser una sola combinación; el lote es el
-           único que da varias, y entonces el viaje se reparte en partes
-           iguales entre ellas —si no, el mismo viaje se contaría entero en
-           cada lote y el total daría de más—. */
-        let combos = [[]];
-        // Cuántos kg le tocan a cada clave, para los cortes que lo saben de
-        // verdad (hoy, el silobolsa). `null` = repartir en partes iguales.
-        const pesos = defs.map((d) => (d.kgPorClave ? d.kgPorClave(r) : null));
-        for (const d of defs) {
-          const suyas = d.de(r);
-          const siguiente = [];
-          for (const base of combos) {
-            for (const k of suyas) siguiente.push(base.concat(String(k || '—')));
-          }
-          combos = siguiente;
-        }
-        for (const combo of combos) {
-          /* El peso del renglón: si algún corte sabe los kg exactos de su
-             clave, mandan esos; lo que quede sin saber se reparte en partes
-             iguales entre las combinaciones que genera. */
-          let parte = neto;
-          let sinSaber = 1;
-          for (let i = 0; i < defs.length; i++) {
-            if (pesos[i]) {
-              parte = Number(pesos[i][combo[i]]) || 0;
-            } else {
-              const cuantas = defs[i].de(r).length;
-              if (cuantas > 1) sinSaber *= cuantas;
-            }
-          }
-          if (sinSaber > 1) parte /= sinSaber;
-
-          const clave = combo.join(' · ');
-          if (!acum[clave]) acum[clave] = { nombre: clave, partes: combo, neto: 0, camiones: 0, ultima: '' };
-          acum[clave].neto += parte;
-          acum[clave].camiones++;
-          // Las fechas son YYYY-MM-DD: se comparan como texto sin convertir.
-          if (String(r.fecha || '') > acum[clave].ultima) acum[clave].ultima = String(r.fecha || '');
-        }
-      }
-
-      const filas = Object.keys(acum)
-        .map((k) => acum[k])
-        .sort((a, b) => {
-          /* El renglón `primero` va arriba aunque sume menos. Con varios cortes
-             combinados deja de tener sentido anclar uno solo —el renglón ya no
-             es "Sin número" sino "Sin número · Quimili · AMH"—, así que aplica
-             únicamente cuando se mira un corte a la vez. */
-          if (defs.length === 1 && defs[0].primero) {
-            if (a.nombre === defs[0].primero) return -1;
-            if (b.nombre === defs[0].primero) return 1;
-          }
-          // Lo más nuevo arriba. Empatan muchos renglones el mismo día (una
-          // balanza cierra varias bolsas en la misma jornada), así que el
-          // desempate por kilos deja un orden estable y no uno al azar.
-          if (a.ultima !== b.ultima) return a.ultima < b.ultima ? 1 : -1;
-          return b.neto - a.neto;
-        })
-        .map((f) => ({
-          /* El nombre que se LEE. La clave interna no cambia —de ella dependen
-             los filtros guardados en la dirección—, pero si el corte Campo ya
-             está puesto, el silobolsa no repite el campo al lado del número:
-             "3 · Quimili · Quimili - QUIMILI - SE" se lee "3 · Quimili - …". */
-          nombre: f.partes
-            .map((v, i) => (cortes[i] === 'silobolsa' && cortes.indexOf('campo') !== -1
-              ? String(v).split(' · ')[0]
-              : v))
-            .join(' · '),
-          neto: Math.round(f.neto),
-          camiones: f.camiones,
-          porcentaje: total > 0 ? Math.round((f.neto / total) * 100) : 0,
-          // Para acotar a un valor: tocando el renglón, cada parte se agrega
-          // como filtro del corte que le corresponde.
-          filtros: f.partes.map((v, i) => cortes[i] + ':' + v),
-        }));
 
       return res.render('app/datos', {
         layout: 'app/layout',
         titulo: 'Datos',
-        cortes,
-        cortesEtiquetas: cortes.map((c) => CORTES[c].etiqueta),
+        cortes: d.cortes,
+        cortesEtiquetas: d.cortesEtiquetas,
         disponibles: Object.keys(CORTES).map((k) => ({
           clave: k,
           etiqueta: CORTES[k].etiqueta,
-          elegido: cortes.indexOf(k) !== -1,
+          elegido: d.cortes.indexOf(k) !== -1,
         })),
-        puedeSumarCorte: cortes.length < MAXIMO_CORTES,
-        reparteLotes: cortes.indexOf('lote') !== -1,
-        periodo,
-        filtros,
-        puedeFiltrarMas: filtros.length < MAXIMO_FILTROS,
-        desde,
-        hasta,
-        desdeBonito: fechaCorta(desde),
-        hastaBonito: fechaCorta(hasta),
-        filas,
-        total: Math.round(total),
-        camiones: camionesContados,
-        alcance: s.esGeneral ? 'TODAS LAS BALANZAS' : nombreBalanza(visibles[0]) || 'MI BALANZA',
+        puedeSumarCorte: d.cortes.length < MAXIMO_CORTES,
+        reparteLotes: d.cortes.indexOf('lote') !== -1,
+        periodo: d.periodo,
+        filtros: d.filtros,
+        puedeFiltrarMas: d.filtros.length < MAXIMO_FILTROS,
+        desde: d.desde,
+        hasta: d.hasta,
+        desdeBonito: fechaCorta(d.desde),
+        hastaBonito: fechaCorta(d.hasta),
+        filas: d.filas,
+        total: d.total,
+        camiones: d.camiones,
+        alcance: d.alcance,
+        // El nombre lo arma el servidor y la pantalla lo repite tal cual: si
+        // cada uno lo armara por su lado, el archivo bajaría con un nombre y se
+        // guardaría con otro.
+        nombreExcel: nombreExcelDatos(d.desde, d.hasta, d.filtros),
         hoy: hoyStr(),
         kg,
       });
