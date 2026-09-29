@@ -136,6 +136,8 @@ function seccion(t) { console.log('\n── ' + t); }
 
 const ymd = (d) => d.toISOString().slice(0, 10);
 const haceDias = (n) => ymd(new Date(Date.now() - n * 24 * 60 * 60 * 1000));
+/** dd/mm/aaaa, como lo escribe el encabezado del Excel de "Ver datos". */
+const fechaLarga = (f) => String(f).split('-').reverse().join('/');
 const HOY = haceDias(0);
 const AYER = haceDias(1);
 
@@ -478,6 +480,47 @@ async function main() {
   // Un corte inventado y un filtro roto no pueden tirar abajo la descarga.
   const exRaro = await bajarExcel('/app/datos/excel?' + unDia + '&corte=inventado&f=sinDosPuntos');
   ok('un corte inventado no rompe el archivo', exRaro.estado === 200, exRaro.estado);
+
+  /* ── El botón pide LO QUE SE ESTÁ MIRANDO ────────────────────────────────
+   *
+   * Acá se nos escapó una vez: la dirección del archivo se armaba a mano con
+   * `<%= %>`, que escapa cada "&" a "&amp;". Adentro de un <script> el
+   * navegador NO deshace las entidades, así que el pedido salía con los
+   * parámetros llamados "amp;desde", "amp;hasta", "amp;corte" y el servidor
+   * los ignoraba: el archivo venía del día de hoy, sin cortes ni filtros.
+   *
+   * Las pruebas de arriba no lo agarraron porque pegaban contra la ruta con
+   * una dirección limpia, que es lo único que la ruta ve. El agujero estaba en
+   * la PANTALLA. Por eso ahora se comprueba también de ese lado. */
+  cookies = {};
+  await ir('POST', '/app/api/ingreso', { code: VER_QUIMILI }, { desde: '10.7.1.3' });
+
+  const variosDias = 'desde=' + DIA_VD + '&hasta=' + HOY + cortesVD + filtroMaiz;
+  r = await ir('GET', '/app/datos?' + variosDias);
+  const scripts = (r.texto.match(/<script[\s\S]*?<\/script>/g) || []).join('\n');
+  ok('la pantalla no deja direcciones con &amp; adentro del <script>',
+    scripts.indexOf('&amp;') === -1,
+    (scripts.match(/[^\s'"]*&amp;[^\s'"]*/) || [''])[0]);
+  ok('el botón pide la MISMA dirección con la que se pidió la pantalla',
+    /window\.location\.search/.test(r.texto), '(no usa location.search)');
+
+  // Y de punta a punta: el archivo de esa dirección tiene que decir lo mismo
+  // que la pantalla, con varios días, dos cortes y un filtro puestos.
+  const totalPantalla = ((r.texto.match(/dato-xg">([^<]*)/) || [])[1] || '').replace(/\./g, '');
+  const exIgual = await bajarExcel('/app/datos/excel?' + variosDias);
+  const hojaIgual = exIgual.libro && exIgual.libro.getWorksheet('Datos');
+  ok('y ese archivo trae los mismos días, no solo hoy',
+    hojaIgual && String(hojaIgual.getCell('B2').value).indexOf(fechaLarga(DIA_VD)) !== -1,
+    hojaIgual ? hojaIgual.getCell('B2').value : exIgual.estado);
+  ok('con los mismos cortes',
+    hojaIgual && String(hojaIgual.getCell('B5').value) === 'Grano · Silobolsa',
+    hojaIgual ? hojaIgual.getCell('B5').value : '');
+  ok('con el mismo filtro',
+    hojaIgual && String(hojaIgual.getCell('B4').value).indexOf('Grano: MAIZ') !== -1,
+    hojaIgual ? hojaIgual.getCell('B4').value : '');
+  ok('y con el mismo total que la pantalla',
+    hojaIgual && String(hojaIgual.getCell('B6').value) === totalPantalla,
+    (hojaIgual ? hojaIgual.getCell('B6').value : '?') + ' vs ' + totalPantalla);
 
   // El service worker no lo puede guardar: es un archivo y cambia todo el día.
   r = await ir('GET', '/app/sw.js');

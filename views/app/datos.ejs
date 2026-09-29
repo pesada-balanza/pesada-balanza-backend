@@ -213,10 +213,18 @@
 
   var excel = App.compartir({
     boton: document.getElementById('bajar-excel'),
-    // Exactamente lo que se está mirando: mismo período, mismos cortes, mismos
-    // filtros. Si acá se armara otra dirección, el archivo podría sumar
-    // distinto que la pantalla de la que salió.
-    url: '/app/datos/excel?<%= fechaEnUrl.slice(1) %><%= cortesEnUrl %><%= filtrosEnUrl %>',
+    /* La MISMA dirección con la que se pidió esta pantalla, tal cual. Es lo que
+       el servidor ya usó para armar los números que se están mirando, así que
+       el archivo no puede salir de otro lado.
+
+       Acá había una dirección armada a mano con `<%%= %>`, que escapa cada
+       ampersand a su entidad HTML. Adentro de un <script> el navegador NO
+       deshace las entidades, así que el pedido salía con los parámetros
+       llamados "amp;desde", "amp;hasta", "amp;corte": el servidor los ignoraba
+       y el archivo venía del día de hoy, sin cortes ni filtros. Armarla desde
+       `location.search` saca el problema de raíz y además no se puede
+       desincronizar de la pantalla. */
+    url: function () { return '/app/datos/excel' + window.location.search; },
     // El nombre lo arma el servidor; acá se repite el mismo.
     nombre: '<%= nombreExcel %>',
     tipo: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
