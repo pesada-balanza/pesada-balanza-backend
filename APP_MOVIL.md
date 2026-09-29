@@ -1649,9 +1649,25 @@ probado que si se rompe el acumulado, esta sigue estando.
    navegador**: conectarlo a internet y esperar a que suban solas. El botón
    **Salir** avisa si quedan pendientes y no deja salir hasta que se suban.
 
-## Segunda etapa (queda pendiente del handoff)
+## Segunda etapa del handoff: cerrada
 
-- Vista de **Acumulado** de campaña (`8b` del diseño). Se eligió `8a` como
-  resumen principal. La idea es no hacer una pantalla nueva sino agregarle una
-  hoja al Excel que ya sale por mail, con el acumulado por lote, por grano y por
-  transporte.
+- **Acumulado de campaña (`8b` del diseño) — hecho, por los dos caminos.** El
+  handoff proponía no hacer pantalla nueva y agregarle una hoja al Excel del
+  mail. Terminó habiendo las dos cosas, y cada una sirve para algo distinto: la
+  hoja del acumulado llega sola a las 19 hs sin que nadie la pida, y la pantalla
+  **`/app/datos`** deja mirar cualquier rango con los cortes y filtros que haga
+  falta, sin esperar al mail ni bajar nada.
+
+### Decisiones tomadas de no hacer
+
+- **Ver los tickets detrás de un renglón de "Ver datos"** (tocar un renglón y
+  que se abra la lista de los camiones que lo formaron): **descartado**. Lo
+  resuelve el botón *"Bajar esto en Excel"* de esa misma pantalla: su hoja
+  **Tickets** trae exactamente eso —un renglón por ticket y por bolsa, con los
+  filtros ya aplicados— y en la planilla se puede ordenar y buscar, que es lo
+  que en el teléfono iba a quedar incómodo igual.
+
+- **Mergear a `main`**: pospuesto, sin fecha. Hoy Render despliega la rama
+  `claude/app-movil-balanza-bdwhlf` y `main` no tiene `APP_MOVIL`. Mientras se
+  esté usando la app todos los días, el riesgo de la mudanza no compensa: no hay
+  nada que se gane funcionalmente por estar en `main`.
