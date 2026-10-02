@@ -26,6 +26,40 @@ const cron = require('node-cron');
 const qrcode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
 const fs = require('fs');
+
+/* ---------------------------------------------
+ * PARCHE whatsapp-web.js (fix envío de archivos)
+ * -------------------------------------------
+ * WhatsApp Web (build 2.3000.1047xxx, 17/09/2026) rompió el envío de
+ * documentos/media en whatsapp-web.js con el error:
+ *   "Data passed to getter must include an id property..."
+ * El fix oficial (PR #201923) borra la propiedad interna __x_id antes de
+ * armar el mensaje. Lo aplicamos solo al archivo inyectado de la librería,
+ * ANTES de cargarla. Es idempotente y se re-aplica en cada arranque, así
+ * sobrevive a reinstalaciones de npm. No requiere re-escanear el QR.
+ */
+(function parcharWhatsappWebJs() {
+  try {
+    const f = path.join(path.dirname(require.resolve('whatsapp-web.js')),
+      'src', 'util', 'Injected', 'Utils.js');
+    let src = fs.readFileSync(f, 'utf8');
+    if (src.includes('message.__x_id')) return; // ya parchado
+    const marca = "// Bot's won't reply if canonicalUrl is set";
+    const idx = src.indexOf(marca);
+    if (idx === -1) {
+      console.warn('[Parche] No se encontró el punto de parche __x_id (¿cambió la librería?). Se sigue sin parchar.');
+      return;
+    }
+    const lineStart = src.lastIndexOf('\n', idx) + 1;
+    const indent = src.slice(lineStart, idx);
+    src = src.slice(0, lineStart) + indent + 'delete message.__x_id;\n\n' + src.slice(lineStart);
+    fs.writeFileSync(f, src);
+    console.log('[Parche] Aplicado el fix __x_id a whatsapp-web.js (envío de archivos).');
+  } catch (err) {
+    console.warn('[Parche] No se pudo aplicar el fix __x_id:', err.message);
+  }
+})();
+
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
 const lineas = require('./lineas');
@@ -103,6 +137,19 @@ let numeroConectado = null;        // número de la línea con la que se vincul�
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// Marca de tiempo del último estado "sano" (listo o esperando QR). El watchdog
+// la usa para detectar si la conexión quedó trabada en "conectando".
+let ultimoOk = Date.now();
+
+/** Rechaza si la promesa no se resuelve dentro de `ms` (evita que se cuelgue). */
+function conTimeout(promesa, ms, etiqueta) {
+  let t;
+  const limite = new Promise((_, rej) => {
+    t = setTimeout(() => rej(new Error(`Se agotó el tiempo de ${etiqueta} (${ms} ms)`)), ms);
+  });
+  return Promise.race([promesa, limite]).finally(() => clearTimeout(t));
+}
+
 /* ---------------------------------------------
  * WHATSAPP CLIENT (con recuperación automática)
  * -------------------------------------------*/
@@ -132,6 +179,7 @@ function crearClient() {
 
   c.on('qr', async (qr) => {
     estado = 'esperando_qr';
+    ultimoOk = Date.now();
     try { ultimoQrDataUrl = await qrcode.toDataURL(qr); } catch (_) { ultimoQrDataUrl = null; }
     console.log('\n[WhatsApp] Escaneá este QR con la línea de la empresa');
     console.log('           (WhatsApp › Dispositivos vinculados › Vincular dispositivo).');
@@ -144,6 +192,7 @@ function crearClient() {
 
   c.on('ready', () => {
     estado = 'listo';
+    ultimoOk = Date.now();
     ultimoQrDataUrl = null;
     try { numeroConectado = (c.info && c.info.wid) ? c.info.wid.user : null; } catch (_) { numeroConectado = null; }
     console.log(`[WhatsApp] Conectado y listo. ENVÍA desde la línea: ${numeroConectado || 'desconocida'}.`);
@@ -180,7 +229,8 @@ async function reiniciarWhatsApp(borrar = false) {
     if (client) { try { await client.destroy(); } catch (_) {} }
     if (borrar) borrarSesion();
     client = crearClient();
-    await client.initialize();
+    // Tope de 2 minutos: si la conexión se cuelga, no queda trabado para siempre.
+    await conTimeout(client.initialize(), 120000, 'conexión a WhatsApp');
     reiniciando = false;
   } catch (err) {
     reiniciando = false;
@@ -274,22 +324,19 @@ async function enviarReportes() {
 
       const registros = await fetchRegistros(obsCode);
       const nombre = NOMBRES_BALANZA[obsCode] || obsCode;
-      const sinRegistros = registros.length === 0;
 
-      // Si no hubo tickets en el día, se manda un mensaje de TEXTO avisando
-      // "sin registros" en lugar de un Excel vacío.
-      let contenido, opciones;
-      if (sinRegistros) {
-        contenido = `*Pesada Balanza* — ${nombre}: sin registros del día ${hoy}.`;
-        opciones = {};
-      } else {
-        const workbook = generarWorkbookReporte(registros);
-        const buffer = await workbook.xlsx.writeBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        const filename = `reporte_${nombreBalanza(obsCode)}_${hoy}.xlsx`;
-        contenido = new MessageMedia(MIME_XLSX, base64, filename);
-        opciones = { caption: `Balanza: ${nombre}` };
+      // Si no hubo movimientos en el día, NO se envía nada para esa balanza.
+      if (registros.length === 0) {
+        console.log(`[Envío] ${obsCode} (${nombre}): sin registros del día, no se envía nada.`);
+        continue;
       }
+
+      const workbook = generarWorkbookReporte(registros);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      const filename = `reporte_${nombreBalanza(obsCode)}_${hoy}.xlsx`;
+      const media = new MessageMedia(MIME_XLSX, base64, filename);
+      const caption = `Balanza: ${nombre}`;
 
       for (const numero of numeros) {
         const chatId = await resolverChatId(numero);
@@ -311,11 +358,10 @@ async function enviarReportes() {
             await sleep(DELAY_MS);
             continue;
           }
-          await client.sendMessage(chatId, contenido, opciones);
+          await client.sendMessage(chatId, media, { caption });
           enviados++;
-          const detTickets = sinRegistros ? 'sin registros' : `${registros.length} tickets`;
-          detalle.push(`✅ ${obsCode} → ${numero} [llegó a: ${waId}] (${detTickets})`);
-          console.log(`[Envío] ${obsCode} → ${numero} [WhatsApp real: ${waId}]: OK (${detTickets})`);
+          detalle.push(`✅ ${obsCode} → ${numero} [llegó a: ${waId}] (${registros.length} tickets)`);
+          console.log(`[Envío] ${obsCode} → ${numero} [WhatsApp real: ${waId}]: OK (${registros.length} tickets)`);
         } catch (err) {
           salteados++;
           detalle.push(`❌ ${obsCode} → ${numero}: ${err.message}`);
@@ -464,6 +510,19 @@ async function main() {
   // 4) WhatsApp: arranca con recuperación automática (no bloquea ni cierra)
   console.log('[WhatsApp] Inicializando cliente...');
   reiniciarWhatsApp(false);
+
+  // 4b) Watchdog (vigilante): si WhatsApp queda trabado sin llegar a "listo"
+  // (ni esperando QR) por más de 4 minutos, fuerza una reconexión. Cubre el
+  // caso en que la sesión se "cuelga" en "conectando" y deja de enviar solo.
+  const WATCHDOG_MS = 4 * 60 * 1000;
+  setInterval(() => {
+    if (estado === 'listo' || estado === 'esperando_qr') { ultimoOk = Date.now(); return; }
+    if (!reiniciando && (Date.now() - ultimoOk) > WATCHDOG_MS) {
+      console.warn(`[Watchdog] WhatsApp lleva rato sin conectar (estado: ${estado}). Forzando reconexión...`);
+      ultimoOk = Date.now();
+      reiniciarWhatsApp(false);
+    }
+  }, 30000);
 
   // 5) Envío inmediato opcional para probar (--enviar-ahora)
   if (process.argv.includes('--enviar-ahora')) {

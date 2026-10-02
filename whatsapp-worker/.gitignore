@@ -1,4 +1,34 @@
-node_modules/
+# OJO con los comentarios: en un .gitignore el "#" SOLO abre comentario cuando
+# está al principio del renglón. Si se escribe al final de un patrón, pasa a ser
+# parte del patrón y la regla deja de ignorar nada.
+#
+# Esta lista tenía los comentarios al costado —".env   # contraseña de
+# MongoDB"— y por eso .env, .wwebjs_auth/, .perfil-chrome/ y node_modules/ NO
+# se estaban ignorando. Las sesiones de WhatsApp y de Google se habrían subido
+# al repositorio. Por eso ahora cada comentario va en su propio renglón.
+
+# ─── SECRETOS: nunca subir ───────────────────────────────────────────
+# .env: la cadena de conexión a MongoDB, con usuario y contraseña.
 .env
+# .wwebjs_auth/: la sesión de WhatsApp. Quien la tenga manda mensajes
+# como la línea de la empresa, sin escanear ningún QR.
 .wwebjs_auth/
+# .perfil-chrome/: la sesión de Google de la cuenta de tableros.
+.perfil-chrome/
+# destinatarios.js: teléfonos de personas y el ID del grupo de WhatsApp.
+# Este repositorio es PÚBLICO. Se versiona destinatarios.example.js, que
+# tiene la misma forma con números inventados.
+proyeccion/destinatarios.js
+
+# ─── Pesado o regenerable ────────────────────────────────────────────
+# node_modules/: se reconstruye con npm install.
+node_modules/
 .wwebjs_cache/
+
+# ─── Salida: son datos financieros, no van al repositorio ────────────
+salida/
+*.pdf
+*.png
+
+# ─── Local de la herramienta ─────────────────────────────────────────
+.claude/
