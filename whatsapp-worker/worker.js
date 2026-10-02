@@ -358,7 +358,14 @@ async function enviarReportes() {
             await sleep(DELAY_MS);
             continue;
           }
-          await client.sendMessage(chatId, media, { caption });
+          // sendMediaAsDocument fuerza la ruta de "documento" de WhatsApp en
+          // vez de la genérica de multimedia. Para un .xlsx es lo correcto —no
+          // es una foto ni un video— y usa código interno distinto: el genérico
+          // falla con "upload failed: media entry was not created" según la
+          // versión de WhatsApp Web. El enviador del Flujo de Fondos ya lo
+          // llevaba; acá faltaba, y por eso el reporte de balanza dejó de salir
+          // mientras el mensaje de texto seguía andando.
+          await client.sendMessage(chatId, media, { caption, sendMediaAsDocument: true });
           enviados++;
           detalle.push(`✅ ${obsCode} → ${numero} [llegó a: ${waId}] (${registros.length} tickets)`);
           console.log(`[Envío] ${obsCode} → ${numero} [WhatsApp real: ${waId}]: OK (${registros.length} tickets)`);
@@ -403,7 +410,9 @@ async function enviarReporteAUno(numeroDestino) {
   }
   const waId = String(chatId).replace('@c.us', '');
   try {
-    await client.sendMessage(chatId, media, { caption });
+    // Igual que el envío real: como documento, no como multimedia genérico.
+    // Si la prueba usara otro camino que el envío de verdad, no probaría nada.
+    await client.sendMessage(chatId, media, { caption, sendMediaAsDocument: true });
     console.log(`[Prueba] ${numeroDestino} [WhatsApp real: ${waId}]: OK (${registros.length} tickets)`);
     ultimoResumen = { fecha: hoy, cuando: hoy, enviados: 1, salteados: 0, detalle: [`✅ PRUEBA → ${numeroDestino} [llegó a: ${waId}] (${registros.length} tickets)`] };
   } catch (err) {
