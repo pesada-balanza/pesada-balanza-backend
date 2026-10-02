@@ -64,6 +64,8 @@ const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
 const lineas = require('./lineas');
 const { generarWorkbookReporte, ymd, MIME_XLSX } = require('./reporteExcel');
+// La versión de WhatsApp Web se define en UN solo lugar para los dos programas.
+const { WEB_VERSION, webVersionCache } = require('./version-web');
 
 /* ---------------------------------------------
  * RED DE SEGURIDAD: que ningún error suelto tumbe el worker.
@@ -170,6 +172,12 @@ function borrarSesion() {
 function crearClient() {
   const c = new Client({
     authStrategy: new LocalAuth({ dataPath: DATA_PATH }),
+    // Versión de WhatsApp Web FIJA, la misma que el enviador del Flujo de
+    // Fondos (ver version-web.js). Sin esto carga la última que WhatsApp
+    // sirva, y cuando WhatsApp se adelanta a whatsapp-web.js la conexión se
+    // queda clavada en "cargando 99%": se autentica, pero el "listo" no llega
+    // nunca y el panel muestra "Conectando..." para siempre.
+    webVersionCache,
     puppeteer: {
       headless: true,
       executablePath: CHROMIUM_PATH,   // undefined = usa el Chrome descargado por puppeteer
@@ -517,7 +525,9 @@ async function main() {
   console.log('[Cron] Programado el envío diario a las 19:00 (hora Argentina).');
 
   // 4) WhatsApp: arranca con recuperación automática (no bloquea ni cierra)
-  console.log('[WhatsApp] Inicializando cliente...');
+  // La versión va en el log para que, cuando algo se rompa, se sepa con cuál
+  // estaba andando sin tener que abrir ningún archivo.
+  console.log(`[WhatsApp] Inicializando cliente (WhatsApp Web ${WEB_VERSION})...`);
   reiniciarWhatsApp(false);
 
   // 4b) Watchdog (vigilante): si WhatsApp queda trabado sin llegar a "listo"

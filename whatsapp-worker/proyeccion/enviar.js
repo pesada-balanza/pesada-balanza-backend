@@ -112,11 +112,14 @@ const MIME_PDF = 'application/pdf';
 //   set WEB_VERSION=2.3000.1045915824-alpha
 //   set WEB_VERSION=2.3000.1045303712-alpha
 // Listado completo: https://github.com/wppconnect-team/wa-version/tree/main/html
-const WEB_VERSION = process.env.WEB_VERSION || '2.3000.1047412487-alpha';
-const webVersionCache = WEB_VERSION === 'auto' ? undefined : {
-  type: 'remote',
-  remotePath: `https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/${WEB_VERSION}.html`,
-};
+//
+// ⚠️ Ya NO se define acá. Estaba escrita en este archivo y el worker de balanza
+// no fijaba ninguna, así que el 02/10 —cuando WhatsApp actualizó— el enviador
+// siguió andando y el reporte de balanza se quedó clavado en 99% sin decir por
+// qué. Ahora sale de ../version-web.js, que es el único lugar donde está, y
+// arreglar uno arregla los dos. El comentario de arriba se deja porque es el
+// registro de qué versiones se probaron.
+const { WEB_VERSION, webVersionCache } = require('../version-web');
 
 /* ---------------------------------------------
  * ESTADO (para el panel web)

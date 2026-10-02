@@ -86,11 +86,25 @@ if (fs.existsSync(carpetaSesion)) {
 }
 
 /* ── 4. Intento de conexión, paso a paso ───────────────────────────────── */
+/* La MISMA versión fija que usan los dos programas. Si el diagnóstico probara
+   otra cosa, no probaría nada. Para tantear una distinta sin tocar archivos:
+     set WEB_VERSION=2.3000.1046901975-alpha
+     node diagnostico.js
+   y con `auto` deja que cargue la última, que es lo que se queda en 99%. */
+let WEB_VERSION = '(sin fijar)';
+let webVersionCache;
+try {
+  ({ WEB_VERSION, webVersionCache } = require('./version-web'));
+} catch (e) {
+  log('⚠ No encontré version-web.js — se prueba sin fijar versión.');
+}
+log('WhatsApp Web fijada en:', WEB_VERSION);
 log('Abriendo el cliente... (hasta 3 minutos)');
 
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const cliente = new Client({
   authStrategy: new LocalAuth(),
+  webVersionCache,
   puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
 });
 
