@@ -18,10 +18,16 @@
  * reporte de balanza se quedó clavado en 99% sin decir por qué. Teniéndola
  * acá, arreglar uno arregla los dos.
  *
- * ⚠️ NO cambiarla a la ligera. La de abajo está PROBADA (2026-09-18): con ella
- * el envío al grupo funciona y la conexión se mantiene estable.
+ * ⚠️ NO cambiarla a la ligera. La de abajo está PROBADA (2026-10-03): con ella
+ * el PDF llega al GRUPO y la conexión se mantiene estable.
  *
  * Las que NO sirven, para no repetir la prueba:
+ *   2.3000.1047412487-alpha  → la anterior, probada el 18/09. Andaba, pero al
+ *                              03/10 ya tenía dos semanas de atraso: el envío
+ *                              a un número seguía funcionando y el de un
+ *                              ARCHIVO A UN GRUPO empezó a fallar con "upload
+ *                              failed: media entry was not created". Ese es el
+ *                              síntoma de que la fijada quedó vieja.
  *   2.3000.1047806989-alpha  → conecta pero se cae todo el tiempo (watchdog
  *                              cada pocos minutos, estado "OPENING")
  *   auto (sin fijar)         → se queda en 99%, y el envío a grupos falla con
@@ -34,28 +40,26 @@
  *   set WEB_VERSION=2.3000.1049214511-alpha
  *   node diagnostico.js
  *
- * ── Pendiente al 03/10/2026 ──────────────────────────────────────────
- * La versión de abajo es del 18/09 y WhatsApp hoy sirve 2.3000.1049214511:
- * dos semanas y una docena de versiones de atraso. Con ese desfasaje el
- * envío a un NÚMERO funciona (el worker de balanza manda su Excel sin
- * problemas) pero el envío de un archivo a un GRUPO falla con "upload
- * failed: media entry was not created".
+ * ── Cómo saber que ESTA quedó vieja ──────────────────────────────────
+ * No avisa de golpe: se degrada por partes, y de menos a más grave.
+ *   1º  El archivo a un GRUPO falla con "upload failed: media entry was
+ *       not created", mientras el texto al grupo y todo lo que va a un
+ *       número siguen andando. Fue el síntoma del 03/10.
+ *   2º  Empieza a fallar también a los números.
+ *   3º  No conecta más: se clava en "cargando 99%".
+ * O sea que el primer reporte que no llega al grupo ya es la señal: hay
+ * que subir la versión antes de que se caiga el resto.
  *
- * No se cambia todavía porque el worker de balanza anda bien con esta y
- * tocarla a ciegas lo rompería. Hay que probar primero, de más nueva a más
- * vieja, hasta que el PDF llegue al grupo:
- *   2.3000.1049214511-alpha   (la que WhatsApp sirve hoy)
- *   2.3000.1049155021-alpha
- *   2.3000.1049007170-alpha
- *   2.3000.1048960956-alpha
- * Para ver el listado al día:
+ * Para ver cuál sirve WhatsApp hoy y qué versiones hay:
  *   https://raw.githubusercontent.com/wppconnect-team/wa-version/main/versions.json
+ * El campo "currentVersion" es la que está sirviendo en este momento, y
+ * suele ser la que conviene fijar.
  * ─────────────────────────────────────────────────────────────────────
  *
  * Listado completo: https://github.com/wppconnect-team/wa-version/tree/main/html
  * ===================================================================== */
 
-const WEB_VERSION = process.env.WEB_VERSION || '2.3000.1047412487-alpha';
+const WEB_VERSION = process.env.WEB_VERSION || '2.3000.1049214511-alpha';
 
 /* `auto` deja que cargue la última. Sirve para probar si una versión nueva de
    WhatsApp ya viene arreglada, pero no conviene dejarlo puesto: es volver a
