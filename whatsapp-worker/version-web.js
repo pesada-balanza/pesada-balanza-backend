@@ -28,13 +28,30 @@
  *                              "Data passed to getter must include an id
  *                              property"
  *
- * Si algún día vuelve a romperse, probar de más nueva a más vieja SIN tocar
- * este archivo, con la variable de entorno:
+ * Si algún día vuelve a romperse, probar SIN tocar este archivo, con la
+ * variable de entorno, y recién cuando una ande escribirla acá abajo:
  *
- *   set WEB_VERSION=2.3000.1046901975-alpha
+ *   set WEB_VERSION=2.3000.1049214511-alpha
  *   node diagnostico.js
  *
- * y cuando una ande, recién ahí escribirla acá abajo.
+ * ── Pendiente al 03/10/2026 ──────────────────────────────────────────
+ * La versión de abajo es del 18/09 y WhatsApp hoy sirve 2.3000.1049214511:
+ * dos semanas y una docena de versiones de atraso. Con ese desfasaje el
+ * envío a un NÚMERO funciona (el worker de balanza manda su Excel sin
+ * problemas) pero el envío de un archivo a un GRUPO falla con "upload
+ * failed: media entry was not created".
+ *
+ * No se cambia todavía porque el worker de balanza anda bien con esta y
+ * tocarla a ciegas lo rompería. Hay que probar primero, de más nueva a más
+ * vieja, hasta que el PDF llegue al grupo:
+ *   2.3000.1049214511-alpha   (la que WhatsApp sirve hoy)
+ *   2.3000.1049155021-alpha
+ *   2.3000.1049007170-alpha
+ *   2.3000.1048960956-alpha
+ * Para ver el listado al día:
+ *   https://raw.githubusercontent.com/wppconnect-team/wa-version/main/versions.json
+ * ─────────────────────────────────────────────────────────────────────
+ *
  * Listado completo: https://github.com/wppconnect-team/wa-version/tree/main/html
  * ===================================================================== */
 
