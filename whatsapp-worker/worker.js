@@ -66,6 +66,8 @@ const lineas = require('./lineas');
 const { generarWorkbookReporte, ymd, MIME_XLSX } = require('./reporteExcel');
 // La versión de WhatsApp Web se define en UN solo lugar para los dos programas.
 const { WEB_VERSION, webVersionCache } = require('./version-web');
+// Suelta el candado que deja un Chrome que murió sin cerrar bien.
+const { esSesionTrabada, destrabarSesion } = require('./destrabar-sesion');
 
 /* ---------------------------------------------
  * RED DE SEGURIDAD: que ningún error suelto tumbe el worker.
@@ -244,6 +246,15 @@ async function reiniciarWhatsApp(borrar = false) {
     reiniciando = false;
     const msg = err && err.message ? err.message : String(err);
     console.error('[WhatsApp] Error al inicializar:', msg);
+
+    /* Chrome colgado de la vuelta anterior: el candado que dejó en la carpeta
+       de sesión impide abrir otro. Sin esto, el reintento repite el MISMO
+       error cada 15 segundos para siempre, porque nadie limpia ese archivo. */
+    if (esSesionTrabada(msg) && destrabarSesion(msg)) {
+      setTimeout(() => reiniciarWhatsApp(false), 2000);
+      return;
+    }
+
     // Estos errores suelen indicar sesión/estado corrupto → conviene borrar.
     const corrupta = /Execution context was destroyed|Protocol error|Target closed|Session closed/i.test(msg);
     console.log(`[WhatsApp] Reintentando en 15 segundos${corrupta ? ' (borrando sesión corrupta)' : ''}...`);
