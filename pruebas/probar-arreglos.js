@@ -291,6 +291,124 @@ async function main() {
     g2.silobolsas.reduce((a, b) => a + b.kg, 0) + ' vs ' + g2.neto);
   ok('el campo de siempre trae los dos números', g2.silobolsa === '12 · 13', g2.silobolsa);
 
+  /* ═══ Cuánto lleva ya una silobolsa ═══
+   *
+   * Se le puede imputar hasta 300 tn por campaña. No bloquea: avisa al tipear
+   * el número, que es cuando sirve. El caso real no es una bolsa que de verdad
+   * rebalsa, es el número mal tipeado. */
+  console.log('\n── El tope de 300 tn por silobolsa');
+
+  const CAMPO_TOPE = 'El Mataco - SACHAYOJ - SE';
+  let idTope = 7800;
+  const bolsaCargada = async (nro, kg, extra) => {
+    await baseFalsa.collection('registros').insertOne(Object.assign({
+      idTicket: idTope++, nroApp: '1-' + idTope, origen: 'app', fecha: hoy(),
+      fechaTaraFinal: hoy(), fechaRegulada: hoy(), pesadaPara: 'REGULADA',
+      confirmada: true, anulado: false, campo: CAMPO_TOPE, codigoIngreso: '5679',
+      grano: 'SOJA', lote: ['Lote 1'], transporte: 'Ciriaci', patentes: 'TP 000 AA',
+      chofer: 'Tope', cargaPara: 'AMH', socio: '', cargoDe: 'SILOBOLSA',
+      tara: 15600, bruto: 52500, brutoLote: 52500, neto: kg,
+      silobolsa: String(nro), silobolsas: [{ nro: String(nro), kg }],
+    }, extra || {}));
+  };
+
+  // La 55 queda PASADA: 10 viajes de 31 tn = 310 tn.
+  for (let i = 0; i < 10; i++) await bolsaCargada('55', 31000);
+  // La 56, a mitad de camino.
+  for (let i = 0; i < 4; i++) await bolsaCargada('56', 31000);
+  // Nada de esto puede sumar: anulado, sin regular, y de OTRO campo.
+  await bolsaCargada('55', 99000, { anulado: true });
+  await bolsaCargada('55', 99000, { fechaRegulada: undefined, pesadaPara: 'TARA FINAL' });
+  await bolsaCargada('55', 99000, { campo: 'Quimili - QUIMILI - SE', codigoIngreso: '5684' });
+  // Un ticket VIEJO, sin la lista de bolsas: una sola tipeada, el neto fue ahí.
+  await bolsaCargada('57', 28000, { silobolsas: undefined });
+  // Y otro viejo con DOS en el texto: no hay forma de saber cuánto fue a cada una.
+  await bolsaCargada('58', 30000, { silobolsa: '58 y 59', silobolsas: undefined });
+
+  const pedirTope = async (pg, nro, campo) => pg.evaluate(async (q) => {
+    const r = await fetch('/app/api/silobolsa?campo=' + encodeURIComponent(q.campo) +
+      '&nro=' + encodeURIComponent(q.nro), { headers: { Accept: 'application/json' } });
+    return (await r.json()).datos;
+  }, { nro, campo: campo || CAMPO_TOPE });
+
+  const t55 = await pedirTope(pg, '55');
+  ok('suma los kg de todos los viajes de esa bolsa', t55 && t55.kg === 310000, t55 && t55.kg);
+  ok('y no cuenta el anulado ni el que no cerró la regulada',
+    t55 && t55.viajes === 10, t55 && t55.viajes);
+  ok('el tope que informa es el de 300 tn', t55 && t55.tope === 300000, t55 && t55.tope);
+
+  const t55otro = await pedirTope(pg, '55', 'Quimili - QUIMILI - SE');
+  ok('la misma bolsa en otro campo es OTRA bolsa',
+    t55otro && t55otro.kg === 0, t55otro && t55otro.kg);
+
+  const t56 = await pedirTope(pg, '56');
+  ok('una bolsa a medias suma lo suyo', t56 && t56.kg === 124000, t56 && t56.kg);
+
+  const t57 = await pedirTope(pg, '57');
+  ok('un ticket viejo con UNA sola bolsa se puede atribuir entero',
+    t57 && t57.kg === 28000, t57 && t57.kg);
+
+  const t58 = await pedirTope(pg, '58');
+  ok('uno viejo con varias bolsas no se inventa: queda "sin repartir"',
+    t58 && t58.kg === 0 && t58.sinRepartir === 1,
+    t58 && (t58.kg + ' kg · ' + t58.sinRepartir + ' sin repartir'));
+
+  const tVacia = await pedirTope(pg, '999');
+  ok('una bolsa sin nada arranca en cero', tVacia && tVacia.kg === 0, tVacia && tVacia.kg);
+
+  // Y en la pantalla, que es donde lo ve el balancero.
+  const conTF3 = await baseFalsa.collection('registros').insertOne({
+    idTicket: 7900, nroApp: '1-7900', origen: 'app', fecha: hoy(),
+    fechaTaraFinal: hoy(), usuario: 'Juan Sosa', pesadaPara: 'CAMIONES',
+    cargaPara: 'AMH', transporte: 'Ciriaci', patentes: 'TP 999 ZZ',
+    chofer: 'Mira El Tope', campo: CAMPO_TOPE,
+    brutoEstimado: 52500, tara: 15600, netoEstimado: 36900,
+    codigoIngreso: '5679', anulado: false, confirmada: false, modificaciones: 0,
+  });
+
+  await pg.goto(BASE + '/app/regulada/' + conTF3.insertedId, { waitUntil: 'networkidle' });
+  // El orden de la pantalla: grano, lote, los pesos y recién después "Cargó de".
+  const granosTope = await pg.$$eval('#grano option', (o) =>
+    o.map((x) => x.value).filter(Boolean));
+  await pg.selectOption('#grano', granosTope[0]);
+  await pg.waitForTimeout(250);
+  await pg.check('input[name="lote"]');
+  await pg.fill('#brutoLote', '52000');
+  await pg.fill('#bruto', '52500');
+  await pg.waitForTimeout(200);
+  await pg.click('[data-opciones="cargoDe"] [data-valor="SILOBOLSA"]');
+  await pg.waitForTimeout(150);
+  await pg.fill('.nro-silo', '55');
+  await pg.waitForTimeout(1200);
+  const avisoPasada = (await pg.textContent('#aviso-tope')) || '';
+  ok('la pantalla avisa cuando la bolsa ya pasó las 300 tn',
+    /310/.test(avisoPasada) && /300/.test(avisoPasada), avisoPasada.trim());
+  ok('y lo marca como algo para mirar, no como un dato más',
+    (await pg.$('#aviso-tope .campo-error')) !== null, avisoPasada.trim());
+
+  await pg.fill('.nro-silo', '56');
+  await pg.waitForTimeout(1200);
+  const avisoMedias = (await pg.textContent('#aviso-tope')) || '';
+  ok('con una bolsa a medias informa, sin marcarla',
+    /124/.test(avisoMedias) && (await pg.$('#aviso-tope .campo-error')) === null,
+    avisoMedias.trim());
+
+  // Lo que de verdad importa: avisar no puede impedir registrar el camión.
+  await pg.fill('.nro-silo', '55');
+  await pg.waitForTimeout(250);
+  await pg.click('#guardar-reg');
+  await pg.waitForTimeout(1500);
+  const guardadoTope = baseFalsa.collection('registros').docs.find(
+    (d) => String(d._id) === String(conTF3.insertedId)
+  );
+  ok('el aviso NO bloquea: la regulada se guarda igual',
+    guardadoTope && guardadoTope.pesadaPara === 'REGULADA' && guardadoTope.neto === 36900,
+    guardadoTope && (guardadoTope.pesadaPara + ' · ' + guardadoTope.neto));
+  ok('y la bolsa pasada quedó registrada como se tipeó',
+    guardadoTope && Array.isArray(guardadoTope.silobolsas) &&
+    guardadoTope.silobolsas[0].nro === '55',
+    guardadoTope && JSON.stringify(guardadoTope.silobolsas));
+
   /* ═══ 1. GENERAL: camino para ir a cargar ═══ */
   console.log('\n── GENERAL: cómo pasar a cargar');
   const g = await abrir('12341');

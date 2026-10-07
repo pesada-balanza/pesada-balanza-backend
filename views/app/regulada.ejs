@@ -125,6 +125,10 @@
         <div class="caja-silo" id="filas-silo"></div>
         <button type="button" class="mas-silo" id="mas-silo">＋ Silobolsa</button>
         <span class="txt-aux" id="aviso-silo">&nbsp;</span>
+        <%# Cuánto lleva ya cada bolsa en la campaña. Avisa al tipear el número,
+            que es cuando sirve: si la bolsa que se eligió está llena, casi
+            siempre es que el número está mal. No frena nada. %>
+        <span class="txt-aux" id="aviso-tope"></span>
       </div>
 
       <div class="campo oculto" id="campo-contratista">
@@ -217,6 +221,8 @@
     // Al cambiar el campo, grano y lote se eligen de nuevo: los de antes ya no valen.
     pintarGranos();
     pintarLotes();
+    // Y lo que lleva cada bolsa también: la "17" de otro campo es otra bolsa.
+    if (typeof olvidarTopes === 'function') olvidarTopes();
   });
 
   /* ── Granos del campo elegido ─────────────────────────────────────────── */
@@ -469,6 +475,80 @@
     }
     filasSilo.innerHTML = html;
     refrescarResto();
+    // Al agregar o quitar una fila cambian las bolsas en juego, y el aviso de
+    // cuánto lleva cada una tiene que seguirlas.
+    if (typeof pintarTopes === 'function') pintarTopes();
+  }
+
+  /* ── Cuánto lleva ya cada silobolsa ───────────────────────────────────────
+     El tope son <%= topeSilobolsaKg %> kg por bolsa en la campaña. El aviso es
+     para agarrar el número mal tipeado, que es lo que de verdad pasa: si la
+     bolsa elegida está llena, casi siempre se quiso poner otra. No bloquea: el
+     que está mirando la bolsa decide.
+
+     Lo consultado se guarda en `topes` para no volver a preguntar por el mismo
+     número en cada tecla, y si no hay señal simplemente no aparece el aviso —
+     registrar el camión no puede depender de esto. */
+  var avisoTope = document.getElementById('aviso-tope');
+  var TOPE_SILO = <%= topeSilobolsaKg %>;
+  var topes = {};          // nro → datos del servidor, o 'pidiendo'
+  var timerTope = null;
+
+  function pintarTopes() {
+    var partes = [];
+    var vistos = {};
+    for (var i = 0; i < silos.length; i++) {
+      var n = silos[i].nro;
+      var d = n && topes[n];
+      if (!n || !d || d === 'pidiendo' || vistos[n]) continue;
+      vistos[n] = true;
+      var tn = (d.kg / 1000).toLocaleString('es-AR', { maximumFractionDigits: 1 });
+      var tope = (d.tope / 1000).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+      var texto = 'Silobolsa ' + n + ': ' + tn + ' de ' + tope + ' tn' +
+        (d.campana ? ' en la campaña ' + d.campana : '');
+      // Lo que falta decir: hay viajes viejos cuyos kg no se pueden repartir
+      // entre las bolsas que tocaron, así que el acumulado se queda corto.
+      if (d.sinRepartir) {
+        texto += ' (+' + d.sinRepartir + ' viaje' + (d.sinRepartir === 1 ? '' : 's') +
+          ' viejo' + (d.sinRepartir === 1 ? '' : 's') + ' sin repartir)';
+      }
+      if (d.kg >= d.tope) {
+        partes.push('<span class="campo-error">⚠ ' + texto + '. ¿Es la bolsa correcta?</span>');
+      } else {
+        partes.push(texto);
+      }
+    }
+    avisoTope.innerHTML = partes.join('<br>');
+  }
+
+  function mirarTope(nro) {
+    if (!nro || !/^\d{1,3}$/.test(nro) || topes[nro]) return;
+    topes[nro] = 'pidiendo';
+    var campoPedido = campoElegido;
+    App.pedir('GET', '/app/api/silobolsa?campo=' + encodeURIComponent(campoPedido) +
+      '&nro=' + encodeURIComponent(nro), null, function (err, cuerpo) {
+      // Si mientras tanto cambiaron el campo, lo que volvió es de otra bolsa.
+      if (campoPedido !== campoElegido) { delete topes[nro]; return; }
+      if (err || !cuerpo || !cuerpo.datos) { delete topes[nro]; return; }
+      topes[nro] = cuerpo.datos;
+      pintarTopes();
+    });
+  }
+
+  /** Espera a que termine de tipear: son hasta 3 dígitos y "1" no es "17". */
+  function mirarTopesPronto() {
+    window.clearTimeout(timerTope);
+    timerTope = window.setTimeout(function () {
+      for (var i = 0; i < silos.length; i++) mirarTope(silos[i].nro);
+      pintarTopes();
+    }, 500);
+  }
+
+  /** Al cambiar de campo lo consultado ya no sirve: son otras bolsas. */
+  function olvidarTopes() {
+    topes = {};
+    avisoTope.innerHTML = '';
+    mirarTopesPronto();
   }
 
   filasSilo.addEventListener('input', function (ev) {
@@ -478,6 +558,7 @@
     if (el.getAttribute('data-campo') === 'nro') {
       el.value = soloDigitos(el.value, 3);
       silos[i].nro = el.value;
+      mirarTopesPronto();
       return;
     }
     el.value = soloDigitos(el.value, 5);
@@ -503,6 +584,9 @@
   });
 
   dibujarSilos();
+  // La primera fila ya viene con el último número usado en el campo, así que
+  // el aviso sale sin que el balancero tipee nada.
+  mirarTopesPronto();
 
   /* ── Guardar ──────────────────────────────────────────────────────────── */
   function guardar() {

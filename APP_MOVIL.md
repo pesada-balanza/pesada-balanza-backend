@@ -1158,6 +1158,50 @@ La suma se revisa **también en el servidor**, no solo en el teléfono: la cola 
 señal reenvía lo que tenga guardado, y un teléfono viejo podría mandar otra cosa.
 Se tolera **1 kg** de diferencia por el redondeo de cada bolsa.
 
+### El tope de 300 tn por silobolsa
+
+Al tipear el número de la bolsa, la pantalla dice **cuánto lleva imputado en lo
+que va de la campaña**:
+
+```
+Silobolsa 18: 124 de 300 tn en la campaña 26/27
+⚠ Silobolsa 55: 310 de 300 tn en la campaña 26/27. ¿Es la bolsa correcta?
+```
+
+**No bloquea, y es a propósito.** El caso real no es una bolsa que de verdad
+rebalsa: es **el número mal tipeado** —se puso la 17 cuando era la 18—. Quien
+está parado frente a la bolsa sabe más que el acumulado, así que el aviso le da
+el dato y la decisión queda de su lado. Si bloqueara, un camión a las 11 de la
+noche quedaría sin poder registrarse por un tope que quizás no corresponde.
+
+El número está en `app.js` (`TOPE_SILOBOLSA_KG`) y viaja a la pantalla desde el
+servidor, igual que los límites de la tara: un solo lugar donde cambiarlo.
+
+**Se acumula desde que arrancó la campaña**, no desde siempre. Los números de
+bolsa se reusan cada año; contando todo, con el tiempo *todas* darían pasadas de
+300 tn y el aviso dejaría de querer decir nada.
+
+**La bolsa es campo + número**, el mismo criterio que "Ver datos": la 17 de
+Quimili no es la 17 de El Mataco. Al cambiar el campo en la pantalla, lo
+consultado se descarta.
+
+De dónde salen los kg, en este orden:
+
+1. De `silobolsas`, la lista nueva: cada bolsa con sus kg de verdad.
+2. De los tickets **viejos con UNA sola bolsa** tipeada: el neto entero fue ahí,
+   así que se puede atribuir sin inventar nada.
+3. Los viejos con **varias** en el texto (`12 y 13`) y sin lista **no se
+   reparten**: no hay forma de saber cuánto fue a cada una. Se cuentan aparte y
+   el aviso lo dice —"+2 viajes viejos sin repartir"—, para que se entienda que
+   el acumulado se queda corto en vez de parecer exacto.
+
+No cuentan los **anulados** ni los que **no cerraron la regulada**, igual que en
+todo el resto: hasta que no hay neto pesado, no hay kg que imputar.
+
+> **Si no hay señal, no hay aviso y listo.** La consulta va al servidor; si
+> falla, la pantalla no muestra nada y la regulada se registra igual. Registrar
+> un camión no puede depender de poder mirar un acumulado.
+
 ### Por qué cambió el orden del formulario
 
 Quedó: **Grano · Lote · Bruto lote · Bruto regulado · Neto · Cargó de ·

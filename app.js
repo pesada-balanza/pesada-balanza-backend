@@ -1245,6 +1245,16 @@ const TARA_MIN = 1000;
 const TARA_MAX = 40000;
 const TARA_ESTIMADA_MIN = 0;
 
+/* Cuánto se le puede imputar a UNA silobolsa. No frena el registro: la pantalla
+ * de regulada avisa cuánto lleva la bolsa al tipear el número, y el balancero
+ * decide. Es para agarrar el número mal tipeado —que es lo que de verdad pasa—,
+ * no para discutirle a quien está mirando la bolsa.
+ *
+ * Se acumula DESDE QUE ARRANCÓ LA CAMPAÑA: los números se reusan cada año, y
+ * contando desde siempre todas terminarían pasadas de 300 tn y el aviso no
+ * querría decir nada. */
+const TOPE_SILOBOLSA_KG = 300000;
+
 
 /* ---------------------------------------------
  * APP MÓVIL (/app) — PWA para los balanceros
@@ -1261,6 +1271,7 @@ if (process.env.APP_MOVIL === '1') {
     codigosIngreso, codigosObservacion, ingresoAObservacion,
     ymd, validarNumero, ticketVigente, notificar, resolverNombreCodigo,
     TARA_MIN, TARA_MAX, TARA_ESTIMADA_MIN,
+    TOPE_SILOBOLSA_KG,
     normalizarCampo, campoValido,
     normalizarSocio, socioValido,
     DIAS_CAMIONES_A_TARA_FINAL, DIAS_TARA_FINAL_A_REGULADA,

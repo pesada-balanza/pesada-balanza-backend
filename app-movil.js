@@ -52,6 +52,8 @@ module.exports = function crearAppMovil(deps) {
     TARA_MIN,
     TARA_MAX,
     TARA_ESTIMADA_MIN,
+    // Cuánto se le puede imputar a una silobolsa antes de que la pantalla avise.
+    TOPE_SILOBOLSA_KG,
     // Un campo renombrado se sigue entendiendo por su nombre viejo.
     normalizarCampo,
     campoValido,
@@ -618,6 +620,95 @@ module.exports = function crearAppMovil(deps) {
       return '';
     }
   }
+
+  /**
+   * Cuántos kg lleva imputados UNA silobolsa en lo que va de la campaña.
+   *
+   * Sirve para avisar en la pantalla de regulada —"la 17 ya tiene 284 tn"—
+   * antes de que se cargue un viaje en la bolsa equivocada. No frena nada: el
+   * número lo decide quien está mirando la bolsa.
+   *
+   * La bolsa es CAMPO + NÚMERO, igual que en "Ver datos": los números se
+   * repiten entre establecimientos y el "3" de Quimili no es el de El Mataco.
+   *
+   * De dónde salen los kg, en este orden:
+   *  1. `silobolsas`, la lista nueva: cada bolsa con sus kg de verdad.
+   *  2. Tickets viejos con UNA sola bolsa tipeada: el neto entero fue ahí.
+   *  3. Tickets viejos con varias en el texto ("12 y 13") y sin lista: no hay
+   *     forma de saber cuánto fue a cada una. No se inventa; se cuentan aparte
+   *     y la pantalla avisa que el acumulado se queda corto.
+   */
+  async function acumuladoSilobolsa(campo, nro, codigoIngreso) {
+    const numero = String(nro || '').trim();
+    if (!campo || !/^\d{1,3}$/.test(numero)) return null;
+
+    const campana = typeof rangoCampana === 'function' ? rangoCampana(hoyStr()) : null;
+    const desde = campana ? campana.desde : '';
+
+    const filtro = {
+      campo,
+      codigoIngreso,
+      cargoDe: 'SILOBOLSA',
+      anulado: { $ne: true },
+      fechaRegulada: { $exists: true },
+    };
+    if (desde) filtro.fecha = { $gte: desde };
+
+    const docs = await colRegistros()
+      .find(filtro, { projection: { neto: 1, silobolsa: 1, silobolsas: 1 } })
+      .toArray();
+
+    let kgTotal = 0;
+    let viajes = 0;
+    let sinRepartir = 0;
+    for (const r of docs) {
+      if (Array.isArray(r.silobolsas) && r.silobolsas.length) {
+        let suyos = 0;
+        for (const b of r.silobolsas) {
+          if (String((b && b.nro) || '').trim() === numero) suyos += Number(b.kg) || 0;
+        }
+        if (suyos > 0) { kgTotal += suyos; viajes++; }
+        continue;
+      }
+      const texto = String(r.silobolsa || '').trim();
+      const numeros = texto.match(/\d{1,3}/g) || [];
+      if (numeros.length === 1 && numeros[0] === numero) {
+        kgTotal += Number(r.neto) || 0;
+        viajes++;
+      } else if (numeros.length > 1 && numeros.indexOf(numero) !== -1) {
+        sinRepartir++;
+      }
+    }
+
+    return {
+      nro: numero,
+      kg: Math.round(kgTotal),
+      viajes,
+      sinRepartir,
+      tope: TOPE_SILOBOLSA_KG,
+      campana: campana ? campana.etiqueta : '',
+    };
+  }
+
+  /* Lo consulta la pantalla de regulada al tipear el número de la bolsa. Es de
+     solo lectura y vale lo mismo que el resto: cada código ve SU balanza. */
+  router.get('/api/silobolsa', exigirApp, async (req, res) => {
+    try {
+      const s = sesionApp(req);
+      const campo = normalizarCampo(String(req.query.campo || ''));
+      const nro = String(req.query.nro || '').trim();
+      if (!campo || !/^\d{1,3}$/.test(nro)) {
+        return res.json({ ok: true, datos: null });
+      }
+      const datos = await acumuladoSilobolsa(campo, nro, s.codigoIngreso);
+      return res.json({ ok: true, datos });
+    } catch (err) {
+      // Que no se pueda mirar el acumulado NO puede impedir registrar un
+      // camión: la pantalla se queda sin el aviso y sigue andando.
+      console.warn('[app-movil] no se pudo calcular el acumulado del silobolsa:', err.message);
+      return res.json({ ok: true, datos: null });
+    }
+  });
 
   /* =========================================================================
    * QUÉ PASO LE FALTA A UN TICKET
@@ -1658,6 +1749,9 @@ module.exports = function crearAppMovil(deps) {
         // carga durante varios viajes seguidos, así que lo normal es que el
         // balancero no tenga que tocarlo.
         ultimoSilobolsa: await ultimoSilobolsaDelCampo(normalizarCampo(r.campo), s.codigoIngreso),
+        // Para el aviso de cuánto lleva cada bolsa. Viaja desde el servidor
+        // para que el número esté definido en un solo lugar (app.js).
+        topeSilobolsaKg: TOPE_SILOBOLSA_KG,
         kg,
       });
     } catch (err) {
