@@ -254,6 +254,46 @@ async function main() {
   ok('el 1240 no puede mirar la lista de otra balanza',
     /Sin permiso/.test(r.texto) || r.estado === 403, r.estado);
 
+  /* ── La lista va por lo ÚLTIMO TOCADO, no por lo último registrado ──────
+   *
+   * Un camión que entró a la mañana y recién ahora cerró su regulada es lo que
+   * el balancero acaba de hacer, y es donde va a mirar. Antes quedaba enterrado
+   * entre los de la mañana y había que ir a buscarlo.
+   *
+   * Día aparte, para no mover los totales que se comprueban más arriba. */
+  const DIA_ORDEN = haceDias(7);
+  const hs = (h) => new Date(DIA_ORDEN + 'T' + String(h).padStart(2, '0') + ':00:00Z');
+  const delOrden = (extra) => meterTicket(Object.assign(
+    { fecha: DIA_ORDEN, fechaTaraFinal: undefined, fechaRegulada: undefined,
+      pesadaPara: 'CAMIONES', codigoIngreso: QUIMILI }, extra));
+
+  // Entró primero y sigue abierto.
+  delOrden({ patentes: 'OR 001 AA', chofer: 'Entro Temprano', creadoEn: hs(7) });
+  // Entró segundo, y es el ÚLTIMO en registrarse (número de ticket más alto)…
+  delOrden({ patentes: 'OR 002 BB', chofer: 'Entro Despues', creadoEn: hs(8) });
+  // …pero el PRIMERO entró a la tarde a cerrar su regulada: va arriba de todo.
+  delOrden({ patentes: 'OR 003 CC', chofer: 'Cerro Ultimo', creadoEn: hs(6),
+    pesadaPara: 'REGULADA', fechaTaraFinal: DIA_ORDEN, fechaRegulada: DIA_ORDEN,
+    appTaraFinalEn: hs(15), appReguladaEn: hs(18) });
+  /* Un ticket de la WEB: no tiene ninguna de las marcas de tiempo de la app.
+     Ahí se usa la hora que trae adentro el `_id` de Mongo, que es la de su
+     creación —por eso se lo arma con `createFromTime` y no con un `_id` de
+     hoy, que sería un dato que en la base no existe—. Entró a las 5, así que
+     va al final: lo que se comprueba es que tenga una hora de verdad y no
+     quede afuera del orden por no haber pasado por la app. */
+  delOrden({ _id: ObjectId.createFromTime(Math.floor(hs(5).getTime() / 1000)),
+    patentes: 'OR 004 DD', chofer: 'De La Web', origen: 'web', creadoEn: undefined });
+
+  r = await ir('GET', '/app/general/balanza/' + QUIMILI + '?fecha=' + DIA_ORDEN);
+  const orden = (r.texto.match(/OR \d{3} [A-Z]{2}/g) || []);
+  ok('la lista de ese día trae los cuatro', orden.length === 4, orden.join(' · '));
+  ok('arriba va el que cerró la regulada recién, aunque haya entrado primero',
+    orden[0] === 'OR 003 CC', orden.join(' · '));
+  ok('después sigue el orden de entrada, del más nuevo al más viejo',
+    orden[1] === 'OR 002 BB' && orden[2] === 'OR 001 AA', orden.join(' · '));
+  ok('un ticket de la web se ordena por la hora que trae su _id',
+    orden[3] === 'OR 004 DD', orden.join(' · '));
+
   /* ═══════════════════════════════════════════════════════════════════════
    * IMPRIMIR LOS TICKETS DEL DÍA QUE SE ESTÁ MIRANDO
    * ═════════════════════════════════════════════════════════════════════ */

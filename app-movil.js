@@ -752,6 +752,28 @@ module.exports = function crearAppMovil(deps) {
     REGULADA: 'Falta regulada',
   };
 
+  /**
+   * Cuándo se tocó por última vez el ticket: se creó, se le puso la tara final
+   * o se cerró la regulada. En milisegundos, para ordenar.
+   *
+   * No hace falta ningún campo nuevo ni migrar nada: las tres marcas de tiempo
+   * ya se venían guardando en cada paso. Para los tickets de la web, que no las
+   * tienen, se usa la hora que trae adentro el `_id` de Mongo, que es la de su
+   * creación: así todos tienen una hora y ninguno se va al fondo de la lista
+   * por no haber pasado por la app.
+   */
+  function tocadoEn(r) {
+    let cuando = 0;
+    for (const d of [r && r.creadoEn, r && r.appTaraFinalEn, r && r.appReguladaEn]) {
+      const t = d ? new Date(d).getTime() : 0;
+      if (Number.isFinite(t) && t > cuando) cuando = t;
+    }
+    if (!cuando && r && r._id && typeof r._id.getTimestamp === 'function') {
+      try { cuando = r._id.getTimestamp().getTime(); } catch (_) { /* _id raro */ }
+    }
+    return cuando;
+  }
+
   /** El texto que va en el chip. '' cuando no falta nada. */
   function textoFalta(r) {
     return TEXTO_FALTA[faltaDelTicket(r)] || '';
@@ -3800,10 +3822,25 @@ module.exports = function crearAppMovil(deps) {
       }
       const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.fecha || '')) ? req.query.fecha : hoyStr();
 
+      /* Lo ÚLTIMO TOCADO arriba, no lo último registrado. Un camión que entró a
+         la mañana y recién ahora cerró su regulada es lo que el balancero acaba
+         de hacer, y es donde va a mirar: si quedara enterrado entre los de la
+         mañana, hay que ir a buscarlo.
+
+         El orden se arma acá y no en la consulta porque no hay un solo campo
+         que lo diga: es la más nueva de las tres marcas de tiempo del ticket.
+         No cuesta nada igual —ver abajo—.
+
+         Empate: el número de ticket más alto primero. Pasa con los tickets de
+         la web, que comparten la hora del minuto en que se crearon. */
       const docs = await colRegistros()
         .find({ codigoIngreso: codigo, fecha, anulado: { $ne: true } })
-        .sort({ idTicket: -1 })
         .toArray();
+      // La hora se calcula UNA vez por ticket y no adentro de la comparación,
+      // que para ordenar mira cada uno muchas veces.
+      for (const r of docs) r.__tocado = tocadoEn(r);
+      docs.sort((a, b) => (b.__tocado - a.__tocado) ||
+        ((Number(b.idTicket) || 0) - (Number(a.idTicket) || 0)));
 
       const camiones = docs.map((r) => ({
         id: String(r._id),

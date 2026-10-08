@@ -1381,6 +1381,46 @@ cómo mirar atrás ni cómo encontrar un camión puntual. Ahora hay dos formas, 
 dos están en **todos los códigos de ver registros** (`1235` … `1241` y el `12341`),
 y también en los códigos de balanza.
 
+### El orden de la lista de una balanza
+
+Los camiones van **por lo último tocado**, no por lo último registrado.
+
+Antes se ordenaba por número de ticket, que es el orden en que entraron a la
+mañana y **nunca cambia**. Un camión que entró a las 7 y recién a las 18 cerró
+su regulada es *lo que el balancero acaba de hacer*, y es donde va a mirar —pero
+quedaba enterrado once lugares más abajo y había que ir a buscarlo—.
+
+Ahora cada ticket vale por la **más nueva de sus tres marcas de tiempo**:
+`creadoEn`, `appTaraFinalEn` y `appReguladaEn`, que ya se venían guardando en
+cada paso. **No hizo falta ningún campo nuevo ni migrar nada.** Los tickets de
+la web, que no tienen esas marcas, usan la hora que trae adentro el `_id` de
+Mongo, que es la de su creación: así todos tienen una hora y ninguno se va al
+fondo por no haber pasado por la app. Si dos empatan, primero el número de
+ticket más alto.
+
+> **El CTG no mueve el ticket**, porque ese paso no deja marca de tiempo. Se
+> podría agregar; no se hizo porque no se pidió y el CTG casi siempre se carga
+> al día siguiente, cuando el ticket ya está en la lista de otro día.
+
+**No es más pesado, y está medido.** El orden se arma en memoria, pero el
+anterior también: **no hay índice por `idTicket`**, así que Mongo ya ordenaba
+los tickets del día después de traerlos. Comparando los dos ordenamientos sobre
+la misma lista:
+
+| Camiones en el día | Orden anterior | Orden nuevo |
+| --- | --- | --- |
+| 20 (un día normal) | 0,002 ms | 0,007 ms |
+| 200 | 0,004 ms | 0,034 ms |
+| 500 | 0,009 ms | 0,086 ms |
+
+Contra los ~7 ms que tarda la pantalla entera, es ruido. La hora se calcula
+**una vez por ticket** y no adentro de la comparación, que mira cada uno muchas
+veces; sin esa precaución costaba cinco veces más —0,45 ms con 500— y seguía
+siendo poco, pero no había motivo para pagarlo.
+
+La consulta no cambió: sigue siendo **un día de una balanza**, con su índice
+`{codigoIngreso, fecha}`.
+
 ### Moverse entre días
 
 Arriba del resumen (`/app/general`) y de la lista de una balanza
