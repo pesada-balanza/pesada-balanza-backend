@@ -1285,6 +1285,32 @@ if (process.env.APP_MOVIL === '1') {
 }
 
 /* ---------------------------------------------
+ * API EXTERNA (solo lectura)
+ * ---------------------------------------------
+ * Para que el programa de cartas de porte arme cada carta con los datos ya
+ * pesados. SOLO LEE. Se enciende cargando API_EXTERNA_TOKEN en Render; sin esa
+ * variable la dirección no existe. Ver api-externa.js y API_EXTERNA.md.
+ *
+ * Va aparte de la app móvil a propósito: son dos cosas distintas y apagar una
+ * no tiene por qué apagar la otra.
+ * -------------------------------------------*/
+{
+  const apiExterna = require('./api-externa')({
+    colRegistros: () => mongoose.connection.db.collection('registros'),
+    ymd,
+    nombreBalanza: (codigo) => {
+      const n = resolverNombreCodigo(codigo);
+      if (!n) return '';
+      return n.toLowerCase().split(' ')
+        .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : p)).join(' ');
+    },
+    normalizarCampo,
+    normalizarSocio,
+  });
+  if (apiExterna) app.use('/api/externo', apiExterna);
+}
+
+/* ---------------------------------------------
  * LA WEB ANTERIOR ESTÁ CERRADA
  * ---------------------------------------------
  * Todo se hace desde la app (/app). La web de antes —cargar pesadas, Ver
