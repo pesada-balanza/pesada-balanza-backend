@@ -31,6 +31,13 @@ const SUITES = [
 let totalOk = 0;
 let totalFallas = 0;
 const rotas = [];
+/* Las que no llegaron a correr por falta del navegador.
+   Se cuentan aparte y se gritan al final: ver "TODO BIEN" con la mitad de la
+   suite sin correr es peor que ver una falla, porque no se nota. Pasó de
+   verdad: un `npm audit fix` se llevó Playwright —que nunca estuvo declarado
+   en package.json, se instalaba a mano— y 7 de los 14 archivos se saltearon
+   en silencio mientras el resumen seguía diciendo que estaba todo bien. */
+const salteadas = [];
 
 console.log('\n════════════════════════════════════════════════════════');
 console.log('  PRUEBAS DE LA APP MÓVIL');
@@ -50,7 +57,8 @@ for (const [archivo, descripcion] of SUITES) {
   const salteada = /SALTEADA/.test(salida);
 
   if (salteada) {
-    console.log('  ⊘ salteada (falta Playwright)');
+    salteadas.push(archivo);
+    console.log('  ⊘ SALTEADA — falta Playwright');
   } else if (bien) {
     totalOk += Number(bien[1]);
     console.log('  ✓ ' + bien[1] + ' comprobaciones, todas bien');
@@ -69,12 +77,32 @@ for (const [archivo, descripcion] of SUITES) {
 }
 
 console.log('\n════════════════════════════════════════════════════════');
-if (totalFallas === 0 && !rotas.length) {
+if (totalFallas === 0 && !rotas.length && !salteadas.length) {
   console.log('  TODO BIEN — ' + totalOk + ' comprobaciones');
+} else if (totalFallas === 0 && !rotas.length) {
+  // Nada falló, pero NO se probó todo. Decir "todo bien" acá sería mentir.
+  console.log('  INCOMPLETA — ' + totalOk + ' comprobaciones bien, pero ' +
+    salteadas.length + ' de ' + SUITES.length + ' archivos NO CORRIERON');
 } else {
   console.log('  ' + totalFallas + ' FALLAS · ' + totalOk + ' bien');
   console.log('  Revisar: ' + rotas.join(', '));
 }
+
+if (salteadas.length) {
+  console.log('');
+  console.log('  ⊘ Sin correr, por falta de Playwright:');
+  salteadas.forEach((a) => console.log('      ' + a));
+  console.log('');
+  console.log('  Son las pruebas que manejan el navegador de verdad: la pantalla');
+  console.log('  de regulada, los silobolsas, el PDF y el service worker sin señal.');
+  console.log('  Para que corran:   npm install playwright --no-save');
+  console.log('');
+  console.log('  OJO: playwright NO está en package.json a propósito, para que');
+  console.log('  Render no lo instale en cada despliegue. El precio es que');
+  console.log('  cualquier `npm install` acá lo borra y hay que reinstalarlo.');
+}
 console.log('════════════════════════════════════════════════════════\n');
 
-process.exit(totalFallas === 0 && !rotas.length ? 0 : 1);
+// Saltear archivos es un resultado distinto de "todo bien": sale con 1 para que
+// nadie dé por buena una tanda a la que le faltó la mitad.
+process.exit(totalFallas === 0 && !rotas.length && !salteadas.length ? 0 : 1);

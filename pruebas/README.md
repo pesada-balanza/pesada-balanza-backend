@@ -31,17 +31,26 @@ node pruebas/probar.js
 
 ### Para las que usan un navegador
 
-Seis de las trece abren un navegador real (para probar el modo sin señal, el
-compartir del PDF, las medidas de los botones y qué pasa al actualizar la app).
-Necesitan Playwright, que **no** está en `package.json` a propósito: en el
-servidor no hace falta y no queremos sumarle peso al deploy.
+Siete de las catorce abren un navegador real (para probar la pantalla de
+regulada y los silobolsas, el modo sin señal, el compartir del PDF, las medidas
+de los botones y qué pasa al actualizar la app). Necesitan Playwright, que
+**no** está en `package.json` a propósito: en el servidor no hace falta y no
+queremos sumarle peso al deploy.
 
 ```bash
 npm install --no-save playwright
 npx playwright install chromium
 ```
 
-Sin eso, esas seis se saltean y las otras siete corren igual.
+> ⚠️ **Cualquier `npm install` acá lo borra.** Como no está declarado, npm lo
+> considera de más y lo saca. Pasó con un `npm audit fix`: las siete se
+> saltearon y la tanda igual decía "TODO BIEN", que es lo peor que puede pasar
+> —una falla se ve, media suite sin correr no—.
+>
+> Por eso `correr.js` ahora las cuenta aparte: si falta alguna, el resumen dice
+> **INCOMPLETA**, lista cuáles no corrieron y **sale con error**. Si después de
+> un `npm install` ves eso, reinstalá Playwright con la línea de arriba y volvé
+> a correr.
 
 Si el navegador ya está instalado en otra carpeta, `buscar-chromium.js` lo
 encuentra solo. También se puede indicar a mano:
