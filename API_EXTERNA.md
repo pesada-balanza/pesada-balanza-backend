@@ -5,6 +5,13 @@ los datos mirando la pantalla de la balanza, los pide acá ya pesados.
 
 **Solo lectura.** No hay ninguna forma de escribir, modificar ni borrar.
 
+Hay dos listas y conviene no confundirlas:
+
+| | Qué trae |
+| --- | --- |
+| `/camiones` | Los **terminados**: regulada cerrada, con el neto **pesado**. Es lo que sirve para armar una carta de porte y para sumar kilos |
+| `/en-curso` | Los que **están en movimiento**: ya pesaron la tara y falta pesarlos cargados. Los kilos acá son **estimados** |
+
 ---
 
 ## Dirección
@@ -136,6 +143,75 @@ pesado. Una carta de porte armada con un neto estimado estaría mal.
   conviene pedir en rangos más chicos.
 - `ventanaDesde` — el día más viejo que se puede consultar hoy.
 - `generado` — cuándo se armó la respuesta.
+
+---
+
+---
+
+## Los camiones en curso
+
+```
+GET /api/externo/en-curso
+```
+
+Los que **ya pesaron la tara** y todavía no cerraron la regulada: salieron al
+lote, o volvieron y falta pesarlos cargados.
+
+No lleva fechas: son los que están esperando **ahora**. Un ticket vive pocos
+días en ese estado, así que la lista es corta por naturaleza.
+
+```json
+{
+  "ok": true,
+  "total": 9,
+  "generado": "2026-10-15T13:40:12.004Z",
+  "camiones": [
+    {
+      "ticket": "1-1642",
+      "fecha": "2026-10-15",
+      "balanza": "El Mataco",
+      "cargaPara": "SOCIO",
+      "socio": "ProvInvest",
+      "transporte": "TRANSPORTE GSPONER DIEGO",
+      "patentes": "AB897JP AE432YL",
+      "chofer": "VERON CARLOS",
+      "campo": "El 44 - ARBOL BLANCO - SE",
+      "grano": "MAIZ",
+      "lotes": ["Lote 2 El 44"],
+      "tara": 15620,
+      "brutoEstimado": 45000,
+      "netoEstimado": 29380,
+      "fechaTaraFinal": "2026-10-15",
+      "venceEl": "2026-10-20",
+      "vencido": false
+    }
+  ]
+}
+```
+
+### ⚠️ Acá no hay ningún campo que se llame `neto`, y es a propósito
+
+En `/camiones` el `neto` está **pesado**: el camión se subió cargado a la
+balanza. Acá no. Lo único pesado es la **`tara`**; el `brutoEstimado` y el
+`netoEstimado` son **supuestos**, y el camión todavía no volvió.
+
+Si el campo se llamara igual en los dos lados, un tablero que sume las dos
+listas estaría sumando kilos reales con kilos inventados **y nadie lo
+notaría**. Con nombres distintos, esa suma no se puede hacer sin darse cuenta.
+
+**Para un total de lo cargado, usar solo `/camiones`.** Esta lista sirve para
+mostrar qué está en movimiento, no para sumar kilos.
+
+| Campo | Qué es |
+| --- | --- |
+| `tara` | **Pesada.** El camión vacío sobre la balanza |
+| `brutoEstimado` / `netoEstimado` | **Supuestos.** Lo que se espera que traiga |
+| `fechaTaraFinal` | Cuándo pesó la tara, o sea desde cuándo está esperando |
+| `venceEl` | Último día en que se le puede registrar la regulada |
+| `vencido` | `true` si ese día ya pasó. **Igual aparece en la lista**: que se haya pasado el plazo es justamente lo que hay que ver |
+
+Tampoco traen `ctg`, `bruto`, `brutoLote` ni `silobolsas`: son datos que
+todavía no existen.
 
 ---
 

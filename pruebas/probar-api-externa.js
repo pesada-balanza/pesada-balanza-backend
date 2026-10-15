@@ -157,10 +157,84 @@ async function main() {
   ok('no expone los nombres internos de los campos',
     !/"cp"|"codigoIngreso"|"pesadaPara"|"netoEstimado"/.test(crudo));
 
+  /* ═══ Los camiones en curso ═══
+   *
+   * Van por una dirección aparte de los terminados. Lo que más importa es que
+   * no se puedan confundir: estos tienen la tara PESADA pero el bruto y el
+   * neto son ESTIMADOS, porque el camión no se subió cargado todavía. */
+  seccion('Los camiones en curso (tara final puesta, falta regular)');
+
+  // Con la tara final puesta y esperando la regulada.
+  meter({ patentes: 'ENC 001 AA', chofer: 'Espera Regular',
+    pesadaPara: 'TARA FINAL', fechaRegulada: undefined,
+    tara: 15000, brutoEstimado: 45000, netoEstimado: 30000,
+    neto: undefined, bruto: undefined, cp: '' });
+  // Ídem pero de otra balanza: tienen que salir los dos.
+  meter({ patentes: 'ENC 002 BB', chofer: 'Otra Balanza', codigoIngreso: '5684',
+    campo: 'Quimili - QUIMILI - SE', pesadaPara: 'TARA FINAL', fechaRegulada: undefined,
+    tara: 14000, brutoEstimado: 45000, netoEstimado: 31000,
+    neto: undefined, bruto: undefined, cp: '' });
+  // Todavía NO pesó la tara: no corresponde a esta lista.
+  meter({ patentes: 'ENC 003 CC', chofer: 'Sin Tara Aun',
+    pesadaPara: 'CAMIONES', fechaTaraFinal: undefined, fechaRegulada: undefined,
+    neto: undefined, bruto: undefined, cp: '' });
+  // Anulado esperando regular: tampoco.
+  meter({ patentes: 'ENC 004 DD', pesadaPara: 'TARA FINAL',
+    fechaRegulada: undefined, anulado: true, neto: undefined, cp: '' });
+
+  r = await pedir('/api/externo/en-curso');
+  ok('la lista de en curso abre', r.estado === 200 && r.json && r.json.ok, r.estado);
+  const enc = (r.json && r.json.camiones) || [];
+  const pEnc = enc.map((c) => c.patentes);
+  ok('trae los que ya pesaron la tara y esperan regular',
+    pEnc.indexOf('ENC 001 AA') !== -1, pEnc.join(' | '));
+  ok('de todas las balanzas', pEnc.indexOf('ENC 002 BB') !== -1, pEnc.join(' | '));
+  ok('NO trae el que todavía no pesó la tara',
+    pEnc.indexOf('ENC 003 CC') === -1, pEnc.join(' | '));
+  ok('NO trae el anulado', pEnc.indexOf('ENC 004 DD') === -1, pEnc.join(' | '));
+  ok('NO trae los que ya cerraron la regulada',
+    pEnc.indexOf('JWE798 KMT629') === -1, pEnc.join(' | '));
+
+  const unEnc = enc.find((c) => c.patentes === 'ENC 001 AA') || {};
+  /* La razón de ser de todo esto: en /camiones el neto está PESADO; acá es
+     un supuesto. Si el campo se llamara igual, un tablero que sume los dos
+     listados mezclaría kilos reales con kilos inventados sin notarlo. */
+  ok('NO existe un campo "neto" en los en curso',
+    unEnc.neto === undefined && unEnc.bruto === undefined,
+    JSON.stringify(Object.keys(unEnc)));
+  ok('los supuestos se llaman "estimado" y lo dicen',
+    unEnc.netoEstimado === 30000 && unEnc.brutoEstimado === 45000,
+    unEnc.netoEstimado + ' / ' + unEnc.brutoEstimado);
+  ok('la tara sí está pesada y viene', unEnc.tara === 15000, unEnc.tara);
+  ok('tampoco traen ctg, que todavía no puede existir', unEnc.ctg === undefined);
+
+  /* Para un tablero: cuándo se le vence el plazo a cada uno. */
+  ok('dice hasta qué día se puede cerrar la regulada',
+    unEnc.venceEl === ymd(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)),
+    unEnc.venceEl + ' (fechaTaraFinal ' + unEnc.fechaTaraFinal + ')');
+  ok('y marca si ya se le pasó el plazo', unEnc.vencido === false, unEnc.vencido);
+
+  // Uno al que ya se le venció: lo tiene que mostrar, pero marcado.
+  const VIEJO_TF = haceDias(9);
+  meter({ patentes: 'ENC 005 EE', chofer: 'Se Le Vencio',
+    fecha: VIEJO_TF, fechaTaraFinal: VIEJO_TF, fechaRegulada: undefined,
+    pesadaPara: 'TARA FINAL', neto: undefined, bruto: undefined, cp: '' });
+  r = await pedir('/api/externo/en-curso');
+  const vencido = ((r.json && r.json.camiones) || []).find((c) => c.patentes === 'ENC 005 EE');
+  ok('un ticket al que se le pasó el plazo sale marcado como vencido',
+    vencido && vencido.vencido === true, vencido && (vencido.venceEl + ' · vencido=' + vencido.vencido));
+
+  // Y lo de siempre: sin token no sale nada.
+  r = await pedir('/api/externo/en-curso', { token: null });
+  ok('los en curso también piden token', r.estado === 401, r.estado);
+
   /* ═══ La ventana de 30 días ═══ */
   seccion('No se puede mirar más atrás de 30 días');
 
   ok('lo de hace 45 días no aparece', pats.indexOf('VIE 000 JO') === -1, pats.join(' | '));
+  // Se vuelve a pedir: entre medio se consultaron los en curso, y `r` quedó
+  // apuntando a ESA respuesta. Mirar la vieja daría un verde que no significa nada.
+  r = await pedir('/api/externo/camiones');
   ok('la respuesta dice desde cuándo se puede mirar',
     r.json.ventanaDesde === haceDias(30), r.json.ventanaDesde + ' vs ' + haceDias(30));
 

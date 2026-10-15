@@ -52,7 +52,20 @@ const LARGO_MINIMO_TOKEN = 24;
 const PEDIDOS_POR_MINUTO = 60;
 
 module.exports = function crearApiExterna(deps) {
-  const { colRegistros, ymd, nombreBalanza, normalizarCampo, normalizarSocio } = deps;
+  const {
+    colRegistros, ymd, nombreBalanza, normalizarCampo, normalizarSocio,
+    // Cuántos días vive un ticket esperando la regulada. Viene de app.js para
+    // que el "vence el" que informa la API sea el MISMO plazo que aplica el
+    // servidor cuando se intenta cerrar el ticket.
+    DIAS_TARA_FINAL_A_REGULADA,
+  } = deps;
+
+  /** AAAA-MM-DD más n días, en AAAA-MM-DD. '' si la fecha no sirve. */
+  function sumarDias(fecha, n) {
+    const t = Date.parse(String(fecha || '') + 'T00:00:00Z');
+    if (!Number.isFinite(t)) return '';
+    return new Date(t + n * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  }
 
   const router = express.Router();
   const token = String(process.env.API_EXTERNA_TOKEN || '').trim();
@@ -172,6 +185,103 @@ module.exports = function crearApiExterna(deps) {
       comentarios: r.comentarios || '',
     };
   }
+
+  /**
+   * Un camión que YA PESÓ LA TARA pero todavía no cerró la regulada: salió al
+   * lote o volvió y falta pesarlo cargado.
+   *
+   * ▸ ACÁ NO HAY NINGÚN CAMPO QUE SE LLAME `neto`, Y ES A PROPÓSITO.
+   *   La tara sí está pesada, pero el bruto y el neto son ESTIMADOS: el camión
+   *   todavía no se subió cargado a la balanza. Si el campo se llamara igual
+   *   que en /camiones, un tablero que sume los dos listados estaría sumando
+   *   kilos pesados con kilos supuestos y nadie lo notaría. Con nombres
+   *   distintos, esa suma no se puede hacer sin darse cuenta.
+   */
+  function comoEnCurso(r) {
+    const vence = sumarDias(r.fechaTaraFinal, DIAS_TARA_FINAL_A_REGULADA);
+    return {
+      ticket: r.nroApp || String(r.idTicket || ''),
+      fecha: r.fecha || '',
+      balanza: nombreBalanza(r.codigoIngreso) || '',
+      cargaPara: r.cargaPara || '',
+      socio: r.cargaPara === 'SOCIO' ? normalizarSocio(r.socio) : '',
+      transporte: r.transporte || '',
+      patentes: String(r.patentes || '').replace(/\s+/g, ' ').trim(),
+      chofer: r.chofer || '',
+      campo: normalizarCampo(r.campo) || '',
+      grano: r.grano || '',
+      lotes: Array.isArray(r.lote) ? r.lote : (r.lote ? [String(r.lote)] : []),
+      // La única pesada de verdad que tiene este camión.
+      tara: Number(r.tara) || 0,
+      // Supuestos, y el nombre lo dice.
+      brutoEstimado: Number(r.brutoEstimado) || 0,
+      netoEstimado: Number(r.netoEstimado) || 0,
+      fechaTaraFinal: r.fechaTaraFinal || '',
+      // Hasta cuándo se le puede registrar la regulada. Pasado ese día el
+      // ticket ya no se puede cerrar y hay que pedirle la corrección a GENERAL.
+      venceEl: vence,
+      vencido: Boolean(vence) && vence < ymd(new Date()),
+    };
+  }
+
+  /**
+   * GET /api/externo/en-curso
+   *
+   * Los camiones que YA PESARON LA TARA y todavía no cerraron la regulada.
+   *
+   * Va por separado de /camiones a propósito: ese entrega camiones terminados,
+   * con su neto pesado, y es lo que usa el programa de cartas de porte. Si los
+   * en curso se mezclaran ahí, una carta podría llegar a armarse con un neto
+   * estimado. Separados, eso no puede pasar ni por error.
+   *
+   * No lleva fechas: son los que están esperando AHORA. Un ticket en este
+   * estado vive pocos días, así que la lista es corta por naturaleza.
+   */
+  router.get('/en-curso', limitar, exigirToken, async (req, res) => {
+    try {
+      const { desde, hasta, tope } = rangoPedido({});
+
+      const docs = await colRegistros()
+        .find(
+          {
+            fecha: { $gte: desde, $lte: hasta },
+            anulado: { $ne: true },
+            fechaTaraFinal: { $exists: true },
+            fechaRegulada: { $exists: false },
+          },
+          {
+            projection: {
+              nroApp: 1, idTicket: 1, fecha: 1, fechaTaraFinal: 1, codigoIngreso: 1,
+              cargaPara: 1, socio: 1, transporte: 1, patentes: 1, chofer: 1,
+              campo: 1, grano: 1, lote: 1, tara: 1, brutoEstimado: 1, netoEstimado: 1,
+            },
+            sort: { idTicket: 1 },
+            limit: MAXIMO_CAMIONES + 1,
+          }
+        )
+        .toArray();
+
+      const truncado = docs.length > MAXIMO_CAMIONES;
+      const camiones = docs.slice(0, MAXIMO_CAMIONES).map(comoEnCurso);
+
+      console.log(`[API externa] ${camiones.length} en curso para ${req.ip}` +
+        `${truncado ? ' (cortado por el tope)' : ''}.`);
+
+      return res.json({
+        ok: true,
+        desde,
+        hasta,
+        ventanaDesde: tope,
+        total: camiones.length,
+        truncado,
+        generado: new Date().toISOString(),
+        camiones,
+      });
+    } catch (err) {
+      console.error('[API externa] Error al listar los en curso:', err.message);
+      return res.status(500).json({ ok: false, error: 'Error interno.' });
+    }
+  });
 
   /**
    * GET /api/externo/camiones?desde=AAAA-MM-DD&hasta=AAAA-MM-DD

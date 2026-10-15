@@ -1306,6 +1306,9 @@ if (process.env.APP_MOVIL === '1') {
     },
     normalizarCampo,
     normalizarSocio,
+    // Para el "vence el" de los camiones en curso: el mismo plazo que aplica
+    // el servidor al intentar cerrar la regulada.
+    DIAS_TARA_FINAL_A_REGULADA,
   });
   if (apiExterna) app.use('/api/externo', apiExterna);
 }
