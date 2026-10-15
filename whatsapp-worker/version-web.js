@@ -18,16 +18,19 @@
  * reporte de balanza se quedó clavado en 99% sin decir por qué. Teniéndola
  * acá, arreglar uno arregla los dos.
  *
- * ⚠️ NO cambiarla a la ligera. La de abajo está PROBADA (2026-10-03): con ella
- * el PDF llega al GRUPO y la conexión se mantiene estable.
+ * ⚠️ NO cambiarla a la ligera. La de abajo es la que WhatsApp servía el
+ * 2026-10-15, puesta para destrabar el envío al grupo.
  *
  * Las que NO sirven, para no repetir la prueba:
- *   2.3000.1047412487-alpha  → la anterior, probada el 18/09. Andaba, pero al
- *                              03/10 ya tenía dos semanas de atraso: el envío
- *                              a un número seguía funcionando y el de un
- *                              ARCHIVO A UN GRUPO empezó a fallar con "upload
- *                              failed: media entry was not created". Ese es el
- *                              síntoma de que la fijada quedó vieja.
+ *   2.3000.1049214511-alpha  → la anterior, puesta el 03/10. Anduvo doce días.
+ *                              Al 15/10 tenía 68 versiones de atraso —WhatsApp
+ *                              saca cinco o seis por día— y volvió a pasar lo
+ *                              mismo: al número llegaba, al GRUPO no.
+ *   2.3000.1047412487-alpha  → la de antes, del 18/09. Igual: aguantó dos
+ *                              semanas y después el ARCHIVO A UN GRUPO empezó
+ *                              a fallar con "upload failed: media entry was
+ *                              not created". Ese es el síntoma de que la
+ *                              fijada quedó vieja.
  *   2.3000.1047806989-alpha  → conecta pero se cae todo el tiempo (watchdog
  *                              cada pocos minutos, estado "OPENING")
  *   auto (sin fijar)         → se queda en 99%, y el envío a grupos falla con
@@ -39,6 +42,11 @@
  *
  *   set WEB_VERSION=2.3000.1049214511-alpha
  *   node diagnostico.js
+ *
+ * ── Cada cuánto hay que cambiarla ────────────────────────────────────
+ * Dos veces en un mes: 18/09 → 03/10 → 15/10. Dura entre doce días y dos
+ * semanas, y después hay que subirla de nuevo. No es una falla: es que
+ * WhatsApp se mueve y la fijada envejece sola.
  *
  * ── Cómo saber que ESTA quedó vieja ──────────────────────────────────
  * No avisa de golpe: se degrada por partes, y de menos a más grave.
@@ -59,7 +67,7 @@
  * Listado completo: https://github.com/wppconnect-team/wa-version/tree/main/html
  * ===================================================================== */
 
-const WEB_VERSION = process.env.WEB_VERSION || '2.3000.1049214511-alpha';
+const WEB_VERSION = process.env.WEB_VERSION || '2.3000.1050469598-alpha';
 
 /* `auto` deja que cargue la última. Sirve para probar si una versión nueva de
    WhatsApp ya viene arreglada, pero no conviene dejarlo puesto: es volver a
