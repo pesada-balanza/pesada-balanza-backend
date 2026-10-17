@@ -124,22 +124,34 @@ function recortar(texto, clave, tamano, espaciado, anchoMm) {
  */
 function partirEnLineas(texto, clave, tamano, espaciado, anchoMm, maximo) {
   const palabras = String(texto == null ? '' : texto).split(/\s+/).filter(Boolean);
+  if (!palabras.length) return [];
+
   const lineas = [];
   let actual = '';
-  for (const p of palabras) {
-    const prueba = actual ? actual + ' ' + p : p;
-    if (medir(prueba, clave, tamano, espaciado) <= anchoMm || !actual) {
+  let desde = -1; // desde qué palabra quedó afuera, si quedó alguna
+
+  for (let i = 0; i < palabras.length; i++) {
+    const prueba = actual ? actual + ' ' + palabras[i] : palabras[i];
+    if (!actual || medir(prueba, clave, tamano, espaciado) <= anchoMm) {
       actual = prueba;
-    } else {
-      lineas.push(actual);
-      actual = p;
-      if (lineas.length === maximo) break;
+      continue;
     }
+    if (lineas.length + 1 === maximo) {
+      desde = i; // no hay más renglones: lo que falta se avisa con …
+      break;
+    }
+    lineas.push(actual);
+    actual = palabras[i];
   }
-  if (actual && lineas.length < maximo) lineas.push(actual);
-  if (!lineas.length) return [];
-  // El último se recorta si aun así no entra (una palabra sola muy larga).
-  lineas[lineas.length - 1] = recortar(lineas[lineas.length - 1], clave, tamano, espaciado, anchoMm);
+  lineas.push(actual);
+
+  /* El último renglón se recorta con … cuando quedó texto afuera. Sin esto el
+     resto del nombre DESAPARECÍA sin dejar rastro: "LEZCANO, / CARLOS" en vez
+     de "LEZCANO, CARLOS ALBERTO", y nadie podía saber que faltaba algo. */
+  const ultimo = lineas.length - 1;
+  lineas[ultimo] = desde === -1
+    ? recortar(lineas[ultimo], clave, tamano, espaciado, anchoMm)
+    : recortar(lineas[ultimo] + ' ' + palabras.slice(desde).join(' '), clave, tamano, espaciado, anchoMm);
   return lineas;
 }
 
@@ -257,21 +269,30 @@ const ARRIBA = 3.4;
 const ABAJO = 38;
 const CORTE_Y = 40;
 
-/* Las tres filas del centro. La del medio pasó a tener hasta TRES renglones
-   —el grano con su lote abajo, y una línea por bolsa o por tractor— así que se
-   corrió hacia arriba y la de observaciones hacia abajo. Acá las medidas son
-   absolutas: lo que en el HTML acomoda la grilla sola, en el PDF hay que
-   escribirlo. Si se tocan, hay que mirar que la última línea (FILA2_V1 + 2 ×
-   ALTO_LINEA = 26,8) no se le meta encima a FILA3_LABEL. */
-const FILA1_LABEL = 6.4;
-const FILA1_V = 10.6;
-const FILA2_LABEL = 16.2;
-const FILA2_V1 = 20.2;
+/* Las tres filas del centro. Acá las medidas son ABSOLUTAS: lo que en el HTML
+   acomoda la grilla sola, en el PDF hay que escribirlo renglón por renglón.
+   Si se tocan, mirar dos cosas que se pisan fácil:
+     · la segunda línea de la fila 1 (FILA1_V1 + ALTO_LINEA) contra FILA2_LABEL;
+     · la tercera de la fila 2 (FILA2_V1 + 2 × ALTO_LINEA) contra FILA3_LABEL.
+   La fila 1 tiene dos renglones desde que el chofer y el transporte dejaron de
+   cortarse, y la 2 tiene tres por lo que cargó cada bolsa o cada tractor. */
+const FILA1_LABEL = 6.2;
+const FILA1_V1 = 10.2;
+const FILA2_LABEL = 18.0;
+const FILA2_V1 = 21.8;
 const ALTO_LINEA = 3.3;
-const FILA3_LABEL = 30.4;
-const FILA3_V = 34.4;
-// Cuántos renglones entran en la casilla del origen antes de resumir.
+const FILA3_LABEL = 31.6;
+const FILA3_V = 35.4;
+// Cuántos renglones entran antes de resumir con "y N más".
 const MAX_ORIGEN = 3;
+const MAX_LOTES = 3;
+
+/* La columna izquierda: los lotes van en el hueco que quedaba entre el titular
+   y el número de ticket. Letra y renglón más chicos que en el centro porque
+   tienen que entrar tres sin tocar la etiqueta TICKET Nº. */
+const IZQ_LOTE_LABEL = 15.4;
+const IZQ_LOTE_V1 = 18.8;
+const IZQ_ALTO_LINEA = 3.0;
 
 const T = {
   establecimiento: { fuente: 'F2', tamano: 12 },
@@ -284,8 +305,7 @@ const T = {
   valor: { fuente: 'F1', tamano: 9 },
   pesoNombre: { fuente: 'F1', tamano: 7.5, color: SUAVE },
   pesoValor: { fuente: 'F4', tamano: 9 },
-  campoValor: { fuente: 'F1', tamano: 7.5 },
-  loteValor: { fuente: 'F1', tamano: 8.25 },
+  loteValor: { fuente: 'F1', tamano: 8.25 },  // los lotes de la izquierda
   origenNombre: { fuente: 'F4', tamano: 8.25 },
   origenKg: { fuente: 'F3', tamano: 8.25, color: SUAVE },
   origenMas: { fuente: 'F1', tamano: 6.75, color: SUAVE },
@@ -312,29 +332,36 @@ function dato(L, x, yLabel, yValor, etiqueta, valor, estilo, anchoMm) {
 }
 
 /**
- * El nombre del campo en hasta dos renglones.
+ * LOS LOTES DEL VIAJE, uno por renglón, en la columna izquierda.
  *
- * Los campos se llaman "Nombre - LOCALIDAD - PROVINCIA", así que se corta por
- * el guion y no por donde caiga: queda "El Mataco" arriba y "SACHAYOJ - SE"
- * abajo. Cortando por ancho quedaba "El Mataco - SACHAYOJ -" y un "SE" solo en
- * el segundo renglón.
- *
- * El HTML de impresión corta igual (`campoEnDos` en ticket.js): los dos tienen
- * que salir iguales.
+ * Un viaje puede salir de varios lotes. En la casilla del centro entraba uno y
+ * se cortaba; acá hay alto para tres. Con más van dos y el tercero dice
+ * cuántos faltan, igual que de dónde cargó. El HTML hace lo mismo (`lotes` en
+ * ticket.js): el papel y el PDF tienen que salir iguales.
  */
-function partirCampo(campo, anchoMm) {
-  const s = String(campo || '').trim();
-  if (!s) return [];
-  const tam = T.campoValor.tamano;
-  if (medir(s, 'F1', tam, 0) <= anchoMm) return [s];
-  const partes = s.split(' - ');
-  if (partes.length > 1) {
-    return [
-      recortar(partes[0], 'F1', tam, 0, anchoMm),
-      recortar(partes.slice(1).join(' - '), 'F1', tam, 0, anchoMm),
-    ];
+function dibujarLotes(L, t) {
+  L.texto(IZQ_X, IZQ_LOTE_LABEL, 'LOTE', T.label);
+
+  let lista = Array.isArray(t.lote) && t.lote.length ? t.lote : [];
+  if (!lista.length) {
+    const texto = String(t.loteTexto || '').trim();
+    lista = texto ? texto.split(', ') : [];
   }
-  return partirEnLineas(s, 'F1', tam, 0, anchoMm, 2);
+  if (!lista.length) {
+    L.linea(IZQ_X, IZQ_X + 31, IZQ_LOTE_V1 + 0.6, { tipo: 'punteada', color: PUNTEADO });
+    return;
+  }
+
+  const muestra = lista.length <= MAX_LOTES ? lista : lista.slice(0, MAX_LOTES - 1);
+  muestra.forEach((lote, i) => {
+    L.texto(IZQ_X, IZQ_LOTE_V1 + i * IZQ_ALTO_LINEA, lote,
+      Object.assign({ anchoMm: 31 }, T.loteValor));
+  });
+  const sobran = lista.length - muestra.length;
+  if (sobran > 0) {
+    L.texto(IZQ_X, IZQ_LOTE_V1 + muestra.length * IZQ_ALTO_LINEA, 'y ' + sobran + ' más',
+      Object.assign({ anchoMm: 31 }, T.origenMas));
+  }
 }
 
 /**
@@ -375,6 +402,17 @@ function dibujarOrigen(L, x, t) {
   }
 }
 
+/** Como `dato`, pero el valor puede ocupar varios renglones. */
+function datoEnLineas(L, x, yLabel, yValor, etiqueta, valor, estilo, anchoMm, maximo) {
+  L.texto(x, yLabel, etiqueta, T.label);
+  const lineas = partirEnLineas(valor, estilo.fuente, estilo.tamano, estilo.espaciado || 0, anchoMm, maximo);
+  if (!lineas.length) {
+    L.linea(x, x + anchoMm, yValor + 0.6, { tipo: 'punteada', color: PUNTEADO });
+    return;
+  }
+  lineas.forEach((linea, i) => L.texto(x, yValor + i * ALTO_LINEA, linea, estilo));
+}
+
 /** Una fila de peso a la derecha: nombre a la izquierda, kilos a la derecha. */
 function peso(L, y, nombre, valor) {
   L.texto(DER_TEXTO, y, nombre, T.pesoNombre);
@@ -400,20 +438,11 @@ function dibujarTicket(t) {
   L.texto(IZQ_X, 7.6, t.campoCorto || t.balanza || '', Object.assign({ anchoMm: 31 }, T.establecimiento));
   L.texto(IZQ_X, 11.2, t.titular || 'AMH', Object.assign({ anchoMm: 31 }, T.titular));
 
-  /* El campo, en DOS RENGLONES: el nombre completo no entra en los 31 mm de la
-     columna y se cortaba justo en la localidad, que es lo que agrega. Va acá y
-     no en la grilla del centro para dejarle esa casilla al origen de la carga. */
-  L.texto(IZQ_X, FILA2_LABEL, 'CAMPO', T.label);
-  const lineasCampo = partirCampo(t.campo, 31);
-  if (lineasCampo.length) {
-    lineasCampo.forEach((linea, i) => {
-      L.texto(IZQ_X, FILA2_V1 + i * ALTO_LINEA, linea, T.campoValor);
-    });
-  } else {
-    L.linea(IZQ_X, IZQ_X + IZQ_ANCHO - 4, FILA2_V1 + 0.6, { tipo: 'punteada', color: PUNTEADO });
-  }
+  /* Los lotes, en el hueco que quedaba entre el titular y el número. El campo
+     NO se repite acá: el título de arriba ya es el campo. */
+  dibujarLotes(L, t);
 
-  L.texto(IZQ_X, 27, 'TICKET Nº', T.label);
+  L.texto(IZQ_X, 27.6, 'TICKET Nº', T.label);
   L.texto(IZQ_X, 33.8, t.nro || '', Object.assign({ anchoMm: 31 }, T.numero));
   const fechaHora = (t.fechaLarga || '') + (t.hora ? ' · ' + t.hora : '');
   L.texto(IZQ_X, 37.2, fechaHora, Object.assign({ anchoMm: 31 }, T.fecha));
@@ -421,24 +450,14 @@ function dibujarTicket(t) {
   /* ── Centro: datos del viaje, tres columnas ── */
   const cx = [CEN_X, CEN_X + CEN_COL + 3.7, CEN_X + 2 * (CEN_COL + 3.7)];
 
-  dato(L, cx[0], FILA1_LABEL, FILA1_V, 'PATENTES', t.patentes, T.patente, CEN_COL);
-  dato(L, cx[1], FILA1_LABEL, FILA1_V, 'CHOFER', t.chofer, T.chofer, CEN_COL);
-  dato(L, cx[2], FILA1_LABEL, FILA1_V, 'TRANSPORTE', t.transporte, T.valor, CEN_COL);
+  dato(L, cx[0], FILA1_LABEL, FILA1_V1, 'PATENTES', t.patentes, T.patente, CEN_COL);
+  /* El chofer y el transporte en hasta DOS renglones: en uno se cortaban casi
+     siempre ("LEZCANO, C…", "TRANSPORTE V…") y son de los que más se buscan. */
+  datoEnLineas(L, cx[1], FILA1_LABEL, FILA1_V1, 'CHOFER', t.chofer, T.chofer, CEN_COL, 2);
+  datoEnLineas(L, cx[2], FILA1_LABEL, FILA1_V1, 'TRANSPORTE', t.transporte, T.valor, CEN_COL, 2);
 
-  /* Grano arriba, lote abajo: en un solo renglón el lote se cortaba casi
-     siempre, y el lote es el dato que se busca. */
-  L.texto(cx[0], FILA2_LABEL, 'GRANO · LOTE', T.label);
-  if (!t.grano && !t.loteTexto) {
-    L.linea(cx[0], cx[0] + CEN_COL, FILA2_V1 + 0.6, { tipo: 'punteada', color: PUNTEADO });
-  } else {
-    if (t.grano) L.texto(cx[0], FILA2_V1, t.grano, Object.assign({ anchoMm: CEN_COL }, T.valor));
-    if (t.loteTexto) {
-      L.texto(cx[0], FILA2_V1 + ALTO_LINEA, t.loteTexto, Object.assign({ anchoMm: CEN_COL }, T.loteValor));
-    }
-  }
-
+  dato(L, cx[0], FILA2_LABEL, FILA2_V1, 'GRANO', t.grano, T.valor, CEN_COL);
   dibujarOrigen(L, cx[1], t);
-
   dato(L, cx[2], FILA2_LABEL, FILA2_V1, 'CP / CTG', t.cp, T.valor, CEN_COL);
 
   dato(L, cx[0], FILA3_LABEL, FILA3_V, 'OBSERVACIONES', t.comentarios, T.valor, CEN_ANCHO);

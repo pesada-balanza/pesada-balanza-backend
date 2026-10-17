@@ -2097,6 +2097,30 @@ module.exports = function crearAppMovil(deps) {
     return { etiqueta: 'CARGÓ DE', lista: [] };
   }
 
+  /* Los únicos campos que dibuja el ticket, ni uno más.
+     `/api/tickets` mandaba la vista COMPLETA —los 40 campos de vistaRegistro—
+     y el papel usa 24. Con la impresión de un día entero son hasta 120 tickets
+     en una sola respuesta, así que lo que sobra se nota. */
+  const CAMPOS_DEL_TICKET = [
+    'id', 'nro', 'balanza', 'campoCorto', 'titular', 'fechaLarga', 'hora',
+    'patentes', 'chofer', 'transporte', 'grano', 'lote', 'loteTexto',
+    'origenEtiqueta', 'origenLista', 'cp', 'comentarios',
+    'brutoEstimado', 'tara', 'brutoLote', 'bruto', 'neto', 'fechaTaraFinal',
+  ];
+
+  function paraElTicket(r) {
+    const v = vistaRegistro(r);
+    const salida = {};
+    for (const k of CAMPOS_DEL_TICKET) {
+      // Lo vacío no viaja: el ticket lo dibuja igual como renglón punteado.
+      const valor = v[k];
+      if (valor === '' || valor === null || valor === undefined) continue;
+      if (Array.isArray(valor) && !valor.length) continue;
+      salida[k] = valor;
+    }
+    return salida;
+  }
+
   function vistaRegistro(r) {
     const lotes = Array.isArray(r.lote) ? r.lote : r.lote ? [String(r.lote)] : [];
     const origen = origenDelTicket(r);
@@ -2318,7 +2342,7 @@ module.exports = function crearAppMovil(deps) {
       if (balanza) filtro.codigoIngreso = balanza;
 
       const docs = await colRegistros().find(filtro).sort({ idTicket: 1 }).toArray();
-      return res.json({ ok: true, tickets: docs.map(vistaRegistro) });
+      return res.json({ ok: true, tickets: docs.map(paraElTicket) });
     } catch (err) {
       return siguienteError(err, req, res);
     }

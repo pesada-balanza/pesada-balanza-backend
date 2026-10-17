@@ -138,6 +138,26 @@ async function main() {
       pesadaPara: 'REGULADA', codigoIngreso: '5679', anulado: false,
     });
   }
+
+  /* 40 tickets cerrados y completos para medir la impresión de varios de una.
+     Van con fecha VIEJA a propósito: así no aparecen en el patio ni en la
+     pantalla de CTG —que miran el día— y no distorsionan esos topes. Para
+     imprimir no importa la fecha: /app/api/tickets busca por id. */
+  const idsParaImprimir = [];
+  const haceDiez = new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0];
+  for (let i = 0; i < 40; i++) {
+    const met = await baseFalsa.collection('registros').insertOne({
+      idTicket: 5000 + i, nroApp: '1-5' + (100 + i), fecha: haceDiez,
+      patentes: 'AB ' + (100 + i) + ' CD', chofer: 'LEZCANO, CARLOS ALBERTO',
+      transporte: 'TRANSPORTE VENTRE MAURICIO',
+      campo: 'El Mataco - SACHAYOJ - SE', grano: 'SOJA', lote: ['Lote 1 El Mataco'],
+      tara: 15600, bruto: 46500, brutoLote: 46800, neto: 30900,
+      cargoDe: 'SILOBOLSA', silobolsa: '16', silobolsas: [{ nro: '16', kg: 30900 }],
+      cp: '1013535056' + (i % 10), fechaTaraFinal: haceDiez, fechaRegulada: haceDiez,
+      pesadaPara: 'REGULADA', codigoIngreso: '5679', anulado: false, confirmada: true,
+    });
+    idsParaImprimir.push(String(met.insertedId));
+  }
   await baseFalsa.collection('app_dias').insertOne({ codigoIngreso: '5679', fecha: hoy(), nombre: 'Juan Sosa' });
   await pedir('/app/api/ingreso', { cuerpo: { code: '5679' } });
 
@@ -171,6 +191,12 @@ async function main() {
     // El caso más pesado del buscador: el tope de 100 resultados.
     ['/app/buscar?q=Chofer&rango=30', 'buscar con 100 resultados', 9],
     ['/app/api/tablas', 'tablas (campos, siembra, contratistas)', 5],
+    /* Los datos de los tickets a imprimir. Son 1.800 en la base pero acá va
+       se piden 40 de una, que es lo que pasa al imprimir un día entero (van
+       hasta 120 en una sola respuesta). Lo que se controla es que cada ticket
+       mande SOLO lo que el papel dibuja: mandaba la vista completa —40 campos
+       para dibujar 22— y con 120 tickets eso eran 2,43 KB contra 1,72. */
+    ['/app/api/tickets?ids=' + idsParaImprimir.join(','), 'datos de 40 tickets a imprimir', 2],
     ['/app/api/sugerencias', 'sugerencias', 3],
     // 12 KB desde que se agregó `refrescarAlVolver`: en el iPhone, volver a una
     // pantalla no la vuelve a pedir, y se miraba el estado de hace rato sin

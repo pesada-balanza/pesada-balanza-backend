@@ -66,14 +66,17 @@
 
 .tk-establecimiento { font: 600 16px/1.1 var(--tk-sans); color: var(--tk-tinta); }
 .tk-titular { font: 400 9px/1.2 var(--tk-mono); letter-spacing: .06em; color: var(--tk-suave); }
-/* El campo, abajo del titular. Va a la izquierda —y no en la grilla del
-   centro— porque es de dónde salió la carga, igual que el establecimiento y el
-   socio, y así libera una casilla del centro para el origen.
-   En DOS RENGLONES a propósito: "El Mataco - SACHAYOJ - SE" no entra en los
-   31 mm de la columna y se cortaba en "El Mataco - SACHA…". */
-.tk-campo { display: flex; flex-direction: column; gap: .3mm; margin-top: 1.8mm; }
-.tk-campo-valor { font: 500 10px/1.2 var(--tk-sans); color: var(--tk-tinta); }
-.tk-campo .tk-renglon { min-height: 3.6mm; }
+/* Los lotes, abajo del titular. Acá y no en el centro porque un viaje puede
+   salir de varios y en una casilla de 28 mm entraba uno solo: en la columna
+   hay alto para tres, uno por renglón.
+   El campo NO se repite acá: el título de arriba ya es el campo. */
+.tk-lotes { display: flex; flex-direction: column; gap: .2mm; margin-top: 1.6mm; }
+.tk-lote {
+  font: 500 10px/1.25 var(--tk-sans); color: var(--tk-tinta);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tk-lote-mas { font: 400 9px/1.2 var(--tk-sans); color: var(--tk-suave); }
+.tk-lotes .tk-renglon { min-height: 3.6mm; }
 
 .tk-nro-label { font: 500 8px/1 var(--tk-mono); letter-spacing: .1em; color: var(--tk-label); }
 .tk-nro { font: 600 26px/1 var(--tk-mono); color: var(--tk-tinta); }
@@ -85,7 +88,11 @@
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 2.9mm 3.7mm;
+  /* El espacio entre filas bajó de 2,9 a 2,2 mm cuando la primera pasó a tener
+     dos renglones (chofer y transporte) y la segunda tres (lo que cargó cada
+     bolsa o cada tractor): con 2,9 las observaciones caían sobre la línea de
+     corte. Es lo primero a mirar si se agrega otro renglón. */
+  gap: 2.2mm 3.7mm;
   align-content: space-between;
 }
 
@@ -97,10 +104,13 @@
 /* El chofer es el dato que más se busca */
 .tk-valor.chofer { font: 700 14px/1.1 var(--tk-sans); }
 
-/* Grano arriba, lote abajo: en una sola línea el lote se cortaba casi siempre
-   ("SOJA · Lote 1 El …"), y el lote es lo que se busca. */
-.tk-valor.apilado { white-space: normal; line-height: 1.2; }
-.tk-valor-2 { font: 500 11px/1.2 var(--tk-sans); color: var(--tk-tinta); overflow: hidden; }
+/* El chofer y el transporte en hasta DOS renglones: en uno solo se cortaban
+   casi siempre ("LEZCANO, C…", "TRANSPORTE V…") y son de los datos que más se
+   buscan. El recorte con … lo pone el navegador al llegar al segundo. */
+.tk-valor.dos {
+  white-space: normal;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
 
 /* CARGÓ DE / SILOBOLSA: un renglón por origen, con sus kg. Mismo orden y mismo
    formato que la pantalla de la regulada y que la columna del Excel.

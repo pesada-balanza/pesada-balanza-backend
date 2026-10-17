@@ -128,7 +128,7 @@ function main() {
     ['el transporte', 'Ciriaci'],
     ['el establecimiento', 'El Mataco'],
     ['el grano y el lote', 'SOJA'],
-    ['la etiqueta CAMPO', 'CAMPO'],
+    ['la etiqueta LOTE', 'LOTE'],
     ['de dónde cargó', 'CARG'],
     ['el primer tractor', '1VILLA'],
     ['los kg de ese tractor', '12.000'],
@@ -165,14 +165,28 @@ function main() {
     'no se encontró el recorte');
   ok('sigue siendo un PDF válido', /%%EOF\s*$/.test(textoLargo.slice(-10)));
 
-  /* ── El campo, partido en dos renglones ──────────────────────────────────
-     En un solo renglón "El Mataco - SACHAYOJ - SE" se cortaba justo en la
-     localidad, que es lo único que agregaba sobre el título de arriba. */
-  console.log('\n── El campo en dos renglones');
-  ok('el nombre del campo entra entero, cortado por el guion',
-    texto.indexOf('(El Mataco)') !== -1 && texto.indexOf('(SACHAYOJ - SE)') !== -1,
-    'no se encontraron los dos renglones');
-  ok('y no queda recortado con …', texto.indexOf('SACHA\x85') === -1);
+  /* ── Los lotes, uno por renglón, y el chofer sin cortarse ──────────────── */
+  console.log('\n── Los lotes y el chofer, en varios renglones');
+  const variosLotes = generarPdf(Object.assign({}, ticketCompleto, {
+    lote: ['Lote 1 El Mataco', 'Lote 2 El Mataco', 'Lote 3 El Mataco', 'Lote 4 El Mataco'],
+    chofer: 'LEZCANO, CARLOS ALBERTO',
+    transporte: 'TRANSPORTE VENTRE MAURICIO',
+  })).toString('latin1');
+  ok('los lotes salen uno por renglón',
+    variosLotes.indexOf('(Lote 1 El Mataco)') !== -1 && variosLotes.indexOf('(Lote 2 El Mataco)') !== -1,
+    'no se encontraron los dos primeros');
+  ok('con más de tres dice cuántos faltan', variosLotes.indexOf('(y 2 m\xe1s)') !== -1);
+  ok('el chofer usa dos renglones en vez de cortarse en el primero',
+    variosLotes.indexOf('(LEZCANO,)') !== -1 && variosLotes.indexOf('(CARLOS') !== -1,
+    'el chofer sigue en un solo renglón');
+  ok('el transporte también', variosLotes.indexOf('(TRANSPORTE)') !== -1 &&
+    variosLotes.indexOf('(VENTRE') !== -1, 'el transporte no se partió');
+  /* Lo que no entra ni en dos renglones se marca con …: antes se perdía en
+     silencio y no había forma de saber que el nombre seguía. */
+  ok('lo que no entra ni así se avisa con …',
+    variosLotes.indexOf('MAURI\x85') !== -1 || variosLotes.indexOf('ALBERT\x85') !== -1 ||
+    (variosLotes.match(/\x85/g) || []).length >= 2,
+    'no apareció el recorte en la segunda línea');
 
   /* ── Con más de tres orígenes se resume ──────────────────────────────── */
   console.log('\n── De dónde cargó, con más de tres');

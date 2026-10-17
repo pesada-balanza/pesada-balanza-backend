@@ -369,9 +369,15 @@ async function main() {
     !JSON.stringify(tk).includes('5679') && !JSON.stringify(tk).includes('12341'), JSON.stringify(tk).slice(0, 300));
   ok('el ticket trae el establecimiento del campo', tk.campoCorto === 'El Mataco', tk.campoCorto);
   ok('el ticket trae el número 1-0001', tk.nro === '1-0001');
+  /* Vacíos: antes llegaban como null y ahora directamente no llegan —el
+     endpoint manda solo lo que el ticket dibuja y saltea lo vacío—. Para el
+     papel es lo mismo: los tres salen como renglón punteado. */
   ok('bruto lote / regulado / neto vacíos en tara final',
-    tk.brutoLote === null && tk.bruto === null && tk.neto === null,
+    !tk.brutoLote && !tk.bruto && !tk.neto,
     JSON.stringify([tk.brutoLote, tk.bruto, tk.neto]));
+  ok('y el ticket solo trae lo que dibuja, no la vista entera',
+    tk.modificaciones === undefined && tk.cargadoPor === undefined && tk.socio === undefined,
+    Object.keys(tk).join(', '));
 
   r = await ir('POST', '/app/api/impreso', { ids: [idCamion] });
   ok('marcar como impreso funciona', r.estado === 200);

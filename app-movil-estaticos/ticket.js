@@ -81,29 +81,28 @@
     );
   }
 
-  /* ── El campo, en hasta dos renglones ─────────────────────────────────────
-     Los campos se llaman "Nombre - LOCALIDAD - PROVINCIA" y no entran en los
-     31 mm de la columna. Se corta por el guion y no por donde caiga: queda
-     "El Mataco" arriba y "SACHAYOJ - SE" abajo. El PDF corta igual
-     (`partirCampo` en app-movil-pdf.js). */
-  function campoEnDos(campo) {
-    var s = String(campo || '').trim();
-    if (!s) return '<span class="tk-renglon"></span>';
-    var i = s.indexOf(' - ');
-    if (i === -1) return '<span class="tk-campo-valor">' + esc(s) + '</span>';
-    return '<span class="tk-campo-valor">' + esc(s.slice(0, i)) + '</span>' +
-      '<span class="tk-campo-valor">' + esc(s.slice(i + 3)) + '</span>';
+  /* ── Los lotes del viaje, uno por renglón ─────────────────────────────────
+     Un viaje puede salir de varios lotes. En la casilla del centro entraba uno
+     y se cortaba; en la columna izquierda hay alto para tres. Con más, van dos
+     y el tercero dice cuántos faltan, igual que de dónde cargó. */
+  var MAX_LOTES = 3;
+
+  function lotesDe(t) {
+    if (Array.isArray(t.lote) && t.lote.length) return t.lote;
+    var s = String(t.loteTexto || '').trim();
+    return s ? s.split(', ') : [];
   }
 
-  /* ── Grano arriba, lote abajo ─────────────────────────────────────────────
-     En un solo renglón el lote se cortaba casi siempre, y el lote es el dato
-     que se busca. Si falta alguno de los dos, va el otro solo; si faltan los
-     dos, renglón punteado. */
-  function granoYLote(t) {
-    if (!t.grano && !t.loteTexto) return '<span class="tk-renglon"></span>';
+  function lotes(t) {
+    var lista = lotesDe(t);
+    if (!lista.length) return '<span class="tk-renglon"></span>';
+    var muestra = lista.length <= MAX_LOTES ? lista : lista.slice(0, MAX_LOTES - 1);
     var h = '';
-    if (t.grano) h += '<span class="tk-valor">' + esc(t.grano) + '</span>';
-    if (t.loteTexto) h += '<span class="tk-valor-2">' + esc(t.loteTexto) + '</span>';
+    for (var i = 0; i < muestra.length; i++) {
+      h += '<span class="tk-lote">' + esc(muestra[i]) + '</span>';
+    }
+    var sobran = lista.length - muestra.length;
+    if (sobran > 0) h += '<span class="tk-lote-mas">y ' + sobran + ' más</span>';
     return h;
   }
 
@@ -146,7 +145,7 @@
     h += '<div>';
     h += '<div class="tk-establecimiento">' + esc(t.campoCorto || t.balanza || '') + '</div>';
     h += '<div class="tk-titular">' + esc(t.titular || 'AMH') + '</div>';
-    h += '<div class="tk-campo"><span class="tk-label">CAMPO</span>' + campoEnDos(t.campo) + '</div>';
+    h += '<div class="tk-lotes"><span class="tk-label">LOTE</span>' + lotes(t) + '</div>';
     h += '</div>';
     h += '<div>';
     h += '<div class="tk-nro-label">TICKET Nº</div>';
@@ -158,9 +157,9 @@
     /* Centro: datos del viaje */
     h += '<div class="tk-centro">';
     h += '<div class="tk-dato"><span class="tk-label">PATENTES</span>' + valor(t.patentes, 'patente') + '</div>';
-    h += '<div class="tk-dato"><span class="tk-label">CHOFER</span>' + valor(t.chofer, 'chofer') + '</div>';
-    h += '<div class="tk-dato"><span class="tk-label">TRANSPORTE</span>' + valor(t.transporte) + '</div>';
-    h += '<div class="tk-dato"><span class="tk-label">GRANO · LOTE</span>' + granoYLote(t) + '</div>';
+    h += '<div class="tk-dato"><span class="tk-label">CHOFER</span>' + valor(t.chofer, 'chofer dos') + '</div>';
+    h += '<div class="tk-dato"><span class="tk-label">TRANSPORTE</span>' + valor(t.transporte, 'dos') + '</div>';
+    h += '<div class="tk-dato"><span class="tk-label">GRANO</span>' + valor(t.grano) + '</div>';
     h += '<div class="tk-dato"><span class="tk-label">' +
       esc(t.origenEtiqueta || 'CARGÓ DE') + '</span>' + origen(t) + '</div>';
     h += '<div class="tk-dato"><span class="tk-label">CP / CTG</span>' + valor(t.cp) + '</div>';
