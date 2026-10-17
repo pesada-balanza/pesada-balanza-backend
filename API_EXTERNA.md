@@ -102,6 +102,7 @@ pesado. Una carta de porte armada con un neto estimado estaría mal.
       "lotes": ["Lote 5 La Porfía"],
       "cargoDe": "SILOBOLSA",
       "silobolsas": [{ "nro": "17", "kg": 29420 }],
+      "tractores": [],
       "tara": 15550,
       "brutoLote": 45000,
       "bruto": 45000,
@@ -128,7 +129,8 @@ pesado. Una carta de porte armada con un neto estimado estaría mal.
 | `grano` | El grano |
 | `lotes` | **Siempre un arreglo**, aunque haya uno solo. Un viaje puede salir de varios |
 | `cargoDe` | `SILOBOLSA`, `CONTRATISTA` o vacío |
-| `silobolsas` | De qué bolsas salió y cuántos kg de cada una. **Vacío** en los tickets anteriores a esa función |
+| `silobolsas` | De qué bolsas salió y cuántos kg de cada una. **Vacío** si `cargoDe` no es `SILOBOLSA`, y en los tickets anteriores a esa función |
+| `tractores` | Qué tractores lo cargaron y cuántos kg puso cada uno: `[{ "tractor": "1VILLA", "contratista": "Villa Marcelo", "kg": 10000 }]`. **Vacío** si `cargoDe` no es `CONTRATISTA`, y en los tickets anteriores a esa función |
 | `tara` | Peso del camión vacío |
 | `brutoLote` | Peso con el que volvió del lote, **antes** de regular |
 | `bruto` | Peso **regulado**, el que vale |
@@ -234,6 +236,14 @@ Todos responden JSON con `{ "ok": false, "error": "..." }`, nunca HTML.
 emitir la carta. Si el programa de cartas de porte pasa a ser el que lo emite,
 ese campo va a estar vacío casi siempre: es el dato que ustedes generan, no uno
 que nosotros tengamos antes.
+
+**Los kg de cada tractor suman el neto, y no hay un reparto por contratista.**
+Cuando un viaje se carga de varios contratistas, el reparto se guarda **por
+tractor** porque es lo que el balancero ve descargar. Lo que puso cada
+contratista es la suma de sus tractores, y cada entrada trae el suyo en
+`contratista`. No viene calculado a propósito: sería el mismo dato en dos
+lugares que pueden contradecirse. Con un solo tractor la lista igual viene, con
+ese tractor llevándose todo el neto.
 
 **Un ticket puede cambiar después.** Se puede corregir dentro de su plazo, y
 también anularse. Un ticket anulado **deja de aparecer** en la lista. Si del

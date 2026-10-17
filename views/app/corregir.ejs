@@ -131,21 +131,39 @@
                value="<%= r.silobolsa %>">
       </div>
 
+      <%# Contratistas y tractores son VARIOS, igual que en la regulada. Antes
+          había un desplegable de cada uno: corregir cualquier dato de un ticket
+          cargado con dos contratistas lo dejaba con uno solo, sin avisar.
+
+          La lista es la de la planilla MÁS los que el ticket ya tenía: un
+          contratista que salió de la planilla de este año no se puede perder
+          por abrir esta pantalla. %>
       <div class="campo<%= r.cargoDe === 'CONTRATISTA' ? '' : ' oculto' %>" id="campo-contratista" style="margin-top:11px">
-        <label class="etiqueta" for="contratista">Contratista</label>
-        <select id="contratista" name="contratista">
-          <option value="">Elegí el contratista…</option>
-          <% contratistas.forEach(function (c) { %>
-            <option value="<%= c %>"<%= r.contratista === c ? ' selected' : '' %>><%= c %></option>
+        <span class="etiqueta">Contratista <span style="text-transform:none; letter-spacing:0">(uno o más)</span></span>
+        <div class="lista-casillas" id="lista-contratistas">
+          <% var listaContr = contratistas.slice();
+             contratistasElegidos.forEach(function (c) { if (listaContr.indexOf(c) === -1) listaContr.push(c); });
+             listaContr.forEach(function (c) { %>
+            <label class="casilla"><input type="checkbox" name="contratista" value="<%= c %>"
+              data-contratista="<%= c %>"<%= contratistasElegidos.indexOf(c) !== -1 ? ' checked' : '' %>><span><%= c %></span></label>
           <% }); %>
-        </select>
+        </div>
       </div>
 
       <div class="campo<%= r.cargoDe === 'CONTRATISTA' ? '' : ' oculto' %>" id="campo-tractor" style="margin-top:11px">
-        <label class="etiqueta" for="tractor">Tractor</label>
-        <select id="tractor" name="tractor">
-          <option value="">Elegí el tractor…</option>
-        </select>
+        <span class="etiqueta">Tractor <span style="text-transform:none; letter-spacing:0">(uno o más)</span></span>
+        <div class="lista-casillas" id="lista-tractores">
+          <div class="lista-vacia">Elegí primero el contratista.</div>
+        </div>
+      </div>
+
+      <%# El mismo reparto que en la regulada: el último es el resto. Acá además
+          se mueve solo al corregir la tara, que es justo lo que antes dejaba el
+          ticket descuadrado. %>
+      <div class="campo oculto" id="campo-kg-tract" style="margin-top:11px">
+        <span class="etiqueta">Kg de cada tractor</span>
+        <div class="caja-silo" id="filas-tract"></div>
+        <span class="txt-aux" id="aviso-tract">&nbsp;</span>
       </div>
 
       <div class="campo" style="margin-top:11px">
@@ -179,8 +197,11 @@
   var campoSilo = document.getElementById('campo-silobolsa');
   var campoContr = document.getElementById('campo-contratista');
   var campoTractor = document.getElementById('campo-tractor');
-  var selContr = document.getElementById('contratista');
-  var selTractor = document.getElementById('tractor');
+  var listaContr = document.getElementById('lista-contratistas');
+  var listaTractores = document.getElementById('lista-tractores');
+  var campoKgTract = document.getElementById('campo-kg-tract');
+  var filasTract = document.getElementById('filas-tract');
+  var avisoTract = document.getElementById('aviso-tract');
 
   var brutoEstimado = <%= Number(r.brutoEstimado) || 0 %>;
   var bruto = <%= r.bruto ? Number(r.bruto) : 0 %>;
@@ -188,7 +209,9 @@
   // quedar vacía. Antes es una estimación del ticket de camiones: opcional.
   var taraEsReal = <%= r.fechaTaraFinal ? 'true' : 'false' %>;
   var tractoresPor = <%- JSON.stringify(tractoresPorContratista) %>;
-  var tractorActual = '<%= r.tractor %>';
+  var TRACTORES_DEL_TICKET = <%- JSON.stringify(tractoresElegidos) %>;
+  var REPARTO_GUARDADO = <%- JSON.stringify(repartoTractores) %>;
+  var TOPE_TRACTORES = <%= maximoTractores %>;
 
   /* ── Los netos, mientras se escribe la tara ───────────────────────────── */
   function mostrarCalculo() {
@@ -203,20 +226,220 @@
     var limpio = (this.value || '').replace(/\D/g, '').slice(0, 7);
     if (limpio !== this.value) this.value = limpio;
     mostrarCalculo();
+    // Cambiar la tara cambia el neto, y el reparto tiene que seguirlo.
+    refrescarRestoTract();
   });
   mostrarCalculo();
 
-  /* ── Cargó de: silobolsa o contratista ────────────────────────────────── */
-  function llenarTractores(contratista) {
-    var lista = tractoresPor[contratista] || [];
-    selTractor.innerHTML = '<option value="">Elegí el tractor…</option>';
-    for (var i = 0; i < lista.length; i++) {
-      var o = document.createElement('option');
-      o.value = lista[i];
-      o.textContent = lista[i];
-      if (lista[i] === tractorActual) o.selected = true;
-      selTractor.appendChild(o);
+  /* ── Contratistas → tractores → kg ────────────────────────────────────────
+   * Misma mecánica que la regulada. La diferencia es que acá el neto se mueve
+   * mientras se corrige la tara, así que el resto se recalcula con cada tecla:
+   * es exactamente el descuadre que antes quedaba guardado sin que nadie lo
+   * viera.
+   * ─────────────────────────────────────────────────────────────────────── */
+  var marcados = {};       // tractor → tildado (sobrevive al redibujo)
+  var kgTract = {};        // tractor → kg tipeados
+  var antesTract = [];
+  var contrDeTractor = {};
+  /* El orden importa: el último es el resto. Se arranca con el que quedó
+     guardado, para que el ticket corregido se lea igual que el original. */
+  var ordenTract = (REPARTO_GUARDADO.length
+    ? REPARTO_GUARDADO.map(function (x) { return x.tractor; })
+    : TRACTORES_DEL_TICKET).slice();
+
+  for (var i0 = 0; i0 < TRACTORES_DEL_TICKET.length; i0++) marcados[TRACTORES_DEL_TICKET[i0]] = true;
+  for (var i1 = 0; i1 < REPARTO_GUARDADO.length; i1++) {
+    var g = REPARTO_GUARDADO[i1];
+    if (g.contratista) contrDeTractor[g.tractor] = g.contratista;
+    // El último no se copia: es el resto y se vuelve a calcular contra el neto.
+    if (i1 < REPARTO_GUARDADO.length - 1) kgTract[g.tractor] = String(g.kg);
+  }
+
+  function contratistasTildados() {
+    var l = [], c = listaContr.querySelectorAll('[data-contratista]');
+    for (var i = 0; i < c.length; i++) if (c[i].checked) l.push(c[i].value);
+    return l;
+  }
+
+  function contratistaDeTractor(t) {
+    for (var n in tractoresPor) {
+      if (tractoresPor[n].indexOf(t) !== -1) return n;
     }
+    return contrDeTractor[t] || '';
+  }
+
+  /** Los tractores que se pueden elegir, según los contratistas tildados. */
+  function tractoresDisponibles() {
+    var contr = contratistasTildados();
+    var out = [];
+    for (var i = 0; i < contr.length; i++) {
+      var lista = tractoresPor[contr[i]];
+      if (!lista) {
+        /* Contratista que ya no está en la planilla de este año: se ofrecen los
+           tractores que el ticket traía de él, para no perderlos al corregir
+           cualquier otra cosa. */
+        lista = TRACTORES_DEL_TICKET.filter(function (t) {
+          return (contrDeTractor[t] || '') === contr[i];
+        });
+        if (!lista.length) lista = TRACTORES_DEL_TICKET;
+      }
+      for (var j = 0; j < lista.length; j++) {
+        if (out.indexOf(lista[j]) === -1) out.push(lista[j]);
+      }
+    }
+    return out;
+  }
+
+  function pintarTractores() {
+    var tractores = tractoresDisponibles();
+    if (!tractores.length) {
+      listaTractores.innerHTML = '<div class="lista-vacia">Elegí primero el contratista.</div>';
+      antesTract = [];
+      dibujarTract();
+      return;
+    }
+    var h = '';
+    for (var i = 0; i < tractores.length; i++) {
+      h += '<label class="casilla"><input type="checkbox" name="tractor" value="' +
+        App.esc(tractores[i]) + '" data-tractor="' + App.esc(tractores[i]) + '"' +
+        (marcados[tractores[i]] ? ' checked' : '') + '><span class="mono">' +
+        App.esc(tractores[i]) + '</span></label>';
+    }
+    listaTractores.innerHTML = h;
+    antesTract = elegidosTract();
+    dibujarTract();
+  }
+
+  /* En el orden en que se tildaron (o en el que quedó guardado), no en el de
+     la lista: el último es el resto y no tiene que saltar de renglón. */
+  function elegidosTract() {
+    var tildados = {};
+    var c = listaTractores.querySelectorAll('[data-tractor]');
+    for (var i = 0; i < c.length; i++) if (c[i].checked) tildados[c[i].value] = true;
+    var l = [];
+    for (var j = 0; j < ordenTract.length; j++) {
+      if (tildados[ordenTract[j]]) { l.push(ordenTract[j]); delete tildados[ordenTract[j]]; }
+    }
+    for (var k = 0; k < c.length; k++) if (tildados[c[k].value]) l.push(c[k].value);
+    return l;
+  }
+
+  function netoActual() {
+    if (!bruto) return 0;
+    var t = Number((inputTara.value || '').replace(/\D/g, '')) || 0;
+    var n = bruto - t;
+    return n > 0 ? n : 0;
+  }
+
+  function repartidoTract(lista) {
+    var s = 0;
+    for (var i = 0; i < lista.length - 1; i++) s += Number(kgTract[lista[i]]) || 0;
+    return s;
+  }
+
+  function restoTract(lista) { return netoActual() - repartidoTract(lista); }
+
+  function avisarTract(lista) {
+    var neto = netoActual();
+    var resto = restoTract(lista);
+    var falta = false;
+    for (var i = 0; i < lista.length - 1; i++) {
+      if (!(Number(kgTract[lista[i]]) > 0)) falta = true;
+    }
+    if (lista.length > TOPE_TRACTORES) {
+      avisoTract.innerHTML = '<span class="campo-error">Son demasiados tractores para un viaje ' +
+        '(máximo ' + TOPE_TRACTORES + ').</span>';
+    } else if (!neto) {
+      avisoTract.innerHTML = 'Sin regulada todavía no hay neto para repartir.';
+    } else if (resto < 0) {
+      avisoTract.innerHTML = '<span class="campo-error">Los kg puestos pasan el neto de ' +
+        App.miles(neto) + '. Bajá alguno para poder guardar.</span>';
+    } else if (falta) {
+      avisoTract.innerHTML = '<span class="campo-error">Completá los kg de arriba</span>';
+    } else if (lista.length === 1) {
+      avisoTract.innerHTML = 'Se lleva todo el neto: ' + App.miles(neto) + ' kg.';
+    } else {
+      avisoTract.innerHTML = 'El último es el resto: ' + App.miles(neto) + ' menos lo de arriba.';
+    }
+  }
+
+  function refrescarRestoTract() {
+    var lista = elegidosTract();
+    if (!lista.length) return;
+    var u = filasTract.querySelector('.kg-resto');
+    if (u) u.value = netoActual() ? App.miles(restoTract(lista)) : '';
+    avisarTract(lista);
+  }
+
+  function dibujarTract() {
+    var lista = elegidosTract();
+    var hay = ocultoCargo.value === 'CONTRATISTA' && lista.length && bruto;
+    campoKgTract.className = hay ? 'campo' : 'campo oculto';
+    if (!hay) { filasTract.innerHTML = ''; return; }
+    var h = '';
+    for (var i = 0; i < lista.length; i++) {
+      var ultimo = i === lista.length - 1;
+      h += '<div class="fila-silo">' +
+        '<span class="marca">•</span>' +
+        '<span class="nombre-origen">' + App.esc(lista[i]) +
+          '<span class="chico">' + App.esc(contratistaDeTractor(lista[i])) + '</span></span>' +
+        '<span class="der">' +
+          '<input class="kg-silo' + (ultimo ? ' kg-resto' : '') + '" inputmode="numeric" ' +
+            'maxlength="5" data-tract="' + App.esc(lista[i]) + '"' + (ultimo ? ' readonly' : '') +
+            ' value="' + (ultimo ? '' : App.esc(kgTract[lista[i]] || '')) + '">' +
+          '<span class="unidad">kg</span>' +
+        '</span></div>';
+    }
+    filasTract.innerHTML = h;
+    refrescarRestoTract();
+  }
+
+  function congelarResto(antes) {
+    if (!antes.length) return;
+    var u = antes[antes.length - 1];
+    if (!(Number(kgTract[u]) > 0)) kgTract[u] = String(Math.max(0, restoTract(antes)));
+  }
+
+  listaContr.addEventListener('change', pintarTractores);
+
+  listaTractores.addEventListener('change', function (ev) {
+    if (!ev.target.getAttribute || !ev.target.getAttribute('data-tractor')) return;
+    var t = ev.target.value;
+    marcados[t] = ev.target.checked;
+    var pos = ordenTract.indexOf(t);
+    if (ev.target.checked) { if (pos === -1) ordenTract.push(t); }
+    else if (pos !== -1) ordenTract.splice(pos, 1);
+    var ahora = elegidosTract();
+    if (ahora.length > antesTract.length) congelarResto(antesTract);
+    antesTract = ahora;
+    dibujarTract();
+  });
+
+  filasTract.addEventListener('input', function (ev) {
+    var el = ev.target;
+    var t = el.getAttribute && el.getAttribute('data-tract');
+    if (!t) return;
+    el.value = (el.value || '').replace(/\D/g, '').slice(0, 5);
+    kgTract[t] = el.value;
+    refrescarRestoTract();
+  });
+
+  function repartoTractParaGuardar() {
+    var lista = elegidosTract();
+    if (lista.length > TOPE_TRACTORES) {
+      return { error: 'Son demasiados tractores para un viaje (máximo ' + TOPE_TRACTORES + ').' };
+    }
+    var resto = restoTract(lista);
+    if (resto < 0) return { error: 'Los kg de los tractores pasan el neto del viaje. Bajá alguno.' };
+    var salida = [];
+    for (var i = 0; i < lista.length; i++) {
+      var kgT = i === lista.length - 1 ? resto : (Number(kgTract[lista[i]]) || 0);
+      if (kgT <= 0) {
+        return { error: 'El tractor ' + lista[i] + ' quedó en 0 kg. Completá los kg o destildalo.' };
+      }
+      salida.push({ tractor: lista[i], contratista: contratistaDeTractor(lista[i]), kg: kgT });
+    }
+    return { lista: salida };
   }
 
   /* ── AMH o Socio ──────────────────────────────────────────────────────── */
@@ -230,6 +453,7 @@
     campoSilo.className = 'campo' + (v === 'SILOBOLSA' ? '' : ' oculto');
     campoContr.className = 'campo' + (v === 'CONTRATISTA' ? '' : ' oculto');
     campoTractor.className = 'campo' + (v === 'CONTRATISTA' ? '' : ' oculto');
+    dibujarTract();
   }
 
   // El manejo de los botones de opción ya está en app.js: se usa ese.
@@ -237,8 +461,7 @@
   ocultoCargo.addEventListener('cambio-opcion', acomodarCargo);
   ocultoCargaPara.addEventListener('cambio-opcion', acomodarCargaPara);
   acomodarCargaPara();
-  selContr.addEventListener('change', function () { llenarTractores(this.value); });
-  llenarTractores(selContr.value);
+  pintarTractores();
   acomodarCargo();
 
   /* ── Guardar ──────────────────────────────────────────────────────────── */
@@ -254,8 +477,8 @@
       socio: inputSocio ? inputSocio.value : '',
       cargoDe: ocultoCargo.value,
       silobolsa: document.getElementById('silobolsa').value,
-      contratista: selContr.value,
-      tractor: selTractor.value,
+      contratista: contratistasTildados(),
+      tractor: elegidosTract(),
       comentarios: document.getElementById('comentarios').value
     };
 
@@ -266,10 +489,24 @@
     if (taraEsReal && !Number(datos.tara)) faltan.push('la tara');
     if (datos.cargaPara === 'SOCIO' && !datos.socio.trim()) faltan.push('el socio');
     if (datos.cargoDe === 'SILOBOLSA' && !datos.silobolsa.trim()) faltan.push('el número de silobolsa');
-    if (datos.cargoDe === 'CONTRATISTA' && !datos.contratista) faltan.push('el contratista');
+    if (datos.cargoDe === 'CONTRATISTA') {
+      if (!datos.contratista.length) faltan.push('el contratista');
+      if (!datos.tractor.length) faltan.push('el tractor');
+    }
     if (faltan.length) {
       error.innerHTML = 'Falta ' + App.esc(faltan.join(', '));
       return;
+    }
+
+    /* El reparto de kg solo existe si el ticket ya tiene la regulada: antes de
+       eso no hay neto que repartir. */
+    if (datos.cargoDe === 'CONTRATISTA' && bruto) {
+      var rt = repartoTractParaGuardar();
+      if (rt.error) {
+        error.innerHTML = App.esc(rt.error);
+        return;
+      }
+      datos.tractores = rt.lista;
     }
 
     // Corregir necesita servidor: no se encola. Si no hay señal se dice y listo.

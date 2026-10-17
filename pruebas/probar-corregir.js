@@ -508,8 +508,11 @@ async function main() {
   });
   const conSilo = registros().docs.find((d) => String(d._id) === id7);
   ok('con silobolsa se guarda el número', r.estado === 200 && conSilo.silobolsa === 'Silobolsa 9', conSilo.silobolsa);
-  ok('y no queda contratista colgado', conSilo.contratista === '' && conSilo.tractor === '',
-    conSilo.contratista + '/' + conSilo.tractor);
+  // Contratista y tractor son LISTAS desde que se puede corregir un ticket que
+  // cargó de varios: antes eran un texto y la corrección los aplastaba a uno.
+  ok('y no queda contratista colgado',
+    JSON.stringify(conSilo.contratista) === '[]' && JSON.stringify(conSilo.tractor) === '[]',
+    JSON.stringify(conSilo.contratista) + '/' + JSON.stringify(conSilo.tractor));
 
   r = await ir('POST', '/app/api/corregir/' + id7, {
     patentes: 'FF 666 GG', chofer: t7.chofer, tara: '16000',
@@ -517,7 +520,10 @@ async function main() {
   });
   const conContr = registros().docs.find((d) => String(d._id) === id7);
   ok('al pasar a contratista, el silobolsa se limpia', r.estado === 200 && conContr.silobolsa === '', conContr.silobolsa);
-  ok('y quedan contratista y tractor', conContr.contratista === 'Contratista X' && conContr.tractor === 'TRACTOR 1');
+  ok('y quedan contratista y tractor',
+    JSON.stringify(conContr.contratista) === '["Contratista X"]' &&
+    JSON.stringify(conContr.tractor) === '["TRACTOR 1"]',
+    JSON.stringify(conContr.contratista) + '/' + JSON.stringify(conContr.tractor));
 
   /* ── Sin sesión ─────────────────────────────────────────────────────── */
   seccion('Sin sesión');

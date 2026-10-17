@@ -423,6 +423,17 @@ a { color: inherit; text-decoration: none; }
 .fila-silo:last-child { border-bottom: 0; }
 .fila-silo .marca { width: 22px; flex: 0 0 auto; text-align: center; font: 600 15px/1 var(--mono); color: var(--punteado); }
 .fila-silo .nro-silo { width: 66px; height: 44px; text-align: center; padding: 0 6px; font: 600 17px/1 var(--mono); }
+/* Donde el silobolsa tiene un número de 3 dígitos, el tractor tiene un nombre:
+   ocupa el ancho que sobra y se recorta con puntos si no entra. Abajo, en
+   chico, de qué contratista es —el número de tractor solo no dice nada—. */
+.fila-silo .nombre-origen {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; font: 600 15px/1.2 var(--mono); color: var(--tinta);
+}
+.fila-silo .nombre-origen .chico {
+  display: block; font: 400 11px/1.3 var(--sans); color: var(--texto3);
+  overflow: hidden; text-overflow: ellipsis;
+}
 .fila-silo .der { margin-left: auto; display: flex; align-items: center; gap: 7px; }
 .fila-silo .kg-silo { width: 104px; height: 44px; text-align: right; padding: 0 10px; font: 600 17px/1 var(--mono); }
 .fila-silo .kg-resto { background: var(--gris); border-style: dashed; }

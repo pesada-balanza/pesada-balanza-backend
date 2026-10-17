@@ -263,6 +263,12 @@ async function main() {
     encabezados.indexOf('Neto') !== -1 && encabezados.indexOf('CP') !== -1 &&
     encabezados.indexOf('Bruto LOTE - Bruto Regulado') !== -1,
     encabezados.join(' | '));
+  /* Las dos columnas del reparto. Van en blanco cuando hubo un solo origen:
+     ahí el viaje entero es de esa bolsa o de ese tractor y el dato ya está en
+     la columna Neto. */
+  ok('está la columna de kg por silobolsa y la de kg por tractor',
+    encabezados.indexOf('Kg por silobolsa') !== -1 && encabezados.indexOf('Kg por tractor') !== -1,
+    encabezados.join(' | '));
 
   const netos = columna(registrosHoja, 'Neto') || [];
   ok('el anulado va con el neto en negativo, como en la web',

@@ -176,6 +176,15 @@ module.exports = function crearApiExterna(deps) {
       silobolsas: Array.isArray(r.silobolsas)
         ? r.silobolsas.map((b) => ({ nro: String((b && b.nro) || ''), kg: Number((b && b.kg) || 0) }))
         : [],
+      // Cuando cargó de contratistas: cuántos kg puso cada tractor. Lo que puso
+      // cada contratista es la suma de sus tractores.
+      tractores: Array.isArray(r.tractores)
+        ? r.tractores.map((t) => ({
+          tractor: String((t && t.tractor) || ''),
+          contratista: String((t && t.contratista) || ''),
+          kg: Number((t && t.kg) || 0),
+        }))
+        : [],
       tara: Number(r.tara) || 0,
       brutoLote: Number(r.brutoLote) || 0,
       bruto: Number(r.bruto) || 0,
@@ -305,7 +314,7 @@ module.exports = function crearApiExterna(deps) {
             projection: {
               nroApp: 1, idTicket: 1, fecha: 1, fechaRegulada: 1, codigoIngreso: 1,
               cargaPara: 1, socio: 1, transporte: 1, patentes: 1, chofer: 1,
-              campo: 1, grano: 1, lote: 1, cargoDe: 1, silobolsas: 1,
+              campo: 1, grano: 1, lote: 1, cargoDe: 1, silobolsas: 1, tractores: 1,
               tara: 1, brutoLote: 1, bruto: 1, neto: 1, cp: 1, comentarios: 1,
             },
             sort: { idTicket: 1 },

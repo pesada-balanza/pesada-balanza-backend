@@ -409,18 +409,17 @@ async function main() {
   // /app/api/tablas, que se guarda una vez y sirve también sin señal.
   ok('la pantalla NO arrastra la planilla entera (es liviana)',
     htmlReg.indexOf('La Pradera - ARBOL BLANCO - SE') === -1);
-  /* 30 KB desde que la pantalla avisa cuánto lleva cada silobolsa (eran 27 con
-     las filas de bolsas y sus kg). Es JavaScript propio de esta pantalla, no
-     datos.
+  /* 38 KB desde que se reparten los kg entre los tractores (eran 30 con el
+     aviso del tope por silobolsa, y 27 con las filas de bolsas). Es JavaScript
+     propio de esta pantalla, no datos.
 
-     OJO con el margen: lo que de verdad viaja por la señal mala es el
-     comprimido, y ese ya va en 8,2 de los 9 KB que le controla
-     probar-liviana.js. Queda poco, así que lo próximo que se agregue acá
-     conviene que entre sacando otra cosa.
+     Este tope en crudo cuida algo distinto del comprimido: que no se vuelva a
+     meter acá la planilla de siembra entera. Para eso está también la
+     comprobación de arriba, que busca un campo que no es el del ticket.
 
-     Este tope en crudo cuida algo distinto: que no se vuelva a meter acá la
-     planilla de siembra entera, que es lo que la hacía pesar 34 KB. */
-  ok('la pantalla pesa menos de 30 KB', Buffer.byteLength(htmlReg) < 30 * 1024,
+     Lo que de verdad viaja por la señal mala es el comprimido, y ese lo
+     controla probar-liviana.js. */
+  ok('la pantalla pesa menos de 38 KB', Buffer.byteLength(htmlReg) < 38 * 1024,
     (Buffer.byteLength(htmlReg) / 1024).toFixed(1) + ' KB');
 
   const mDatos = htmlReg.match(/SIEMBRA\[campoElegido\] = (\{[\s\S]*?\});/);

@@ -1138,6 +1138,24 @@ function kgPorSilobolsa(r) {
 }
 
 /**
+ * Lo mismo para el viaje que cargó de contratistas: cuántos kg puso cada
+ * tractor. En blanco cuando hubo uno solo, porque entonces se llevó todo el
+ * neto y el dato ya está en la columna Neto.
+ *
+ * Lo que cargó cada CONTRATISTA es la suma de sus tractores. No se guarda ni
+ * se exporta aparte a propósito: sería el mismo dato en dos columnas que se
+ * pueden contradecir, y acá cada tractor viene con su nombre.
+ */
+function kgPorTractor(r) {
+  const tractores = Array.isArray(r && r.tractores) ? r.tractores : [];
+  if (tractores.length < 2) return '';
+  return tractores
+    .map(t => String((t && t.tractor) || '?').trim() + ': ' +
+      (Number(t && t.kg) || 0).toLocaleString('es-AR'))
+    .join(' · ');
+}
+
+/**
  * VUL-10: Verifica que un ticket no tenga más de `diasMaximos` días de antigüedad.
  * Un ticket de TARA es válido por 5 días para completar TARA FINAL o REGULADA.
  */
@@ -1540,6 +1558,7 @@ async function construirLibroRegistros(registros) {
     { header: 'Kg por silobolsa', key: 'silobolsaKg', width: 26 },
     { header: 'Contratista', key: 'contratista', width: 15 },
     { header: 'Tractor', key: 'tractor', width: 15 },
+    { header: 'Kg por tractor', key: 'tractorKg', width: 26 },
     { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
     { header: 'Comentarios', key: 'comentarios', width: 28 },
     { header: 'Bruto Regulado', key: 'bruto', width: 16 },
@@ -1574,6 +1593,7 @@ async function construirLibroRegistros(registros) {
       tractor:     flat(r.tractor),
       // La columna Silobolsa dice de cuáles salió; esta, cuánto de cada una.
       silobolsaKg: kgPorSilobolsa(r),
+      tractorKg:   kgPorTractor(r),
       neto: netoExport,
       difBrutoLoteBruto,
     });
@@ -1601,6 +1621,7 @@ async function construirLibroRegistros(registros) {
     { header: 'Silobolsa', key: 'silobolsa', width: 15 },
     { header: 'Kg por silobolsa', key: 'silobolsaKg', width: 26 },
     { header: 'Contratista', key: 'contratista', width: 15 },
+    { header: 'Kg por tractor', key: 'tractorKg', width: 26 },
     { header: 'Tara', key: 'tara', width: 10 },
     { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
     { header: 'Bruto Regulado', key: 'bruto', width: 16 },
@@ -2871,6 +2892,7 @@ async function generarExcelReporteDiario() {
     { header: 'Kg por silobolsa', key: 'silobolsaKg',   width: 26 },
     { header: 'Contratista',     key: 'contratista',    width: 15 },
     { header: 'Tractor',         key: 'tractor',        width: 15 },
+    { header: 'Kg por tractor',  key: 'tractorKg',      width: 26 },
     { header: 'Bruto LOTE',      key: 'brutoLote',      width: 14 },
     { header: 'Comentarios',     key: 'comentarios',    width: 28 },
     { header: 'Bruto Regulado',  key: 'bruto',          width: 16 },
@@ -2904,6 +2926,7 @@ async function generarExcelReporteDiario() {
       tractor:     flat(r.tractor),
       // La columna Silobolsa dice de cuáles salió; esta, cuánto de cada una.
       silobolsaKg: kgPorSilobolsa(r),
+      tractorKg:   kgPorTractor(r),
       neto: netoExport,
       difBrutoLoteBruto,
       anulado: r.anulado ? 'ANULADO' : '',
@@ -2932,6 +2955,7 @@ async function generarExcelReporteDiario() {
     { header: 'Silobolsa', key: 'silobolsa', width: 15 },
     { header: 'Kg por silobolsa', key: 'silobolsaKg', width: 26 },
     { header: 'Contratista', key: 'contratista', width: 15 },
+    { header: 'Kg por tractor', key: 'tractorKg', width: 26 },
     { header: 'Tara', key: 'tara', width: 10 },
     { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
     { header: 'Bruto Regulado', key: 'bruto', width: 16 },

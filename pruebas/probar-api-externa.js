@@ -96,6 +96,15 @@ async function main() {
   meter({ patentes: 'JWE798    KMT629 ' });
   meter({ codigoIngreso: '5684', campo: 'Quimili - QUIMILI - SE', patentes: 'QUI 111 AA' });
   meter({ cargaPara: 'SOCIO', socio: 'PROVOINVEST', patentes: 'SOC 222 BB' });
+  // Uno que cargó de dos contratistas, para ver el reparto por tractor.
+  meter({
+    patentes: 'TRA 333 CC', cargoDe: 'CONTRATISTA', silobolsas: [],
+    contratista: ['Villa Marcelo', 'Maggi Javier'], tractor: ['1VILLA', '9MAGGI'],
+    tractores: [
+      { tractor: '1VILLA', contratista: 'Villa Marcelo', kg: 18000 },
+      { tractor: '9MAGGI', contratista: 'Maggi Javier', kg: 11420 },
+    ],
+  });
   // Nada de esto puede salir.
   meter({ patentes: 'ANU 000 UL', anulado: true });
   meter({ patentes: 'ABI 000 ER', fechaRegulada: undefined, pesadaPara: 'TARA FINAL' });
@@ -145,6 +154,23 @@ async function main() {
     uno.campo === 'La Porfía - ARBOL BLANCO - SE' && uno.grano === 'MAIZ' &&
     Array.isArray(uno.lotes) && uno.lotes[0] === 'Lote 5 La Porfía', JSON.stringify(uno.lotes));
   ok('dice de qué balanza salió, por su nombre', uno.balanza === 'El Mataco', uno.balanza);
+  ok('el que cargó de silobolsa no trae tractores',
+    Array.isArray(uno.tractores) && uno.tractores.length === 0, JSON.stringify(uno.tractores));
+
+  /* El viaje que cargó de contratistas trae cuántos kg puso cada TRACTOR, con
+     el contratista al lado. Lo de cada contratista es la suma de sus
+     tractores: no viene calculado, para no tener el mismo dato dos veces. */
+  const deContratistas = cam.find((c) => c.patentes === 'TRA 333 CC') || {};
+  ok('el que cargó de contratistas trae el reparto por tractor',
+    (deContratistas.tractores || []).length === 2, JSON.stringify(deContratistas.tractores));
+  ok('con el contratista de cada tractor',
+    deContratistas.tractores[0].tractor === '1VILLA' &&
+    deContratistas.tractores[0].contratista === 'Villa Marcelo',
+    JSON.stringify(deContratistas.tractores));
+  ok('y los kg suman el neto del viaje',
+    deContratistas.tractores.reduce((a, t) => a + t.kg, 0) === deContratistas.neto,
+    JSON.stringify(deContratistas.tractores) + ' vs ' + deContratistas.neto);
+  ok('y no trae silobolsas', (deContratistas.silobolsas || []).length === 0);
   ok('el socio sale enderezado al de la lista',
     (cam.find((c) => c.patentes === 'SOC 222 BB') || {}).socio === 'ProvInvest',
     JSON.stringify(cam.find((c) => c.patentes === 'SOC 222 BB')));

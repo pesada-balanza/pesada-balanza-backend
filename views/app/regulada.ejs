@@ -147,6 +147,20 @@
         </div>
       </div>
 
+      <%# Los kg de cada tractor. Mismo reparto que los silobolsas: el ÚLTIMO no
+          se tipea, es el resto (neto menos lo de arriba), así la suma cierra
+          sola y nunca queda un viaje con kg sin imputar. Con un solo tractor no
+          hay nada que tipear: se lleva todo el neto.
+
+          Las filas salen de los tractores tildados arriba y NO de un botón ＋,
+          como en el silobolsa: hay un solo lugar donde se dice quiénes
+          cargaron, y no dos que se puedan contradecir. %>
+      <div class="campo oculto" id="campo-kg-tract">
+        <span class="etiqueta">Kg de cada tractor</span>
+        <div class="caja-silo" id="filas-tract"></div>
+        <span class="txt-aux" id="aviso-tract">&nbsp;</span>
+      </div>
+
       <div class="campo">
         <label class="etiqueta" for="comentarios">Observaciones</label>
         <textarea id="comentarios" name="comentarios" maxlength="500" rows="3"></textarea>
@@ -275,6 +289,8 @@
     campoSilo.className = v === 'SILOBOLSA' ? 'campo' : 'campo oculto';
     campoContr.className = v === 'CONTRATISTA' ? 'campo' : 'campo oculto';
     campoTractor.className = v === 'CONTRATISTA' ? 'campo' : 'campo oculto';
+    // La primera vez corre antes de que exista el bloque de kg: se saltea.
+    if (campoKgTract) dibujarTract();
   }
   ocultoCargo.addEventListener('cambio-opcion', revisarCargo);
   revisarCargo();
@@ -300,9 +316,14 @@
     var h = '';
     for (var m = 0; m < tractores.length; m++) {
       h += '<label class="casilla"><input type="checkbox" name="tractor" value="' +
-        App.esc(tractores[m]) + '"><span class="mono">' + App.esc(tractores[m]) + '</span></label>';
+        App.esc(tractores[m]) + '" data-tractor="' + App.esc(tractores[m]) + '"><span class="mono">' +
+        App.esc(tractores[m]) + '</span></label>';
     }
     listaTractores.innerHTML = h;
+    // Rehacer la lista destilda todo: el reparto de kg arranca de cero.
+    ordenTract = [];
+    antesTract = [];
+    dibujarTract();
   }
   // Las casillas se pintan después (con las tablas guardadas), así que se
   // escucha en la lista y no en cada casilla.
@@ -332,11 +353,171 @@
     listaContr.innerHTML = h;
   }
 
-  /* ── Tablas guardadas en el teléfono ──────────────────────────────────────
-   * Traen la lista completa de campos, la planilla de siembra entera y los
-   * contratistas con sus tractores. Sin ellas la pantalla igual funciona para
-   * el campo del ticket, que es lo que viene embebido.
-   * ─────────────────────────────────────────────────────────────────────── */
+  <%#
+    ── Kg de cada tractor ──────────────────────────────────────────────────
+    Esta explicación va en un comentario de EJS y no de JavaScript a propósito:
+    así queda en el código y NO se le baja al teléfono en cada regulada. La
+    pantalla va justa de peso (9 de 10 KB comprimidos, que controla
+    probar-liviana.js) y el texto largo es lo primero que conviene sacar de lo
+    que viaja.
+
+    Las filas son los tractores tildados, en el orden en que se fueron
+    tildando. El último es el resto y no se tipea, igual que la última bolsa.
+
+    Lo que acá reemplaza al botón ＋ Silobolsa es `congelarResto`: al tildar
+    otro tractor, el que venía siendo el resto se queda con los kg que estaba
+    mostrando. Sin eso, agregar un tractor borraría lo ya repartido y el nuevo
+    se llevaría todo el neto.
+
+    El orden es el de los tildes y no el de la lista para que el último que
+    agregaste sea siempre el resto. Si fuera el de la lista, tildar un tractor
+    que ordena más arriba dejaría en blanco un renglón del medio y el resto le
+    quedaría a otro.
+  %>
+  var campoKgTract = document.getElementById('campo-kg-tract');
+  var filasTract = document.getElementById('filas-tract');
+  var avisoTract = document.getElementById('aviso-tract');
+  var TOPE_TRACTORES = <%= topeTractores %>;
+  var kgTract = {};      // tractor → kg tipeados (sobreviven al redibujo)
+  var ordenTract = [];   // en qué orden se fueron tildando
+  var antesTract = [];   // los tildados antes del último cambio
+
+  function elegidosTract() {
+    var tildados = {};
+    var c = listaTractores.querySelectorAll('[data-tractor]');
+    for (var i = 0; i < c.length; i++) if (c[i].checked) tildados[c[i].value] = true;
+    var l = [];
+    for (var j = 0; j < ordenTract.length; j++) {
+      if (tildados[ordenTract[j]]) { l.push(ordenTract[j]); delete tildados[ordenTract[j]]; }
+    }
+    for (var k = 0; k < c.length; k++) if (tildados[c[k].value]) l.push(c[k].value);
+    return l;
+  }
+
+  function contratistaDeTractor(t) {
+    for (var n in DATOS_TRACTORES) {
+      if (DATOS_TRACTORES[n].indexOf(t) !== -1) return n;
+    }
+    return '';
+  }
+
+  <%# Lo repartido en los tractores que SÍ se tipean (todos menos el último). %>
+  function repartidoTract(lista) {
+    var s = 0;
+    for (var i = 0; i < lista.length - 1; i++) s += Number(kgTract[lista[i]]) || 0;
+    return s;
+  }
+
+  function restoTract(lista) { return netoActual() - repartidoTract(lista); }
+
+  function avisarTract(lista) {
+    var neto = netoActual();
+    var resto = restoTract(lista);
+    var faltaAlguno = false;
+    for (var i = 0; i < lista.length - 1; i++) {
+      if (!(Number(kgTract[lista[i]]) > 0)) faltaAlguno = true;
+    }
+    if (lista.length > TOPE_TRACTORES) {
+      avisoTract.innerHTML = '<span class="campo-error">Son demasiados tractores para un viaje ' +
+        '(máximo ' + TOPE_TRACTORES + ').</span>';
+    } else if (!neto) {
+      avisoTract.innerHTML = 'Cargá el bruto regulado y los kg se reparten solos.';
+    } else if (resto < 0) {
+      avisoTract.innerHTML = '<span class="campo-error">Los kg puestos pasan el neto de ' +
+        App.miles(neto) + '. Bajá alguno para poder guardar.</span>';
+    } else if (faltaAlguno) {
+      avisoTract.innerHTML = '<span class="campo-error">Completá los kg de arriba</span>';
+    } else if (lista.length === 1) {
+      avisoTract.innerHTML = 'Se lleva todo el neto: ' + App.miles(neto) + ' kg.';
+    } else {
+      avisoTract.innerHTML = 'El último es el resto: ' + App.miles(neto) + ' menos lo de arriba.';
+    }
+  }
+
+  <%# Solo el casillero del último y el aviso: redibujar saltaría el cursor. %>
+  function refrescarRestoTract() {
+    var lista = elegidosTract();
+    if (!lista.length) return;
+    var u = filasTract.querySelector('.kg-resto');
+    if (u) u.value = netoActual() ? App.miles(restoTract(lista)) : '';
+    avisarTract(lista);
+  }
+
+  function dibujarTract() {
+    var lista = elegidosTract();
+    campoKgTract.className = (ocultoCargo.value === 'CONTRATISTA' && lista.length)
+      ? 'campo' : 'campo oculto';
+    if (!lista.length) { filasTract.innerHTML = ''; return; }
+    var h = '';
+    for (var i = 0; i < lista.length; i++) {
+      var ultimo = i === lista.length - 1;
+      h += '<div class="fila-silo">' +
+        '<span class="marca">•</span>' +
+        '<span class="nombre-origen">' + App.esc(lista[i]) +
+          '<span class="chico">' + App.esc(contratistaDeTractor(lista[i])) + '</span></span>' +
+        '<span class="der">' +
+          '<input class="kg-silo' + (ultimo ? ' kg-resto' : '') + '" inputmode="numeric" ' +
+            'maxlength="5" data-tract="' + App.esc(lista[i]) + '"' + (ultimo ? ' readonly' : '') +
+            ' value="' + (ultimo ? '' : App.esc(kgTract[lista[i]] || '')) + '">' +
+          '<span class="unidad">kg</span>' +
+        '</span></div>';
+    }
+    filasTract.innerHTML = h;
+    refrescarRestoTract();
+  }
+
+  function congelarResto(antes) {
+    if (!antes.length) return;
+    var u = antes[antes.length - 1];
+    if (!(Number(kgTract[u]) > 0)) kgTract[u] = String(Math.max(0, restoTract(antes)));
+  }
+
+  listaTractores.addEventListener('change', function (ev) {
+    if (!ev.target.getAttribute || !ev.target.getAttribute('data-tractor')) return;
+    var t = ev.target.value;
+    var pos = ordenTract.indexOf(t);
+    if (ev.target.checked) { if (pos === -1) ordenTract.push(t); }
+    else if (pos !== -1) ordenTract.splice(pos, 1);
+    var ahora = elegidosTract();
+    if (ahora.length > antesTract.length) congelarResto(antesTract);
+    antesTract = ahora;
+    dibujarTract();
+  });
+
+  filasTract.addEventListener('input', function (ev) {
+    var el = ev.target;
+    var t = el.getAttribute && el.getAttribute('data-tract');
+    if (!t) return;
+    el.value = soloDigitos(el.value, 5);
+    kgTract[t] = el.value;
+    refrescarRestoTract();
+  });
+
+  <%# Lo que se guarda sale de la misma cuenta que se mostró, no del casillero. %>
+  function repartoTractParaGuardar() {
+    var lista = elegidosTract();
+    if (lista.length > TOPE_TRACTORES) {
+      return { error: 'Son demasiados tractores para un viaje (máximo ' + TOPE_TRACTORES + ').' };
+    }
+    var resto = restoTract(lista);
+    if (resto < 0) return { error: 'Los kg de los tractores pasan el neto del viaje. Bajá alguno.' };
+    var salida = [];
+    for (var i = 0; i < lista.length; i++) {
+      var kgT = i === lista.length - 1 ? resto : (Number(kgTract[lista[i]]) || 0);
+      if (kgT <= 0) {
+        return { error: 'El tractor ' + lista[i] + ' quedó en 0 kg. Completá los kg o destildalo.' };
+      }
+      salida.push({ tractor: lista[i], contratista: contratistaDeTractor(lista[i]), kg: kgT });
+    }
+    return { lista: salida };
+  }
+
+  <%#
+    ── Tablas guardadas en el teléfono ─────────────────────────────────────
+    Traen la lista completa de campos, la planilla de siembra entera y los
+    contratistas con sus tractores. Sin ellas la pantalla igual funciona para
+    el campo del ticket, que es lo que viene embebido.
+  %>
   function aplicarTablas(t) {
     if (!t) { pintarContratistas(); return; }
 
@@ -400,19 +581,22 @@
       calculoNeto.hidden = true;
     }
     if (typeof refrescarResto === 'function') refrescarResto();
+    if (filasTract) refrescarRestoTract();
   }
   inputBruto.addEventListener('input', calcularNeto);
   inputTaraNueva.addEventListener('input', calcularNeto);
 
-  /* ── Silobolsas: una fila por bolsa, con los kg que salieron de ella ───
-     El ÚLTIMO no se tipea: es el resto (neto menos lo de arriba). Así la suma
-     cierra sola y nunca queda un viaje con kg sin asignar. Con una sola bolsa
-     no hay nada que tipear. */
+  <%#
+    ── Silobolsas: una fila por bolsa, con los kg que salieron de ella ─────
+    El ÚLTIMO no se tipea: es el resto (neto menos lo de arriba). Así la suma
+    cierra sola y nunca queda un viaje con kg sin asignar. Con una sola bolsa
+    no hay nada que tipear.
+  %>
   var filasSilo = document.getElementById('filas-silo');
   var masSilo = document.getElementById('mas-silo');
   var avisoSilo = document.getElementById('aviso-silo');
-  // Arranca con el último número usado en este campo: casi siempre es el mismo
-  // de varios viajes seguidos, así que lo normal es no tocarlo.
+  <%# Arranca con el último número usado en este campo: casi siempre es el
+      mismo de varios viajes seguidos, así que lo normal es no tocarlo. %>
   var silos = [{ nro: '<%= ultimoSilobolsa %>', kg: '' }];
 
   function soloDigitos(v, cuantos) {
@@ -426,7 +610,7 @@
     return n > 0 ? n : 0;
   }
 
-  /** Lo repartido en las bolsas que SÍ se tipean (todas menos la última). */
+  <%# Lo repartido en las bolsas que SÍ se tipean (todas menos la última). %>
   function repartidoSilo() {
     var suma = 0;
     for (var i = 0; i < silos.length - 1; i++) suma += Number(silos[i].kg) || 0;
@@ -450,7 +634,7 @@
     }
   }
 
-  /** Solo el casillero del último y el aviso: redibujar todo saltaría el cursor. */
+  <%# Solo el casillero del último y el aviso: redibujar todo saltaría el cursor. %>
   function refrescarResto() {
     var ultimo = filasSilo.querySelector('.kg-resto');
     if (ultimo) ultimo.value = netoActual() ? App.miles(restoSilo()) : '';
@@ -480,15 +664,17 @@
     if (typeof pintarTopes === 'function') pintarTopes();
   }
 
-  /* ── Cuánto lleva ya cada silobolsa ───────────────────────────────────────
-     El tope son <%= topeSilobolsaKg %> kg por bolsa en la campaña. El aviso es
-     para agarrar el número mal tipeado, que es lo que de verdad pasa: si la
-     bolsa elegida está llena, casi siempre se quiso poner otra. No bloquea: el
-     que está mirando la bolsa decide.
+  <%#
+    ── Cuánto lleva ya cada silobolsa ──────────────────────────────────────
+    El tope son `topeSilobolsaKg` kg por bolsa en la campaña. El aviso es para
+    agarrar el número mal tipeado, que es lo que de verdad pasa: si la bolsa
+    elegida está llena, casi siempre se quiso poner otra. No bloquea: el que
+    está mirando la bolsa decide.
 
-     Lo consultado se guarda en `topes` para no volver a preguntar por el mismo
-     número en cada tecla, y si no hay señal simplemente no aparece el aviso —
-     registrar el camión no puede depender de esto. */
+    Lo consultado se guarda en `topes` para no volver a preguntar por el mismo
+    número en cada tecla, y si no hay señal simplemente no aparece el aviso —
+    registrar el camión no puede depender de esto.
+  %>
   var avisoTope = document.getElementById('aviso-tope');
   var TOPE_SILO = <%= topeSilobolsaKg %>;
   var topes = {};          // nro → datos del servidor, o 'pidiendo'
@@ -535,7 +721,7 @@
     });
   }
 
-  /** Espera a que termine de tipear: son hasta 3 dígitos y "1" no es "17". */
+  <%# Espera a que termine de tipear: son hasta 3 dígitos y "1" no es "17". %>
   function mirarTopesPronto() {
     window.clearTimeout(timerTope);
     timerTope = window.setTimeout(function () {
@@ -544,7 +730,7 @@
     }, 500);
   }
 
-  /** Al cambiar de campo lo consultado ya no sirve: son otras bolsas. */
+  <%# Al cambiar de campo lo consultado ya no sirve: son otras bolsas. %>
   function olvidarTopes() {
     topes = {};
     avisoTope.innerHTML = '';
@@ -619,8 +805,8 @@
       return;
     }
 
-    /* Las bolsas con sus kg. El último se calcula acá, no se lee del casillero:
-       lo que se guarda tiene que salir de la misma cuenta que se mostró. */
+    <%# Las bolsas con sus kg. El último se calcula acá, no se lee del
+         casillero: lo que se guarda sale de la misma cuenta que se mostró. %>
     if (datos.cargoDe === 'SILOBOLSA') {
       var resto = restoSilo();
       if (resto < 0) {
@@ -645,6 +831,16 @@
       // El campo de siempre se sigue mandando, con los números separados: el
       // Excel y el reporte de las 19 hs lo leen y no tienen que cambiar.
       datos.silobolsa = lista.map(function (x) { return x.nro; }).join(' · ');
+    }
+
+    /* Y los kg de cada tractor, con la misma cuenta: el último es el resto. */
+    if (datos.cargoDe === 'CONTRATISTA') {
+      var rt = repartoTractParaGuardar();
+      if (rt.error) {
+        error.innerHTML = App.esc(rt.error);
+        return;
+      }
+      datos.tractores = rt.lista;
     }
 
     if (corrigiendoTara) {

@@ -151,7 +151,19 @@ async function main() {
   const TOPES = [
     ['/app/patio', 'patio', 5],
     ['/app/nueva-pesada', 'nueva pesada', 7],
-    ['/app/regulada/' + conTF.insertedId, 'regulada', 9],
+    /* 10 KB desde que se agregó el reparto de kg por tractor, y la pantalla
+       queda en 8,7.
+
+       El tope era 9 y la pantalla iba en 8,25: entraba por 60 bytes, que no es
+       margen, es casualidad. El reparto la llevó a 9,8, y de ahí bajó a 8,7
+       moviendo los comentarios largos del <script> a comentarios de EJS: esos
+       NO se renderizan, así que quedan en el código y dejan de viajar en cada
+       regulada. Es lo primero que conviene mirar si vuelve a quedar justo.
+
+       A 10 KB hay margen de verdad y la pantalla sigue muy lejos de ser lenta
+       en un teléfono de gama media. Se baja una vez por regulada: las pantallas
+       van por red primero, no por el cache del service worker. */
+    ['/app/regulada/' + conTF.insertedId, 'regulada', 10],
     ['/app/registro/' + conTF.insertedId, 'detalle', 5],
     ['/app/local', 'pantalla sin señal', 8],
     ['/app/ctg', 'cargar CTG', 6],

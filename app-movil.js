@@ -593,6 +593,101 @@ module.exports = function crearAppMovil(deps) {
     return { bolsas };
   }
 
+  /* =========================================================================
+   * LOS TRACTORES DE UNA REGULADA
+   * -------------------------------------------------------------------------
+   * Lo mismo que las bolsas, para el viaje que cargó de contratistas: una
+   * lista `[{ tractor, contratista, kg }]` cuya suma da el NETO.
+   *
+   * El reparto va por TRACTOR y no por contratista porque es lo que el
+   * balancero ve descargar: cada tolva vuelca por separado. Lo que cargó cada
+   * contratista es la suma de sus tractores, y se calcula al leer: guardarla
+   * aparte sería tener el mismo dato en dos lugares que se pueden contradecir.
+   *
+   * `contratista` viaja al lado de cada tractor para no tener que reconstruirlo
+   * después: la planilla de contratistas cambia de un año al otro y un ticket
+   * viejo tiene que poder decir de quién era el tractor en ese momento.
+   * ======================================================================= */
+  const MAXIMO_TRACTORES = 6;
+
+  function validarTractores(crudo, neto, elegidos) {
+    const lista = Array.isArray(crudo) ? crudo : [];
+    if (!lista.length) return { error: 'Falta el reparto de kg por tractor.' };
+    if (lista.length > MAXIMO_TRACTORES) {
+      return { error: 'Son demasiados tractores para un viaje (máximo ' + MAXIMO_TRACTORES + ').' };
+    }
+
+    const tractores = [];
+    let suma = 0;
+    for (const x of lista) {
+      const tractor = String((x && x.tractor) || '').trim().slice(0, 40);
+      if (!tractor) return { error: 'Falta el nombre de alguno de los tractores.' };
+      if (tractores.some((t) => t.tractor === tractor)) {
+        return { error: 'El tractor ' + tractor + ' está repetido en el mismo viaje.' };
+      }
+      const kgTractor = Math.round(Number((x && x.kg) || 0));
+      if (!Number.isFinite(kgTractor) || kgTractor <= 0) {
+        return { error: 'Los kg del tractor ' + tractor + ' tienen que ser mayores que cero.' };
+      }
+      suma += kgTractor;
+      tractores.push({
+        tractor,
+        contratista: String((x && x.contratista) || '').trim().slice(0, 80),
+        kg: kgTractor,
+      });
+    }
+
+    /* El reparto y los tractores tildados tienen que ser los mismos. Si no
+       coincidieran, el ticket se guardaría diciendo que cargaron unos y
+       repartiendo los kg entre otros. */
+    if (!mismosTractores(tractores.map((t) => t.tractor), elegidos)) {
+      return { error: 'El reparto de kg no coincide con los tractores elegidos.' };
+    }
+
+    if (Math.abs(suma - neto) > 1) {
+      return {
+        error: 'Los kg de los tractores suman ' + kg(suma) + ' y el neto del viaje es ' +
+          kg(neto) + '. Tienen que coincidir.',
+      };
+    }
+    return { tractores };
+  }
+
+  /** ¿Son los mismos tractores, sin importar el orden? */
+  function mismosTractores(a, b) {
+    const x = (a || []).map((t) => String(t).trim()).filter(Boolean).sort();
+    const y = (b || []).map((t) => String(t).trim()).filter(Boolean).sort();
+    return x.length === y.length && x.every((t, i) => t === y[i]);
+  }
+
+  /**
+   * El reparto de kg de un ticket YA GUARDADO cuando el neto cambia porque
+   * GENERAL corrigió la tara.
+   *
+   * La diferencia va al ÚLTIMO, que es el que en la pantalla era el resto: la
+   * misma regla que vio el balancero al cargarlo, así el ticket corregido se
+   * explica igual que el original.
+   *
+   * Si el último quedara en cero o en negativo —la tara subió más de lo que
+   * ese tractor o esa bolsa había puesto— no hay forma de adivinar cómo se
+   * reparte de nuevo, y el reparto se borra entero. Es preferible que el
+   * ticket no tenga el dato a que tenga uno inventado.
+   *
+   * Antes de esto, corregir la tara dejaba el reparto como estaba y el ticket
+   * quedaba con kg que no eran de nadie: con tara 15.600 → 15.100 el neto
+   * pasaba a 31.400 y las bolsas seguían sumando 30.900.
+   */
+  function reacomodarReparto(lista, netoNuevo) {
+    if (!Array.isArray(lista) || !lista.length) return [];
+    const copia = lista.map((x) => Object.assign({}, x));
+    let arriba = 0;
+    for (let i = 0; i < copia.length - 1; i++) arriba += Number(copia[i].kg) || 0;
+    const ultimo = Math.round(netoNuevo - arriba);
+    if (!(ultimo > 0)) return [];
+    copia[copia.length - 1].kg = ultimo;
+    return copia;
+  }
+
   /**
    * El último número de silobolsa usado en un campo. Se mira el ticket más
    * reciente de ese campo que haya cargado de silobolsa; si no hay ninguno,
@@ -1774,6 +1869,7 @@ module.exports = function crearAppMovil(deps) {
         // Para el aviso de cuánto lleva cada bolsa. Viaja desde el servidor
         // para que el número esté definido en un solo lugar (app.js).
         topeSilobolsaKg: TOPE_SILOBOLSA_KG,
+        topeTractores: MAXIMO_TRACTORES,
         kg,
       });
     } catch (err) {
@@ -1878,6 +1974,16 @@ module.exports = function crearAppMovil(deps) {
         bolsas = vBolsas.bolsas;
       }
 
+      /* Y los kg de cada tractor, cuando cargó de contratistas. Mismo criterio
+         que las bolsas: si el teléfono no manda el reparto —una cola vieja— el
+         ticket se guarda igual, con los tractores y sin el detalle. */
+      let repartoTractores = [];
+      if (cargoDe === 'CONTRATISTA' && req.body.tractores) {
+        const vTract = validarTractores(req.body.tractores, bruto - taraFinal, tractores);
+        if (vTract.error) return fallar(res, 400, vTract.error);
+        repartoTractores = vTract.tractores;
+      }
+
       const set = {
         fecha: hoy,
         pesadaPara: 'REGULADA',
@@ -1896,6 +2002,8 @@ module.exports = function crearAppMovil(deps) {
         silobolsas: bolsas,
         contratista: cargoDe === 'CONTRATISTA' ? contratistas : [],
         tractor: cargoDe === 'CONTRATISTA' ? tractores : [],
+        // Campo nuevo, aditivo, igual que `silobolsas`: los kg de cada tractor.
+        tractores: repartoTractores,
         bruto,
         tara: taraFinal,
         neto: bruto - taraFinal,
@@ -2291,8 +2399,10 @@ module.exports = function crearAppMovil(deps) {
     socio: 'el socio',
     cargoDe: 'de dónde cargó',
     silobolsa: 'el silobolsa',
+    silobolsas: 'los kg por silobolsa',
     contratista: 'el contratista',
     tractor: 'el tractor',
+    tractores: 'los kg por tractor',
     comentarios: 'las observaciones',
   };
 
@@ -2359,6 +2469,11 @@ module.exports = function crearAppMovil(deps) {
         r: vistaRegistro(r),
         contratistas: Object.keys(contratistas).sort(),
         tractoresPorContratista: contratistas,
+        // Varios, como en la regulada, y con los kg de cada tractor.
+        contratistasElegidos: aArray(r.contratista),
+        tractoresElegidos: aArray(r.tractor),
+        repartoTractores: Array.isArray(r.tractores) ? r.tractores : [],
+        maximoTractores: MAXIMO_TRACTORES,
         pedido: pedido ? { motivo: pedido.motivo || '', pedidoPor: pedido.pedidoPor || '' } : null,
         volver: volverAlTicket,
         kg,
@@ -2424,6 +2539,49 @@ module.exports = function crearAppMovil(deps) {
         ? String(req.body.cargoDe)
         : (r.cargoDe || '');
 
+      /* Contratistas y tractores son VARIOS, igual que en la regulada. Antes
+         acá había un desplegable de cada uno y la corrección aplastaba a uno
+         solo: un ticket cargado con dos contratistas perdía el segundo sin
+         avisar. `aArray` acepta tanto el array nuevo como el texto suelto de
+         una pantalla vieja que haya quedado en el teléfono. */
+      const contratistasCorr = cargoDe === 'CONTRATISTA' ? aArray(req.body.contratista) : [];
+      const tractoresCorr = cargoDe === 'CONTRATISTA' ? aArray(req.body.tractor) : [];
+      if (cargoDe === 'CONTRATISTA') {
+        if (!contratistasCorr.length) return fallar(res, 400, 'Falta el contratista.');
+        if (!tractoresCorr.length) return fallar(res, 400, 'Falta el tractor.');
+      }
+
+      /* El neto cambia con la tara, así que el reparto de kg tiene que volver a
+         cerrar contra el neto nuevo. Si no se hiciera, el ticket quedaría con
+         kg que no son de ninguna bolsa ni de ningún tractor. */
+      const netoNuevo = bruto != null ? bruto - tara : null;
+      const textoSilo = cargoDe === 'SILOBOLSA'
+        ? String(req.body.silobolsa || '').trim().slice(0, 40) : '';
+
+      let bolsasCorr = [];
+      if (cargoDe === 'SILOBOLSA' && Array.isArray(r.silobolsas) && r.silobolsas.length) {
+        /* El número de silobolsa se sigue corrigiendo a mano, en un campo de
+           texto. Si lo cambiaron, el reparto guardado habla de otras bolsas y
+           deja de valer: se borra en vez de quedar mintiendo. */
+        const textoDeLasBolsas = r.silobolsas.map((b) => String(b.nro || '').trim()).join(' · ');
+        if (textoSilo === textoDeLasBolsas) {
+          bolsasCorr = netoNuevo != null ? reacomodarReparto(r.silobolsas, netoNuevo) : r.silobolsas;
+        }
+      }
+
+      let tractoresKgCorr = [];
+      if (cargoDe === 'CONTRATISTA' && netoNuevo != null) {
+        if (req.body.tractores) {
+          const vTract = validarTractores(req.body.tractores, netoNuevo, tractoresCorr);
+          if (vTract.error) return fallar(res, 400, vTract.error);
+          tractoresKgCorr = vTract.tractores;
+        } else if (Array.isArray(r.tractores) && r.tractores.length &&
+                   mismosTractores(r.tractores.map((t) => t.tractor), tractoresCorr)) {
+          // Pantalla vieja: se conserva el reparto que había, reacomodado.
+          tractoresKgCorr = reacomodarReparto(r.tractores, netoNuevo);
+        }
+      }
+
       /* Para quién se cargó. Es lo que agrupa los totales por socio, así que un
          error acá no se puede arreglar por observaciones: se corrige o queda
          mal contado para siempre. Si no viene en el pedido se deja lo que
@@ -2442,13 +2600,17 @@ module.exports = function crearAppMovil(deps) {
         tara,
         netoEstimado: brutoEstimado ? brutoEstimado - tara : 0,
         cargoDe,
-        silobolsa: cargoDe === 'SILOBOLSA' ? String(req.body.silobolsa || '').trim().slice(0, 40) : '',
-        contratista: cargoDe === 'CONTRATISTA' ? String(req.body.contratista || '').trim().slice(0, 80) : '',
-        tractor: cargoDe === 'CONTRATISTA' ? String(req.body.tractor || '').trim().slice(0, 80) : '',
+        silobolsa: textoSilo,
+        // Los dos repartos van con `cargoDe`: si se cambia de silobolsa a
+        // contratista, el del otro lado se borra y no queda colgado.
+        silobolsas: bolsasCorr,
+        contratista: contratistasCorr,
+        tractor: tractoresCorr,
+        tractores: tractoresKgCorr,
         comentarios: String(req.body.comentarios || '').trim().slice(0, 500),
       };
       // El neto real solo existe si ya está la regulada.
-      if (bruto != null) cambios.neto = bruto - tara;
+      if (netoNuevo != null) cambios.neto = netoNuevo;
 
       // Qué cambió de verdad: si no cambió nada, no se gasta una modificación.
       // Los pesos se comparan como NÚMEROS: un ticket sin tara guarda 0, o
@@ -2456,14 +2618,28 @@ module.exports = function crearAppMovil(deps) {
       // que no existió —y gastaba una de las dos correcciones— con solo abrir
       // la pantalla y guardar.
       const NUMERICOS = ['tara', 'netoEstimado', 'neto'];
+      // Listas de nombres (contratistas, tractores) y listas de kg (bolsas,
+      // tractores con su reparto): se comparan como lo que son y no como texto.
+      const LISTAS = ['contratista', 'tractor'];
+      const REPARTOS = ['silobolsas', 'tractores'];
+      const comoTexto = (v) => (Array.isArray(v) ? v : v == null ? [] : [v])
+        .map((x) => String(x).trim()).join('|');
+      const comoReparto = (v) => (Array.isArray(v) ? v : [])
+        .map((x) => [x && x.nro, x && x.tractor, x && x.contratista, Number(x && x.kg) || 0].join(':'))
+        .join('|');
+
       const antes = {};
       const despues = {};
       for (const k of Object.keys(cambios)) {
-        const viejo = k === 'contratista' || k === 'tractor' ? plano(r[k]) : r[k];
+        const viejo = r[k];
         const nuevoValor = cambios[k];
         const igual = NUMERICOS.indexOf(k) !== -1
           ? (Number(viejo) || 0) === (Number(nuevoValor) || 0)
-          : viejo == null && nuevoValor === '' ? true : String(viejo == null ? '' : viejo) === String(nuevoValor);
+          : LISTAS.indexOf(k) !== -1
+            ? comoTexto(viejo) === comoTexto(nuevoValor)
+            : REPARTOS.indexOf(k) !== -1
+              ? comoReparto(viejo) === comoReparto(nuevoValor)
+              : viejo == null && nuevoValor === '' ? true : String(viejo == null ? '' : viejo) === String(nuevoValor);
         if (!igual) {
           antes[k] = r[k] == null ? '' : r[k];
           despues[k] = nuevoValor;
