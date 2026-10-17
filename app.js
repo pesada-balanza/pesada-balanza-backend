@@ -269,6 +269,11 @@ const campoUsuario = {
   "Gioda - SAN FRANCISCO - SE": "5685",
 };
 
+/* Campo → grano → lotes. Un mismo lote puede figurar bajo DOS GRANOS Y ESTÁ
+ * BIEN: el trigo se cosecha a fin de año y la soja o el maíz del mismo lote en
+ * otoño, así que no se pisan en el tiempo. No hay que "limpiar" las repeticiones
+ * —el balancero elige primero el grano y recién ahí ve los lotes de ese grano—.
+ * El trigo de la campaña 25/26 está en El Mataco, La Pradera y Charata. */
 const datosSiembra = {
   "AMAMÁ - Villa Brana - SE": {
     "MAIZ": [
@@ -331,6 +336,11 @@ const datosSiembra = {
     ],
     "MAIZ": [
       "Lote 3 Charata"
+    ],
+    "TRIGO": [
+      "Lote 1 Charata",
+      "Lote 2 Charata",
+      "Lote 6 Charata"
     ]
   },
   "Cueto - CEJOLAO - SE": {
@@ -517,6 +527,14 @@ const datosSiembra = {
       "Lote 4 El Mataco",
       "Lote 5 El Mataco",
       "Lote Banquina El Mat"
+    ],
+    "TRIGO": [
+      "Lote 1 El Mataco",
+      "Lote 2 El Mataco",
+      "Lote 3 El Mataco",
+      "Lote 4 El Mataco",
+      "Lote 5 El Mataco",
+      "Lote Banquina El Mataco"
     ]
   },
   "Ferulo Guido 2 - SACHAYOJ - SE": {
@@ -778,6 +796,23 @@ const datosSiembra = {
       "Lote 47.3 E La Prade",
       "Lote 47.4 E La Prade",
       "Lote 47.5 E La Prade"
+    ],
+    "TRIGO": [
+      "Chapino - La Pradera",
+      "Las 800 1 La Pradera",
+      "Las 800 2 La Pradera",
+      "Las 800 3 La Pradera",
+      "Las 800 4 La Pradera",
+      "Lote 10 La Pradera D",
+      "Lote 46.E.3 La Pradera",
+      "Lote 46.E.4 La Pradera",
+      "Lote 46.W.3 La Pradera",
+      "Lote 46.W.4 La Pradera",
+      "Lote 8 La Pradera",
+      "Lote 9 La Pradera",
+      "Lote Moriconi 1",
+      "Lote Moriconi 2",
+      "Lote Moriconi 3"
     ]
   },
   "La Purificada - QUIMILI - SE": {
