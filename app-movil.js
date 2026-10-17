@@ -2060,8 +2060,46 @@ module.exports = function crearAppMovil(deps) {
    * ======================================================================= */
 
   /** Prepara un registro para el ticket y para las pantallas. */
+  /**
+   * DE DÓNDE SALIÓ LA CARGA, LISTO PARA EL TICKET
+   * -------------------------------------------------------------------------
+   * Una línea por bolsa o por tractor, con sus kg. Se arma ACÁ y no en el
+   * teléfono ni en el PDF porque el ticket sale por dos caminos distintos —la
+   * impresora usa ticket.js, WhatsApp usa app-movil-pdf.js— y los dos tienen
+   * que decir exactamente lo mismo. Si la cuenta estuviera escrita dos veces,
+   * tarde o temprano una se cambia y la otra no.
+   *
+   * Los tickets anteriores al reparto no tienen kg: sale el número de bolsa o
+   * el tractor sin cifra al lado, que es todo lo que se sabe de ellos.
+   */
+  function origenDelTicket(r) {
+    if (r.cargoDe === 'SILOBOLSA') {
+      const bolsas = Array.isArray(r.silobolsas) ? r.silobolsas : [];
+      if (bolsas.length) {
+        return {
+          etiqueta: 'SILOBOLSA',
+          lista: bolsas.map((b) => ({ nombre: String((b && b.nro) || ''), kg: Number(b && b.kg) || 0 })),
+        };
+      }
+      const texto = String(r.silobolsa || '').trim();
+      return { etiqueta: 'SILOBOLSA', lista: texto ? [{ nombre: texto, kg: 0 }] : [] };
+    }
+    if (r.cargoDe === 'CONTRATISTA') {
+      const conKg = Array.isArray(r.tractores) ? r.tractores : [];
+      if (conKg.length) {
+        return {
+          etiqueta: 'CARGÓ DE',
+          lista: conKg.map((t) => ({ nombre: String((t && t.tractor) || ''), kg: Number(t && t.kg) || 0 })),
+        };
+      }
+      return { etiqueta: 'CARGÓ DE', lista: aArray(r.tractor).map((n) => ({ nombre: n, kg: 0 })) };
+    }
+    return { etiqueta: 'CARGÓ DE', lista: [] };
+  }
+
   function vistaRegistro(r) {
     const lotes = Array.isArray(r.lote) ? r.lote : r.lote ? [String(r.lote)] : [];
+    const origen = origenDelTicket(r);
     return {
       id: String(r._id),
       idTicket: r.idTicket,
@@ -2083,6 +2121,9 @@ module.exports = function crearAppMovil(deps) {
       silobolsa: r.silobolsa || '',
       contratista: plano(r.contratista),
       tractor: plano(r.tractor),
+      // Para el ticket: "SILOBOLSA" o "CARGÓ DE", y una línea por origen.
+      origenEtiqueta: origen.etiqueta,
+      origenLista: origen.lista,
       cp: r.cp || '',
       comentarios: r.comentarios || '',
       brutoEstimado: r.brutoEstimado || 0,

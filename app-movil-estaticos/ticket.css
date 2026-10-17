@@ -66,6 +66,15 @@
 
 .tk-establecimiento { font: 600 16px/1.1 var(--tk-sans); color: var(--tk-tinta); }
 .tk-titular { font: 400 9px/1.2 var(--tk-mono); letter-spacing: .06em; color: var(--tk-suave); }
+/* El campo, abajo del titular. Va a la izquierda —y no en la grilla del
+   centro— porque es de dónde salió la carga, igual que el establecimiento y el
+   socio, y así libera una casilla del centro para el origen.
+   En DOS RENGLONES a propósito: "El Mataco - SACHAYOJ - SE" no entra en los
+   31 mm de la columna y se cortaba en "El Mataco - SACHA…". */
+.tk-campo { display: flex; flex-direction: column; gap: .3mm; margin-top: 1.8mm; }
+.tk-campo-valor { font: 500 10px/1.2 var(--tk-sans); color: var(--tk-tinta); }
+.tk-campo .tk-renglon { min-height: 3.6mm; }
+
 .tk-nro-label { font: 500 8px/1 var(--tk-mono); letter-spacing: .1em; color: var(--tk-label); }
 .tk-nro { font: 600 26px/1 var(--tk-mono); color: var(--tk-tinta); }
 .tk-fecha { font: 400 9px/1.2 var(--tk-mono); color: var(--tk-suave); }
@@ -87,6 +96,23 @@
 .tk-valor.patente { font: 600 13px/1.1 var(--tk-mono); }
 /* El chofer es el dato que más se busca */
 .tk-valor.chofer { font: 700 14px/1.1 var(--tk-sans); }
+
+/* Grano arriba, lote abajo: en una sola línea el lote se cortaba casi siempre
+   ("SOJA · Lote 1 El …"), y el lote es lo que se busca. */
+.tk-valor.apilado { white-space: normal; line-height: 1.2; }
+.tk-valor-2 { font: 500 11px/1.2 var(--tk-sans); color: var(--tk-tinta); overflow: hidden; }
+
+/* CARGÓ DE / SILOBOLSA: un renglón por origen, con sus kg. Mismo orden y mismo
+   formato que la pantalla de la regulada y que la columna del Excel.
+   Entran tres; si hay más, el último renglón lo dice. */
+.tk-origen { display: flex; flex-direction: column; gap: .1mm; }
+.tk-origen-linea {
+  font: 500 11px/1.25 var(--tk-mono); color: var(--tk-tinta);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tk-origen-linea b { font-weight: 700; }
+.tk-origen-linea .kg { color: var(--tk-suave); }
+.tk-origen-mas { font: 400 9px/1.2 var(--tk-sans); color: var(--tk-suave); }
 
 /* Renglón punteado: lo que todavía no está y se completa a mano */
 .tk-renglon { border-bottom: 1px dotted var(--tk-punteado); min-height: 4mm; display: block; }

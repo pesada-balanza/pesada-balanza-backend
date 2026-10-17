@@ -81,16 +81,59 @@
     );
   }
 
+  /* ── El campo, en hasta dos renglones ─────────────────────────────────────
+     Los campos se llaman "Nombre - LOCALIDAD - PROVINCIA" y no entran en los
+     31 mm de la columna. Se corta por el guion y no por donde caiga: queda
+     "El Mataco" arriba y "SACHAYOJ - SE" abajo. El PDF corta igual
+     (`partirCampo` en app-movil-pdf.js). */
+  function campoEnDos(campo) {
+    var s = String(campo || '').trim();
+    if (!s) return '<span class="tk-renglon"></span>';
+    var i = s.indexOf(' - ');
+    if (i === -1) return '<span class="tk-campo-valor">' + esc(s) + '</span>';
+    return '<span class="tk-campo-valor">' + esc(s.slice(0, i)) + '</span>' +
+      '<span class="tk-campo-valor">' + esc(s.slice(i + 3)) + '</span>';
+  }
+
+  /* ── Grano arriba, lote abajo ─────────────────────────────────────────────
+     En un solo renglón el lote se cortaba casi siempre, y el lote es el dato
+     que se busca. Si falta alguno de los dos, va el otro solo; si faltan los
+     dos, renglón punteado. */
+  function granoYLote(t) {
+    if (!t.grano && !t.loteTexto) return '<span class="tk-renglon"></span>';
+    var h = '';
+    if (t.grano) h += '<span class="tk-valor">' + esc(t.grano) + '</span>';
+    if (t.loteTexto) h += '<span class="tk-valor-2">' + esc(t.loteTexto) + '</span>';
+    return h;
+  }
+
+  /* ── De dónde cargó: un renglón por bolsa o por tractor, con sus kg ───────
+     La lista la arma el servidor (vistaRegistro), así el papel y el PDF dicen
+     lo mismo. Entran TRES renglones; con más, van dos y el tercero dice
+     cuántos faltan. Son tres y no cuatro porque en el PDF el cuarto le pisa la
+     etiqueta de OBSERVACIONES, y los dos tienen que salir iguales. */
+  var MAX_ORIGEN = 3;
+
+  function origen(t) {
+    var lista = t.origenLista || [];
+    if (!lista.length) return '<span class="tk-renglon"></span>';
+    var muestra = lista.length <= MAX_ORIGEN ? lista : lista.slice(0, MAX_ORIGEN - 1);
+    var h = '<div class="tk-origen">';
+    for (var i = 0; i < muestra.length; i++) {
+      h += '<span class="tk-origen-linea"><b>' + esc(muestra[i].nombre) + '</b>' +
+        (muestra[i].kg ? ' <span class="kg">' + miles(muestra[i].kg) + '</span>' : '') + '</span>';
+    }
+    var sobran = lista.length - muestra.length;
+    if (sobran > 0) h += '<span class="tk-origen-mas">y ' + sobran + ' más</span>';
+    h += '</div>';
+    return h;
+  }
+
   /**
    * Dibuja un ticket. `t` es el objeto que devuelve el servidor (vistaRegistro)
    * o el que armó el teléfono cuando cargó sin señal.
    */
   function dibujarTicket(t) {
-    var granoLote = '';
-    if (t.grano || t.loteTexto) {
-      granoLote = [t.grano, t.loteTexto].filter(Boolean).join(' · ');
-    }
-
     var fechaHora = (t.fechaLarga || '') + (t.hora ? ' · ' + t.hora : '');
 
     var h = '';
@@ -103,6 +146,7 @@
     h += '<div>';
     h += '<div class="tk-establecimiento">' + esc(t.campoCorto || t.balanza || '') + '</div>';
     h += '<div class="tk-titular">' + esc(t.titular || 'AMH') + '</div>';
+    h += '<div class="tk-campo"><span class="tk-label">CAMPO</span>' + campoEnDos(t.campo) + '</div>';
     h += '</div>';
     h += '<div>';
     h += '<div class="tk-nro-label">TICKET Nº</div>';
@@ -116,8 +160,9 @@
     h += '<div class="tk-dato"><span class="tk-label">PATENTES</span>' + valor(t.patentes, 'patente') + '</div>';
     h += '<div class="tk-dato"><span class="tk-label">CHOFER</span>' + valor(t.chofer, 'chofer') + '</div>';
     h += '<div class="tk-dato"><span class="tk-label">TRANSPORTE</span>' + valor(t.transporte) + '</div>';
-    h += '<div class="tk-dato"><span class="tk-label">CAMPO</span>' + valor(t.campoCorto) + '</div>';
-    h += '<div class="tk-dato"><span class="tk-label">GRANO · LOTE</span>' + valor(granoLote) + '</div>';
+    h += '<div class="tk-dato"><span class="tk-label">GRANO · LOTE</span>' + granoYLote(t) + '</div>';
+    h += '<div class="tk-dato"><span class="tk-label">' +
+      esc(t.origenEtiqueta || 'CARGÓ DE') + '</span>' + origen(t) + '</div>';
     h += '<div class="tk-dato"><span class="tk-label">CP / CTG</span>' + valor(t.cp) + '</div>';
     h += '<div class="tk-dato ancho"><span class="tk-label">OBSERVACIONES</span>' + valor(t.comentarios) + '</div>';
     h += '</div>';

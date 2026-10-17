@@ -24,7 +24,16 @@ function ok(n, c, extra) {
 const ticketCompleto = {
   id: 'x', nro: '1-0001', patentes: 'AC 884 TF', chofer: 'R. Gómez', transporte: 'Ciriaci',
   campoCorto: 'El Mataco', titular: 'AMH', fechaLarga: '27/07/2026', hora: '09:41',
+  // El nombre completo no entra en un renglón: tiene que partirse en dos.
+  campo: 'El Mataco - SACHAYOJ - SE',
   grano: 'SOJA', loteTexto: 'El 44', cp: '10203040506',
+  // De dónde cargó: una línea por tractor, con sus kg.
+  origenEtiqueta: 'CARGÓ DE',
+  origenLista: [
+    { nombre: '1VILLA', kg: 12000 },
+    { nombre: '3VILLA', kg: 10000 },
+    { nombre: '9MAGGI', kg: 14900 },
+  ],
   comentarios: 'Llegó con lluvia, el acoplado venía con barro en el eje trasero',
   brutoEstimado: 52500, tara: 15600, brutoLote: 52500, bruto: 52500, neto: 36900,
   fechaTaraFinal: '2026-07-27', fechaRegulada: '2026-07-27', anulado: false,
@@ -119,6 +128,10 @@ function main() {
     ['el transporte', 'Ciriaci'],
     ['el establecimiento', 'El Mataco'],
     ['el grano y el lote', 'SOJA'],
+    ['la etiqueta CAMPO', 'CAMPO'],
+    ['de dónde cargó', 'CARG'],
+    ['el primer tractor', '1VILLA'],
+    ['los kg de ese tractor', '12.000'],
     ['la etiqueta NETO', 'NETO'],
     ['el neto en kilos', '36.900'],
     ['la firma del chofer', 'FIRMA CHOFER'],
@@ -152,14 +165,39 @@ function main() {
     'no se encontró el recorte');
   ok('sigue siendo un PDF válido', /%%EOF\s*$/.test(textoLargo.slice(-10)));
 
+  /* ── El campo, partido en dos renglones ──────────────────────────────────
+     En un solo renglón "El Mataco - SACHAYOJ - SE" se cortaba justo en la
+     localidad, que es lo único que agregaba sobre el título de arriba. */
+  console.log('\n── El campo en dos renglones');
+  ok('el nombre del campo entra entero, cortado por el guion',
+    texto.indexOf('(El Mataco)') !== -1 && texto.indexOf('(SACHAYOJ - SE)') !== -1,
+    'no se encontraron los dos renglones');
+  ok('y no queda recortado con …', texto.indexOf('SACHA\x85') === -1);
+
+  /* ── Con más de tres orígenes se resume ──────────────────────────────── */
+  console.log('\n── De dónde cargó, con más de tres');
+  const seis = generarPdf(Object.assign({}, ticketCompleto, {
+    origenLista: [
+      { nombre: '1VILLA', kg: 6000 }, { nombre: '3VILLA', kg: 6000 },
+      { nombre: '9MAGGI', kg: 6000 }, { nombre: '8MAGGI', kg: 6000 },
+      { nombre: '22LAMY', kg: 6000 }, { nombre: '14DORCHS', kg: 6900 },
+    ],
+  })).toString('latin1');
+  ok('muestra los dos primeros', seis.indexOf('(1VILLA)') !== -1 && seis.indexOf('(3VILLA)') !== -1);
+  ok('y dice cuántos faltan', seis.indexOf('(y 4 m\xe1s)') !== -1, 'no apareció "y 4 más"');
+  ok('no entra un cuarto renglón que pise las observaciones',
+    seis.indexOf('(9MAGGI)') === -1, 'se dibujó un tercer tractor');
+
   console.log('\n── Ticket sin regulada (renglones en blanco)');
   const parcial = generarPdf(Object.assign({}, ticketCompleto, {
     grano: '', loteTexto: '', cp: '', comentarios: '',
+    origenLista: [],
     brutoLote: null, bruto: null, neto: null, fechaRegulada: '',
   }));
   const textoParcial = parcial.toString('latin1');
   ok('no imprime el neto', textoParcial.indexOf('(36.900)') === -1);
   ok('dibuja renglones punteados', /\[0\.8 1\.4\] 0 d/.test(textoParcial));
+  ok('de dónde cargó también sale punteado', textoParcial.indexOf('(1VILLA)') === -1);
 
   console.log('\n── Varios tickets en un PDF');
   const varios = generarPdf([ticketCompleto, Object.assign({}, ticketCompleto, { nro: '1-0002' })]);
