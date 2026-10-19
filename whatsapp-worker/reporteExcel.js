@@ -48,7 +48,7 @@ const COLUMNS_REGISTROS = [
   { header: 'Bruto Regulado',  key: 'bruto',          width: 16 },
   { header: 'Neto',            key: 'neto',           width: 15 },
   { header: 'CP',              key: 'cp',             width: 14 },
-  { header: 'Bruto LOTE - Bruto Regulado', key: 'difBrutoLoteBruto', width: 22 },
+  { header: 'BL - BR', key: 'difBrutoLoteBruto', width: 12 },
   { header: 'Anulado',         key: 'anulado',        width: 10 },
   { header: 'Confirmada CAMIONES', key: 'confirmada', width: 14 },
 ];
@@ -71,6 +71,7 @@ const COLUMNS_IMPRIMIR = [
   { header: 'Bruto LOTE', key: 'brutoLote', width: 14 },
   { header: 'Bruto Regulado', key: 'bruto', width: 16 },
   { header: 'Neto', key: 'neto', width: 15 },
+  { header: 'BL - BR', key: 'difBrutoLoteBruto', width: 12 },
   { header: 'CP', key: 'cp', width: 14 },
   { header: 'Comentarios', key: 'comentarios', width: 28 },
 ];
@@ -208,10 +209,10 @@ function generarWorkbookReporte(registros, registrosCampana) {
   registrosSocio.forEach(r => addRow(sheetSocio, r));
 
   // ── Hoja Campaña: TODOS los tickets de la campaña (sin filtro de fecha),
-  //    en orden cronológico. Solo si se pasó el set completo. ──
+  //    en orden cronológico. Mismo formato que IMPRIMIR. Solo si se pasó el set. ──
   if (Array.isArray(registrosCampana) && registrosCampana.length) {
     const sheetCampana = workbook.addWorksheet('Campaña');
-    sheetCampana.columns = COLUMNS_REGISTROS.map(c => ({ header: c.header, key: c.key, width: c.width }));
+    sheetCampana.columns = COLUMNS_IMPRIMIR.map(c => ({ header: c.header, key: c.key, width: c.width }));
     sheetCampana.getRow(1).font = { bold: true };
     registrosCampana.forEach(r => addRow(sheetCampana, r));
   }
