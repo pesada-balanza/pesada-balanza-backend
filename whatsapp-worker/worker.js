@@ -89,6 +89,10 @@ const CHROMIUM_PATH = process.env.CHROMIUM_PATH || undefined;
 // Milisegundos de espera entre mensaje y mensaje (evita parecer spam)
 const DELAY_MS = parseInt(process.env.WWEBJS_DELAY_MS || '3000', 10);
 
+// Fecha de inicio de la campaña (YYYY-MM-DD). La hoja "Campaña" muestra los
+// tickets desde esta fecha en adelante. Cambiala cuando empiece una campaña nueva.
+const INICIO_CAMPANA = process.env.INICIO_CAMPANA || '2026-10-16';
+
 if (!MONGODB_URI) {
   console.error('ERROR: falta la variable MONGODB_URI (ponela en un archivo .env). Abortando.');
   process.exit(1);
@@ -306,7 +310,8 @@ async function fetchRegistros(obsCode) {
  */
 async function fetchCampana(obsCode) {
   const col = mongoose.connection.db.collection('registros');
-  let registros = await col.find({}).toArray();
+  // Solo desde el inicio de la campaña en adelante (fecha es YYYY-MM-DD).
+  let registros = await col.find({ fecha: { $gte: INICIO_CAMPANA } }).toArray();
 
   if (obsCode !== '12341') {
     const codigoIngreso = Object.keys(ingresoAObservacion)
