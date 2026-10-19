@@ -299,6 +299,28 @@ async function fetchRegistros(obsCode) {
   return registros;
 }
 
+/**
+ * Trae TODOS los tickets de la campaña (sin filtro de fecha) para un código
+ * de observación, en orden cronológico (fecha y luego N° de ticket).
+ * Se usa para la hoja "Campaña".
+ */
+async function fetchCampana(obsCode) {
+  const col = mongoose.connection.db.collection('registros');
+  let registros = await col.find({}).toArray();
+
+  if (obsCode !== '12341') {
+    const codigoIngreso = Object.keys(ingresoAObservacion)
+      .find(k => ingresoAObservacion[k] === obsCode);
+    registros = registros.filter(r => r.codigoIngreso === codigoIngreso);
+  }
+  registros.sort((a, b) => {
+    const fechaCmp = (a.fecha || '').localeCompare(b.fecha || '');
+    if (fechaCmp !== 0) return fechaCmp;
+    return (a.idTicket || 0) - (b.idTicket || 0);
+  });
+  return registros;
+}
+
 /* ---------------------------------------------
  * ENVÍO
  * -------------------------------------------*/
@@ -331,7 +353,8 @@ async function enviarReportes() {
         continue;
       }
 
-      const workbook = generarWorkbookReporte(registros);
+      const registrosCampana = await fetchCampana(obsCode);
+      const workbook = generarWorkbookReporte(registros, registrosCampana);
       const buffer = await workbook.xlsx.writeBuffer();
       const base64 = Buffer.from(buffer).toString('base64');
       const filename = `reporte_${nombreBalanza(obsCode)}_${hoy}.xlsx`;
@@ -390,7 +413,8 @@ async function enviarReporteAUno(numeroDestino) {
   }
   const hoy = ymd(new Date());
   const registros = await fetchRegistros('12341');   // general = todos los campos
-  const workbook = generarWorkbookReporte(registros);
+  const registrosCampana = await fetchCampana('12341');
+  const workbook = generarWorkbookReporte(registros, registrosCampana);
   const buffer = await workbook.xlsx.writeBuffer();
   const media = new MessageMedia(MIME_XLSX, Buffer.from(buffer).toString('base64'), `reporte_PRUEBA_${hoy}.xlsx`);
   const caption = `Balanza: ${NOMBRES_BALANZA['12341']} (PRUEBA)`;

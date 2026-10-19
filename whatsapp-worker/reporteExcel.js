@@ -176,7 +176,7 @@ const EXCLUIR_SOCIO = ['cargaPara', 'cargoDe', 'tractor'];
  * @param {Array} registros
  * @returns {ExcelJS.Workbook}
  */
-function generarWorkbookReporte(registros) {
+function generarWorkbookReporte(registros, registrosCampana) {
   const workbook = new ExcelJS.Workbook();
 
   // ── Hoja Registros ──
@@ -206,6 +206,15 @@ function generarWorkbookReporte(registros) {
     .map(c => ({ header: c.header, key: c.key, width: c.width }));
   sheetSocio.getRow(1).font = { bold: true };
   registrosSocio.forEach(r => addRow(sheetSocio, r));
+
+  // ── Hoja Campaña: TODOS los tickets de la campaña (sin filtro de fecha),
+  //    en orden cronológico. Solo si se pasó el set completo. ──
+  if (Array.isArray(registrosCampana) && registrosCampana.length) {
+    const sheetCampana = workbook.addWorksheet('Campaña');
+    sheetCampana.columns = COLUMNS_REGISTROS.map(c => ({ header: c.header, key: c.key, width: c.width }));
+    sheetCampana.getRow(1).font = { bold: true };
+    registrosCampana.forEach(r => addRow(sheetCampana, r));
+  }
 
   // Total de toneladas (columna Neto) al final de cada hoja
   workbook.worksheets.forEach(agregarTotalNeto);
