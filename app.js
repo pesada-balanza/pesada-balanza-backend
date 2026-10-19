@@ -1211,6 +1211,14 @@ app.get(
         registros = registros.filter(r => r.codigoIngreso === codigoIngreso);
       }
 
+      // Set COMPLETO de la campaña (observador ya aplicado, SIN filtro de
+      // fecha), en orden cronológico, para la hoja "Campaña".
+      const registrosCampana = [...registros].sort((a, b) => {
+        const fechaCmp = (a.fecha || '').localeCompare(b.fecha || '');
+        if (fechaCmp !== 0) return fechaCmp;
+        return (a.idTicket || 0) - (b.idTicket || 0);
+      });
+
       registros = registros.filter(r => withinRange(r.fecha, from, to));
 
       const workbook = new ExcelJS.Workbook();
@@ -1275,6 +1283,13 @@ app.get(
       };
 
       registros.forEach(r => addRowToSheet(sheet, r));
+
+      // ── Hoja Campaña: TODOS los tickets de la campaña (sin filtro de fecha),
+      //    en orden cronológico (por fecha y luego por N° de ticket) ──
+      const sheetCampana = workbook.addWorksheet('Campaña');
+      sheetCampana.columns = sheet.columns.map(c => ({ header: c.header, key: c.key, width: c.width }));
+      sheetCampana.getRow(1).font = { bold: true };
+      registrosCampana.forEach(r => addRowToSheet(sheetCampana, r));
 
       // ── Hoja IMPRIMIR: subset de columnas para impresión ──
       const sheetImprimir = workbook.addWorksheet('IMPRIMIR');
