@@ -139,6 +139,15 @@ let ultimoResumen = null;          // resumen del último envío
 let enviando = false;
 let numeroConectado = null;        // número de la línea con la que se vinculó (quién ENVÍA)
 
+/* ARRANQUE A LA VISTA. Entre que se abre Chrome y aparece el QR no se imprimía
+ * NADA, y de cero eso son más de dos minutos de ventana muda en los que no hay
+ * cómo saber si trabaja o si se colgó. La única señal era el watchdog, a los
+ * cuatro minutos. Mismo agregado que en proyeccion/enviar.js: el defecto era
+ * el mismo en los dos programas. */
+let desdeArranque = Date.now();    // cuándo empezó ESTE intento de conexión
+let cargaPct = null;               // el % que informa WhatsApp Web mientras carga
+let cargaTexto = null;             // el mensaje que lo acompaña
+
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // Marca de tiempo del último estado "sano" (listo o esperando QR). El watchdog
@@ -197,7 +206,15 @@ function crearClient() {
     qrcodeTerminal.generate(qr, { small: true });
   });
 
-  c.on('loading_screen', () => { estado = 'conectando'; });
+  /* El % de carga que WhatsApp Web informa. Antes se descartaba; es lo único
+     que distingue "va lento" de "está clavado". Se limpian < > & porque este
+     texto también se escribe en el HTML del panel. */
+  c.on('loading_screen', (porcentaje, mensaje) => {
+    estado = 'conectando';
+    cargaPct = Number(porcentaje);
+    cargaTexto = mensaje ? String(mensaje).replace(/[<>&]/g, '').slice(0, 60) : null;
+    console.log(`[WhatsApp] Cargando ${cargaPct}%${cargaTexto ? ` — ${cargaTexto}` : ''}`);
+  });
   c.on('authenticated', () => { estado = 'conectando'; ultimoQrDataUrl = null; });
 
   c.on('ready', () => {
@@ -236,6 +253,9 @@ async function reiniciarWhatsApp(borrar = false) {
   reiniciando = true;
   try {
     estado = 'conectando';
+    desdeArranque = Date.now();
+    cargaPct = null;
+    cargaTexto = null;
     if (client) { try { await client.destroy(); } catch (_) {} }
     if (borrar) borrarSesion();
     client = crearClient();
@@ -451,6 +471,12 @@ function paginaHtml() {
     listo: '✅ Conectado y listo',
     desconectado: '❌ Desconectado',
   };
+  // Lo mismo que el latido de la ventana, para quien mira la página.
+  const progresoBloque = (estado === 'iniciando' || estado === 'conectando')
+    ? `<p style="font-size:14px;color:#666">Arrancando hace <b>${Math.round((Date.now() - desdeArranque) / 1000)} s</b>${
+        cargaPct !== null ? ` · cargando <b>${cargaPct}%</b>${cargaTexto ? ` (${cargaTexto})` : ''}` : ''
+      }</p>`
+    : '';
   const qrBloque = (estado === 'esperando_qr' && ultimoQrDataUrl)
     ? `<p>Abrí WhatsApp en el celular de la línea de la empresa → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b> y escaneá:</p>
        <img src="${ultimoQrDataUrl}" alt="QR" style="width:280px;height:280px" />`
@@ -469,6 +495,7 @@ function paginaHtml() {
     .estado{font-size:18px;margin:12px 0}</style></head><body>
     <h1>Worker WhatsApp — Pesada Balanza</h1>
     <p class="estado">Estado: <b>${etiquetas[estado] || estado}</b></p>
+    ${progresoBloque}
     ${numeroConectado ? `<p class="estado">Envía desde la línea: <b>${numeroConectado}</b></p>` : ''}
     ${qrBloque}
     ${estado === 'listo' ? `
@@ -541,7 +568,20 @@ async function main() {
   console.log(`[WhatsApp] Inicializando cliente (WhatsApp Web ${WEB_VERSION})...`);
   reiniciarWhatsApp(false);
 
-  // 4b) Watchdog (vigilante): si WhatsApp queda trabado sin llegar a "listo"
+  // 4b) Latido: cada 15 segundos dice que sigue vivo, mientras no haya QR ni
+  // conexión. El watchdog de abajo sigue en 4 minutos a propósito —un arranque
+  // de cero tarda legítimamente más de un minuto y reiniciarlo antes lo
+  // empeora—, pero ahora esos minutos se esperan VIENDO que avanza.
+  setInterval(() => {
+    if (estado === 'listo' || estado === 'esperando_qr') return;
+    const seg = Math.round((Date.now() - desdeArranque) / 1000);
+    const detalle = cargaPct !== null
+      ? `cargando ${cargaPct}%${cargaTexto ? ` — ${cargaTexto}` : ''}`
+      : 'todavía sin respuesta de WhatsApp Web';
+    console.log(`[WhatsApp] Arrancando hace ${seg} s (${detalle}).`);
+  }, 15000);
+
+  // 4c) Watchdog (vigilante): si WhatsApp queda trabado sin llegar a "listo"
   // (ni esperando QR) por más de 4 minutos, fuerza una reconexión. Cubre el
   // caso en que la sesión se "cuelga" en "conectando" y deja de enviar solo.
   const WATCHDOG_MS = 4 * 60 * 1000;

@@ -135,6 +135,16 @@ let nombreGrupo = null;       // nombre del grupo destino, si se usa grupo
 let grupoId = null;           // su ID real (xxxx@g.us), ya resuelto
 let ultimoChequeo = null;     // resultado del último chequeo de sesión
 
+/* ARRANQUE A LA VISTA. Entre que se abre Chrome y aparece el QR no se imprimía
+ * NADA. De cero —sin sesión guardada y con una versión nueva para bajar— eso
+ * son más de dos minutos de ventana muda, en los que no hay forma de saber si
+ * está trabajando o colgado. La única señal era el watchdog, y llega a los
+ * cuatro minutos: enterarse recién ahí es tarde. Estos tres datos los usan el
+ * latido de main() y el panel. */
+let desdeArranque = Date.now();   // cuándo empezó ESTE intento de conexión
+let cargaPct = null;              // el % que informa WhatsApp Web mientras carga
+let cargaTexto = null;            // el mensaje que lo acompaña
+
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /** Texto comparable: sin acentos, sin espacios de más, en minúsculas. */
@@ -234,7 +244,16 @@ function crearClient() {
     } catch (_) { /* un mensaje raro no puede tumbar nada */ }
   });
 
-  c.on('loading_screen', () => { estado = 'conectando'; });
+  /* WhatsApp Web avisa cómo viene la carga y antes se tiraba el dato: sólo se
+     guardaba el estado. Mostrarlo es lo único que distingue "va lento" de
+     "está clavado" mientras el QR no aparece. Se limpian < > & porque este
+     texto también va al HTML del panel. */
+  c.on('loading_screen', (porcentaje, mensaje) => {
+    estado = 'conectando';
+    cargaPct = Number(porcentaje);
+    cargaTexto = mensaje ? String(mensaje).replace(/[<>&]/g, '').slice(0, 60) : null;
+    console.log(`[WhatsApp] Cargando ${cargaPct}%${cargaTexto ? ` — ${cargaTexto}` : ''}`);
+  });
   c.on('authenticated', () => { estado = 'conectando'; ultimoQrDataUrl = null; });
 
   c.on('ready', () => {
@@ -268,6 +287,9 @@ async function reiniciarWhatsApp(borrar = false) {
   reiniciando = true;
   try {
     estado = 'conectando';
+    desdeArranque = Date.now();
+    cargaPct = null;
+    cargaTexto = null;
     if (client) { try { await client.destroy(); } catch (_) {} }
     if (borrar) borrarSesion();
     client = crearClient();
@@ -814,6 +836,13 @@ function paginaHtml() {
     listo: '✅ Conectado y listo',
     desconectado: '❌ Desconectado',
   };
+  // Lo mismo que el latido de la ventana, para quien mira la página. La página
+  // se refresca sola cada 10 segundos, así que el número sube a la vista.
+  const progresoBloque = (estado === 'iniciando' || estado === 'conectando')
+    ? `<p style="font-size:14px;color:#666">Arrancando hace <b>${Math.round((Date.now() - desdeArranque) / 1000)} s</b>${
+        cargaPct !== null ? ` · cargando <b>${cargaPct}%</b>${cargaTexto ? ` (${cargaTexto})` : ''}` : ''
+      }</p>`
+    : '';
   const qrBloque = (estado === 'esperando_qr' && ultimoQrDataUrl)
     ? `<p>WhatsApp en el celular de la empresa → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b>:</p>
        <img src="${ultimoQrDataUrl}" alt="QR" style="width:280px;height:280px" />`
@@ -860,6 +889,7 @@ function paginaHtml() {
     .estado{font-size:18px;margin:12px 0}hr{border:0;border-top:1px solid #ddd;margin:24px 0}</style></head><body>
     <h1>Flujo de Fondos — WhatsApp</h1>
     <p class="estado">Estado: <b>${etiquetas[estado] || estado}</b></p>
+    ${progresoBloque}
     ${numeroConectado ? `<p class="estado">Envía desde: <b>${numeroConectado}</b></p>` : ''}
     <p style="color:#888;font-size:13px">Genera y envía a las ${horarios}, ${NOMBRE_DIAS} · destino: ${dest}<br>
     Generar tarda unos 4 minutos, así que los mensajes llegan un rato después de esa hora.</p>
@@ -950,6 +980,20 @@ async function main() {
 
   console.log(`[WhatsApp] Inicializando (segundo dispositivo vinculado, WhatsApp Web ${WEB_VERSION})...`);
   reiniciarWhatsApp(false);
+
+  /* LATIDO: cada 15 segundos dice que sigue vivo, mientras no haya QR ni
+     conexión. El watchdog de abajo sigue en 4 minutos a propósito —un arranque
+     de cero tarda legítimamente más de un minuto y reiniciarlo antes lo
+     empeora—, pero esos 4 minutos ahora se esperan VIENDO que avanza, en vez
+     de mirando una ventana muda sin saber si hay que seguir esperando. */
+  setInterval(() => {
+    if (estado === 'listo' || estado === 'esperando_qr') return;
+    const seg = Math.round((Date.now() - desdeArranque) / 1000);
+    const detalle = cargaPct !== null
+      ? `cargando ${cargaPct}%${cargaTexto ? ` — ${cargaTexto}` : ''}`
+      : 'todavía sin respuesta de WhatsApp Web';
+    console.log(`[WhatsApp] Arrancando hace ${seg} s (${detalle}).`);
+  }, 15000);
 
   // Watchdog: si queda trabado sin llegar a "listo" ni pedir QR, reconecta.
   setInterval(() => {
