@@ -435,13 +435,36 @@ async function main() {
   ok('GENERAL mueve el día de carga', r.estado === 200, r.texto.slice(0, 200));
   ok('y el ticket queda con el día nuevo', leer(aCorregir._id).fecha === diaMas(5),
     leer(aCorregir._id).fecha);
-  ok('gastó una de las dos correcciones', leer(aCorregir._id).modificaciones === 1,
+  /* Reprogramar no gasta cupo: el tope de dos protege un ticket ya pesado de
+     que lo reescriban, y acá todavía no hay ningún peso que proteger. */
+  ok('reprogramar NO gasta una de las dos correcciones',
+    leer(aCorregir._id).modificaciones === 0, leer(aCorregir._id).modificaciones);
+
+  /* Pero sí cuenta si en el mismo guardado cambió algo más: ahí hay una
+     corrección de datos de verdad, y el cupo es para eso. */
+  r = await ir('POST', '/app/api/corregir/' + aCorregir._id, correccion(leer(aCorregir._id), {
+    fechaCarga: diaMas(6), chofer: 'OTRO CHOFER',
+  }));
+  ok('pero moviendo el día Y otro dato, sí cuenta',
+    r.estado === 200 && leer(aCorregir._id).modificaciones === 1,
+    r.estado + ' · ' + leer(aCorregir._id).modificaciones);
+  r = await ir('POST', '/app/api/corregir/' + aCorregir._id, correccion(leer(aCorregir._id), {
+    fechaCarga: diaMas(5),
+  }));
+  ok('y volver a reprogramar sigue sin gastar',
+    r.estado === 200 && leer(aCorregir._id).modificaciones === 1,
     leer(aCorregir._id).modificaciones);
 
   const audit = baseFalsa.collection('registros_auditoria').docs.slice(-1)[0];
+  /* Que no gaste cupo no quiere decir que no quede escrito: la auditoría anota
+     cada movida, de qué día a qué día. */
   ok('queda anotado en la auditoría de dónde a dónde',
-    audit && audit.camposAnteriores.fecha === diaMas(2) && audit.camposNuevos.fecha === diaMas(5),
+    audit && audit.camposAnteriores.fecha === diaMas(6) && audit.camposNuevos.fecha === diaMas(5),
     JSON.stringify(audit && audit.camposNuevos));
+  const movidas = baseFalsa.collection('registros_auditoria').docs
+    .filter((a) => String(a.registroId) === String(aCorregir._id));
+  ok('y están las tres movidas, aunque sólo una gastó cupo', movidas.length === 3,
+    movidas.length);
 
   r = await ir('POST', '/app/api/corregir/' + aCorregir._id, correccion(leer(aCorregir._id), {
     fechaCarga: diaMas(-1),

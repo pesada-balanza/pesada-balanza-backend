@@ -2948,9 +2948,19 @@ module.exports = function crearAppMovil(deps) {
         fechaOperacion: new Date(),
       });
 
+      /* REPROGRAMAR NO GASTA UNA CORRECCIÓN.
+       * El tope de dos existe para que un ticket YA PESADO no se reescriba. Un
+       * camión que todavía no se pesó no tiene ningún peso que proteger, y
+       * correrlo del lunes al martes y después al miércoles es algo que pasa:
+       * contándolo, dos reprogramaciones dejaban el ticket sin poder corregirle
+       * ni el chofer. Queda igual en la auditoría: lo único que no se gasta es
+       * el cupo. Si en el mismo guardado cambió algo más, cuenta como siempre. */
+      const soloSeMovioElDia = !r.fechaTaraFinal &&
+        Object.keys(despues).length === 1 && despues.fecha !== undefined;
+
       await colRegistros().updateOne(
         { _id: r._id },
-        { $set: cambios, $inc: { modificaciones: 1 } }
+        soloSeMovioElDia ? { $set: cambios } : { $set: cambios, $inc: { modificaciones: 1 } }
       );
 
       // Si había un pedido de corrección esperando, queda resuelto: no tiene
