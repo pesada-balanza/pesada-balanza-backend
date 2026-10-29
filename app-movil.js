@@ -196,6 +196,46 @@ module.exports = function crearAppMovil(deps) {
    * balanza fija: filtrando, esos camiones no aparecerían en ningún lado.
    */
   /**
+   * Los días que puede elegir GENERAL al CORREGIR un ticket.
+   *
+   * Es la lista normal, más —adelante de todo— el día que el ticket ya tiene,
+   * si ese día no está en la lista. Sin eso, abrir la corrección de un ticket
+   * de ayer y guardar cualquier otra cosa le movía la fecha a hoy sin que nadie
+   * lo pidiera: la pantalla no tenía cómo ofrecer el valor que ya estaba.
+   *
+   * La opción dice "sin cambiar" a propósito. Es la única de la lista que no es
+   * una fecha futura, y tiene que leerse como lo que es: dejarlo como está.
+   */
+  function diasDeCargaPara(r) {
+    const lista = diasDeCarga();
+    const actual = String((r && r.fecha) || '');
+    if (actual && !lista.some((d) => d.valor === actual)) {
+      lista.unshift({ valor: actual, texto: 'sin cambiar — ' + fechaCorta(actual) });
+    }
+    return lista;
+  }
+
+  /**
+   * La fecha de carga que queda después de una corrección, o `null` si lo que
+   * llegó no sirve.
+   *
+   * Dejarla igual siempre se puede. MOVERLA, sólo mientras el camión no se haya
+   * pesado todavía: con la tara final cargada la fecha ya no es un plan sino un
+   * hecho, y correrla dejaría el ticket pesado un día antes de su propio día de
+   * carga. Para atrás tampoco: una corrección es a futuro.
+   */
+  function fechaDeCargaCorregida(crudo, r) {
+    const actual = String((r && r.fecha) || '');
+    const v = String(crudo || '').trim();
+    if (!v || v === actual) return actual;
+    if (r && r.fechaTaraFinal) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+    if (v < hoyStr()) return null;
+    if (v > diaMas(DIAS_CARGA_ADELANTE)) return null;
+    return v;
+  }
+
+  /**
    * ¿El ticket está preparado para un día que todavía no llegó?
    *
    * Hay que preguntarlo a mano en cada lugar que decide si un ticket "está
@@ -2621,6 +2661,7 @@ module.exports = function crearAppMovil(deps) {
    * cambiar la tara, y nombrarlos haría parecer que se tocaron a mano.
    */
   const NOMBRE_DEL_CAMPO = {
+    fecha: 'el día de carga',
     patentes: 'las patentes',
     chofer: 'el chofer',
     tara: 'la tara',
@@ -2703,6 +2744,12 @@ module.exports = function crearAppMovil(deps) {
         tractoresElegidos: aArray(r.tractor),
         repartoTractores: Array.isArray(r.tractores) ? r.tractores : [],
         maximoTractores: MAXIMO_TRACTORES,
+        /* El día de carga sólo se corrige mientras el camión no se pesó. Con la
+           tara final cargada va `null` y el campo no se dibuja: a esa altura la
+           fecha dejó de ser un plan y pasó a ser el día en que el camión estuvo
+           de verdad en la balanza. */
+        diasCarga: r.fechaTaraFinal ? null : diasDeCargaPara(r),
+        hoy: hoyStr(),
         pedido: pedido ? { motivo: pedido.motivo || '', pedidoPor: pedido.pedidoPor || '' } : null,
         volver: volverAlTicket,
         kg,
@@ -2821,7 +2868,16 @@ module.exports = function crearAppMovil(deps) {
       const vSocio = validarSocio(cargaPara, cargaPara === 'SOCIO' ? (req.body.socio || r.socio) : '', r.socio);
       if (vSocio.error) return fallar(res, 400, vSocio.error);
 
+      const fechaCorregida = fechaDeCargaCorregida(req.body.fechaCarga, r);
+      if (!fechaCorregida) {
+        return fallar(res, 400, r.fechaTaraFinal
+          ? 'Este camión ya se pesó: el día de carga no se mueve.'
+          : 'El día de carga tiene que ser hoy o alguno de los próximos ' +
+            DIAS_CARGA_ADELANTE + ' días.');
+      }
+
       const cambios = {
+        fecha: fechaCorregida,
         patentes,
         chofer,
         cargaPara,

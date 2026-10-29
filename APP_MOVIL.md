@@ -782,8 +782,31 @@ campos y las mismas reglas.
 | --- | --- |
 | Patentes, chofer | **Bruto estimado y bruto regulado** |
 | **Tara** (y con ella se recalculan los netos) | Campo, grano, lote |
-| Cargó de: silobolsa, o contratista + tractor | Número de ticket, balanza, fechas |
+| Cargó de: silobolsa, o contratista + tractor | Número de ticket, balanza |
+| **El día de carga**, mientras el camión no se haya pesado | Fecha de la tara final y de la regulada |
 | Observaciones | |
+
+#### El día de carga
+
+Se corre con las mismas reglas que al cargarlo: **hoy o alguno de los próximos 7
+días**, nunca para atrás. Vale la pena mirar tres cosas:
+
+- **Sólo mientras el camión no se pesó.** Con la tara final cargada el campo no
+  se dibuja y el servidor rechaza el cambio: a esa altura la fecha dejó de ser un
+  plan y pasó a ser el día en que el camión estuvo en la balanza. Correrla
+  dejaría el ticket pesado **un día antes de su propio día de carga**.
+- **La lista ofrece el día que el ticket ya tiene** aunque ya haya pasado, como
+  *"sin cambiar — 28/10"*. Sin eso, abrir la corrección de un ticket de ayer y
+  tocar cualquier otra cosa le movía la fecha a hoy sin que nadie lo pidiera.
+- **Moverlo lo saca o lo mete en el patio del balancero**, y eso no se ve desde
+  la pantalla de corregir. Por eso al cambiar el día aparece abajo *"Le aparece
+  al balancero el lunes"* o *"…hoy mismo"*.
+
+> **Gasta una de las dos correcciones**, como cualquier otro campo. Si reprogramar
+> un camión dos veces resulta ser algo que pasa seguido, lo que hay que discutir
+> es si un cambio de fecha **sobre un ticket que todavía no se pesó** debería
+> contar: a esa altura no hay ningún peso que proteger, que es para lo que existe
+> el tope de dos.
 
 Los brutos quedan fijos a propósito: son lo que marcó la balanza y la única prueba
 del pesaje. Lo que se corrige es la tara, y el neto se recalcula solo

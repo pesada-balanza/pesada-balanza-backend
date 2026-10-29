@@ -55,6 +55,23 @@
 
     <form id="form-corregir">
 
+      <%# El día de carga, sólo mientras el camión no se pesó. Va primero igual
+          que en Nueva pesada: cambia a qué día pertenece todo el resto.
+          El aviso de abajo aparece sólo si se mueve la fecha, porque mover un
+          camión al lunes lo saca HOY del patio del balancero, y eso no se ve
+          desde esta pantalla. %>
+      <% if (diasCarga) { %>
+        <div class="campo" style="margin-bottom:11px">
+          <label class="etiqueta" for="fechaCarga">¿Qué día carga?</label>
+          <select id="fechaCarga" name="fechaCarga">
+            <% diasCarga.forEach(function (d) { %>
+              <option value="<%= d.valor %>"<%= d.valor === r.fecha ? ' selected' : '' %>><%= d.texto %></option>
+            <% }); %>
+          </select>
+          <span id="aviso-fecha" class="txt-chico"></span>
+        </div>
+      <% } %>
+
       <div class="campo">
         <label class="etiqueta" for="patentes">Patentes</label>
         <input type="text" id="patentes" name="patentes" class="mono" maxlength="60"
@@ -202,6 +219,25 @@
   var campoKgTract = document.getElementById('campo-kg-tract');
   var filasTract = document.getElementById('filas-tract');
   var avisoTract = document.getElementById('aviso-tract');
+
+  <%# Sólo existe mientras el camión no se pesó; con la tara final cargada
+      queda en null y lo que se manda es la fecha que el ticket ya tiene. %>
+  var selFecha = document.getElementById('fechaCarga');
+  <% if (diasCarga) { %>
+  <%# Mover la fecha saca el camión del patio del balancero HOY, o se lo pone.
+      Eso no se ve desde esta pantalla, así que se dice. Si la fecha queda como
+      estaba no dice nada: no hay nada que avisar. %>
+  var avisoFecha = document.getElementById('aviso-fecha');
+  var FECHA_ORIGINAL = '<%= r.fecha %>';
+  var HOY_CARGA = '<%= hoy %>';
+  selFecha.addEventListener('change', function () {
+    var op = selFecha.options[selFecha.selectedIndex];
+    if (selFecha.value === FECHA_ORIGINAL) { avisoFecha.textContent = ''; return; }
+    avisoFecha.textContent = selFecha.value === HOY_CARGA
+      ? 'Le aparece al balancero hoy mismo.'
+      : 'Le aparece al balancero el ' + op.text.split(' ')[0] + '.';
+  });
+  <% } %>
 
   var brutoEstimado = <%= Number(r.brutoEstimado) || 0 %>;
   var bruto = <%= r.bruto ? Number(r.bruto) : 0 %>;
@@ -470,6 +506,7 @@
     error.innerHTML = '';
 
     var datos = {
+      fechaCarga: selFecha ? selFecha.value : '',
       patentes: document.getElementById('patentes').value,
       chofer: document.getElementById('chofer').value,
       tara: inputTara.value,

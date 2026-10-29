@@ -134,9 +134,31 @@ function pesada(extra) {
   }, extra || {});
 }
 
+/** Un ticket puesto directo en la base, para los casos que no pasan por la app. */
+function ticketEnBase(extra) {
+  const doc = Object.assign({
+    _id: new ObjectId(), idTicket: 700 + registros().docs.length,
+    nroApp: '1-07' + (700 + registros().docs.length), origen: 'app',
+    fecha: HOY, usuario: 'Juan Sosa', cargadoPor: 'Juan Sosa',
+    pesadaPara: 'CAMIONES', cargaPara: 'AMH', socio: '',
+    transporte: 'Ciriaci', chofer: 'R. GÓMEZ', patentes: 'AC 884 TF',
+    campo: CAMPO, codigoIngreso: MATACO,
+    brutoEstimado: 46500, tara: 15600, netoEstimado: 30900,
+    anulado: false, confirmada: false, modificaciones: 0, creadoEn: new Date(),
+  }, extra || {});
+  registros().docs.push(doc);
+  return doc;
+}
+
+/* Las cookies de cada código, para volver a ese código SIN volver a entrar.
+   `/app/api/ingreso` acepta 10 intentos por IP cada 15 minutos —es la
+   protección contra probar códigos a lo bruto— y esta prueba cambia de código
+   una docena de veces. Sin esto, el ingreso número 11 se rechaza con 429 y lo
+   que falla es la prueba siguiente, en un lugar que no tiene nada que ver. */
+const sesiones = {};
+
 /** Entra con un código, dejando el nombre del día puesto. */
 async function entrar(codigo, nombre) {
-  cookies = {};
   // upsert y no insert: a lo largo de la prueba se entra y se sale varias veces
   // con el mismo código, y el día ya quedó puesto la primera vez.
   await baseFalsa.collection('app_dias').updateOne(
@@ -144,7 +166,14 @@ async function entrar(codigo, nombre) {
     { $set: { nombre } },
     { upsert: true }
   );
-  return ir('POST', '/app/api/ingreso', { code: codigo });
+  if (sesiones[codigo]) {
+    cookies = sesiones[codigo];
+    return { estado: 200, texto: '' };
+  }
+  cookies = {};
+  const r = await ir('POST', '/app/api/ingreso', { code: codigo });
+  sesiones[codigo] = cookies;
+  return r;
 }
 
 /** Los camiones que el balancero ve en su patio, por número de ticket. */
@@ -377,7 +406,81 @@ async function main() {
   futuros.forEach((d, i) => { d.anulado = false; d.fecha = guardadas[i]; });
 
   /* ═══════════════════════════════════════════════════════════════════════
-   * 8. EN UN NAVEGADOR DE VERDAD
+   * 8. CORREGIR EL DÍA DE CARGA (solo GENERAL)
+   * ═════════════════════════════════════════════════════════════════════ */
+  seccion('Corregir el día de carga');
+
+  /** Lo que la pantalla de corregir manda, con lo mínimo para que pase. */
+  function correccion(t, extra) {
+    return Object.assign({
+      fechaCarga: t.fecha, patentes: t.patentes, chofer: t.chofer,
+      tara: '', cargaPara: 'AMH', socio: '', cargoDe: '',
+      silobolsa: '', contratista: [], tractor: [], comentarios: '',
+    }, extra || {});
+  }
+
+  await entrar(GENERAL_CARGA, 'Matías H');
+  r = await ir('POST', '/app/api/pesada', pesada({ fechaCarga: diaMas(2), patentes: 'EE 111 EE' }));
+  const aCorregir = leer(r.json.id);
+
+  await entrar(GENERAL_OBSERVA, 'Matías H');
+  r = await ir('GET', '/app/corregir/' + aCorregir._id);
+  ok('la pantalla de corregir trae el día de carga', r.texto.indexOf('name="fechaCarga"') !== -1);
+  ok('con el día que tiene ya elegido',
+    new RegExp('value="' + aCorregir.fecha + '" selected').test(r.texto));
+
+  r = await ir('POST', '/app/api/corregir/' + aCorregir._id, correccion(aCorregir, {
+    fechaCarga: diaMas(5),
+  }));
+  ok('GENERAL mueve el día de carga', r.estado === 200, r.texto.slice(0, 200));
+  ok('y el ticket queda con el día nuevo', leer(aCorregir._id).fecha === diaMas(5),
+    leer(aCorregir._id).fecha);
+  ok('gastó una de las dos correcciones', leer(aCorregir._id).modificaciones === 1,
+    leer(aCorregir._id).modificaciones);
+
+  const audit = baseFalsa.collection('registros_auditoria').docs.slice(-1)[0];
+  ok('queda anotado en la auditoría de dónde a dónde',
+    audit && audit.camposAnteriores.fecha === diaMas(2) && audit.camposNuevos.fecha === diaMas(5),
+    JSON.stringify(audit && audit.camposNuevos));
+
+  r = await ir('POST', '/app/api/corregir/' + aCorregir._id, correccion(leer(aCorregir._id), {
+    fechaCarga: diaMas(-1),
+  }));
+  ok('para atrás no se puede: una corrección es a futuro', r.estado === 400, r.estado);
+  r = await ir('POST', '/app/api/corregir/' + aCorregir._id, correccion(leer(aCorregir._id), {
+    fechaCarga: diaMas(8),
+  }));
+  ok('ni más allá del tope de 7 días', r.estado === 400, r.estado);
+  ok('y en ninguno de los dos casos se tocó el ticket',
+    leer(aCorregir._id).fecha === diaMas(5), leer(aCorregir._id).fecha);
+
+  /* Ya pesado: la fecha dejó de ser un plan. Moverla dejaría el ticket pesado
+     un día antes de su propio día de carga. */
+  const pesado = ticketEnBase({ fecha: HOY, patentes: 'FF 111 FF', fechaTaraFinal: HOY });
+  r = await ir('GET', '/app/corregir/' + pesado._id);
+  ok('con la tara final cargada, el campo no está',
+    r.texto.indexOf('name="fechaCarga"') === -1);
+  r = await ir('POST', '/app/api/corregir/' + pesado._id, correccion(pesado, {
+    fechaCarga: diaMas(3), tara: 15600,
+  }));
+  ok('y el servidor no la deja mover', r.estado === 400, r.estado + ' ' + r.texto.slice(0, 160));
+  ok('el mensaje explica por qué', /ya se pesó/.test(r.texto), r.texto.slice(0, 160));
+  r = await ir('POST', '/app/api/corregir/' + pesado._id, correccion(pesado, {
+    tara: 15600, chofer: 'OTRO CHOFER',
+  }));
+  ok('pero el resto del ticket se corrige igual', r.estado === 200, r.texto.slice(0, 200));
+
+  /* Un ticket con fecha vieja: la lista tiene que ofrecer la que ya tiene, o
+     corregir cualquier otra cosa le movería la fecha a hoy sin pedirlo. */
+  const viejo = ticketEnBase({ fecha: diaMas(-1), patentes: 'GG 111 GG' });
+  r = await ir('GET', '/app/corregir/' + viejo._id);
+  ok('un ticket de ayer ofrece su propio día', r.texto.indexOf('sin cambiar') !== -1);
+  r = await ir('POST', '/app/api/corregir/' + viejo._id, correccion(viejo, { chofer: 'OTRO MÁS' }));
+  ok('y corregir otra cosa no le mueve la fecha',
+    r.estado === 200 && leer(viejo._id).fecha === diaMas(-1), leer(viejo._id).fecha);
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * 9. EN UN NAVEGADOR DE VERDAD
    * ═════════════════════════════════════════════════════════════════════ */
   seccion('La pantalla en el teléfono');
 
@@ -406,6 +509,8 @@ async function main() {
     await pg.goto(BASE + '/app/nueva-pesada', { waitUntil: 'networkidle' });
     await pg.waitForTimeout(400);
 
+    ok('la pantalla abrió con el campo del día',
+      (await pg.$('#aviso-fecha')) !== null, pg.url() + ' · ' + (await pg.title()));
     ok('con hoy elegido el renglón de aviso está vacío',
       (await pg.textContent('#aviso-fecha')).trim() === '');
 
@@ -434,6 +539,42 @@ async function main() {
     ok('el camión cargado desde la pantalla se guarda', !!desdePantalla);
     ok('con el día que se eligió ahí', desdePantalla && desdePantalla.fecha === diaMas(1),
       desdePantalla && desdePantalla.fecha);
+
+    /* Y la corrección, que es un formulario distinto: el día viaja en lo que
+       manda la pantalla, y ese cuerpo se arma campo por campo (no se recorre el
+       formulario solo). Si alguien agrega un campo y se olvida de sumarlo ahí,
+       la pantalla lo muestra y el servidor nunca lo recibe. */
+    const paraLaPantalla = ticketEnBase({ fecha: diaMas(2), patentes: 'HH 111 HH' });
+    await pg.evaluate(async (codigo) => {
+      await fetch('/app/api/ingreso', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codigo }),
+      });
+    }, GENERAL_OBSERVA);
+    await pg.goto(BASE + '/app/corregir/' + paraLaPantalla._id, { waitUntil: 'networkidle' });
+    await pg.waitForTimeout(400);
+
+    ok('la corrección abre con el día que el ticket tiene',
+      (await pg.inputValue('#fechaCarga')) === diaMas(2), await pg.inputValue('#fechaCarga'));
+    ok('y sin aviso, porque todavía no se movió nada',
+      (await pg.textContent('#aviso-fecha')).trim() === '');
+
+    await pg.selectOption('#fechaCarga', HOY);
+    await pg.waitForTimeout(250);
+    ok('moviéndolo a hoy avisa que le aparece al balancero hoy mismo',
+      /hoy mismo/.test(await pg.textContent('#aviso-fecha')),
+      await pg.textContent('#aviso-fecha'));
+
+    await pg.selectOption('#fechaCarga', diaMas(5));
+    await pg.waitForTimeout(250);
+    ok('y moviéndolo más adelante dice qué día',
+      /^Le aparece al balancero el \w+\.$/.test((await pg.textContent('#aviso-fecha')).trim()),
+      await pg.textContent('#aviso-fecha'));
+
+    await pg.click('#guardar');
+    await pg.waitForTimeout(1500);
+    ok('guardando desde la pantalla, el día llega al servidor',
+      leer(paraLaPantalla._id).fecha === diaMas(5), leer(paraLaPantalla._id).fecha);
 
     ok('la pantalla no tiró ningún error de javascript', errores.length === 0, errores.join(' | '));
     await navegador.close();
