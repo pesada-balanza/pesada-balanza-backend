@@ -120,6 +120,64 @@ module.exports = function crearAppMovil(deps) {
     return DIAS_SEMANA[d.getUTCDay()] + ' ' + d.getUTCDate();
   }
 
+  /* =========================================================================
+   * QUÉ DÍA CARGA EL CAMIÓN  (solo GENERAL)
+   * -------------------------------------------------------------------------
+   * `fecha` es el día en que CARGA el camión, no el día en que alguien lo
+   * tipeó. Son dos cosas distintas y antes se pisaban: el ticket nacía siempre
+   * con la fecha del día, así que GENERAL no podía dejar preparados los
+   * camiones de mañana ni los de la semana.
+   *
+   * Cuándo se tipeó no se perdió: sigue en `creadoEn`, con hora.
+   *
+   * Lo elige SOLO el código GENERAL de carga. Con el código de una balanza el
+   * campo ni se dibuja y la fecha es hoy, igual que siempre.
+   * ======================================================================= */
+  const DIAS_CARGA_ADELANTE = 7;
+
+  /* Para ATRÁS la fecha no se elige nunca: la pantalla no la ofrece. Pero sí
+     puede LLEGAR una, y es legítima: una pesada cargada sin señal el jueves que
+     el teléfono recién sube el lunes trae el jueves, que es el día real en que
+     cargó el camión. Antes esa pesada quedaba con la fecha del lunes —mal—, así
+     que aceptarla es justamente el arreglo. El tope de 30 días es contra una
+     fecha absurda; una cola de más de un mes no es un caso real. */
+  const DIAS_CARGA_ATRAS = 30;
+
+  /** Hoy más `n` días, en YYYY-MM-DD y con el mismo criterio que `hoyStr()`. */
+  function diaMas(n) {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return ymd(d);
+  }
+
+  /** Los 8 días que puede elegir GENERAL: hoy y los 7 siguientes. */
+  function diasDeCarga() {
+    const out = [];
+    for (let i = 0; i <= DIAS_CARGA_ADELANTE; i++) {
+      const valor = diaMas(i);
+      out.push({ valor, texto: i === 0 ? 'hoy — ' + diaBonito(valor) : diaBonito(valor) });
+    }
+    return out;
+  }
+
+  /**
+   * La fecha de carga que corresponde guardar, o `null` si lo que llegó no
+   * sirve. Se valida en el servidor aunque la pantalla ya ofrezca sólo días
+   * válidos: lo que manda el teléfono nunca se da por bueno.
+   */
+  function fechaDeCarga(crudo, codigoSesion) {
+    const hoy = hoyStr();
+    // Sólo GENERAL elige. Para cualquier otro código es hoy, como siempre.
+    if (codigoSesion !== CODIGO_GENERAL_INGRESO) return hoy;
+    const v = String(crudo || '').trim();
+    if (!v) return hoy;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+    // Comparar YYYY-MM-DD como texto alcanza: ordena igual que la fecha.
+    if (v > diaMas(DIAS_CARGA_ADELANTE)) return null;
+    if (v < diaMas(-DIAS_CARGA_ATRAS)) return null;
+    return v;
+  }
+
   /** "domingo 09/08/26" — el día de la semana y la fecha, para la barra de días. */
   function diaConFecha(fechaStr) {
     const d = new Date(fechaStr + 'T12:00:00Z');
@@ -898,6 +956,15 @@ module.exports = function crearAppMovil(deps) {
 
     const out = [];
     for (const r of docs) {
+      /* Preparado para otro día: todavía no es asunto del balancero.
+         Esta línea es la que hace que precargar sirva. Sin ella el ticket
+         aparece DESDE QUE GENERAL LO CARGA, porque `ticketVigente` sólo mira
+         hacia atrás —resta hoy menos la fecha— y con una fecha futura esa resta
+         da negativo, que es menor que cualquier tope y pasa como vigente. Es
+         decir: dejar preparada la semana le llenaba el patio al balancero con
+         los camiones de los siete días, todos juntos, hoy. */
+      if (r.fecha > hoy) continue;
+
       const tieneTaraFinal = !!r.fechaTaraFinal;
       // Sin TARA FINAL, el ticket de CAMIONES vive 1 día (regla de la web).
       if (!tieneTaraFinal && !ticketVigente(r.fecha, DIAS_CAMIONES_A_TARA_FINAL)) continue;
@@ -1437,8 +1504,14 @@ module.exports = function crearAppMovil(deps) {
    * ======================================================================= */
 
   /**
-   * La misma patente cargada hoy en OTRA balanza (ref. 7b). Segundo viaje en la
-   * misma balanza es normal y no avisa.
+   * La misma patente cargada ESE DÍA en OTRA balanza (ref. 7b). Segundo viaje en
+   * la misma balanza es normal y no avisa.
+   *
+   * El día se pasa y no se calcula acá: desde que GENERAL puede dejar un camión
+   * preparado para el lunes, "repetido" significa repetido EN SU DÍA DE CARGA.
+   * Comparando siempre contra hoy, dos tickets para el mismo lunes no se
+   * avisaban nunca, y el aviso se perdía justo cuando más falta hace —al
+   * precargar no está el camión a la vista para notarlo—.
    *
    * `balanzaDelTicket` es la balanza del ticket que se está mirando, NO el
    * código de la sesión: con el código GENERAL de carga (56781) el ticket queda
@@ -1449,13 +1522,12 @@ module.exports = function crearAppMovil(deps) {
    * guardar encontraba el ticket que acababa de crearse y lo anunciaba como su
    * propio repetido: mismo número, misma hora, mismo usuario.
    */
-  async function buscarRepetidoHoy(patentes, balanzaDelTicket, excluirId) {
+  async function buscarRepetidoElDia(fecha, patentes, balanzaDelTicket, excluirId) {
     const clave = patenteClave(patentes);
     if (!clave) return null;
-    const hoy = hoyStr();
     const propio = excluirId ? String(excluirId) : '';
     const docs = await colRegistros()
-      .find({ fecha: hoy, anulado: { $ne: true } })
+      .find({ fecha: fecha || hoyStr(), anulado: { $ne: true } })
       .sort({ idTicket: -1 })
       .toArray();
 
@@ -1483,7 +1555,10 @@ module.exports = function crearAppMovil(deps) {
       // del campo en el formulario, así que puede venir vacío; ahí se cae al
       // código de la sesión, que es lo que se hacía siempre.
       const balanza = balanzaDelTicket(s.codigoIngreso, String(req.query.campo || ''));
-      const otro = await buscarRepetidoHoy(req.query.patentes, balanza);
+      // Si la fecha que manda la pantalla no sirve, se mira hoy: es un aviso,
+      // no una validación, y rechazarlo acá no le serviría a nadie.
+      const dia = fechaDeCarga(req.query.fechaCarga, s.codigoIngreso) || hoyStr();
+      const otro = await buscarRepetidoElDia(dia, req.query.patentes, balanza);
       return res.json({ ok: true, repetido: otro });
     } catch (err) {
       return siguienteError(err, req, res);
@@ -1504,6 +1579,11 @@ module.exports = function crearAppMovil(deps) {
       campos,
       socios: getSocios() || [],
       brutosEstimados: [45000, 52500, 55000],
+      // Sólo GENERAL elige el día. Para los balanceros va `null`: ni el campo
+      // ni el javascript que lo maneja se generan, así que la pantalla les sale
+      // igual que antes. (Les quedan 0,13 KB de las cuatro líneas compartidas
+      // con el cartel de camión repetido, que sí usan.)
+      diasCarga: s.codigoIngreso === CODIGO_GENERAL_INGRESO ? diasDeCarga() : null,
     });
   });
 
@@ -1578,6 +1658,12 @@ module.exports = function crearAppMovil(deps) {
       const vSocio = validarSocio(cargaPara, req.body.socio);
       if (vSocio.error) return fallar(res, 400, vSocio.error);
 
+      const fechaCarga = fechaDeCarga(req.body.fechaCarga, s.codigoIngreso);
+      if (!fechaCarga) {
+        return fallar(res, 400, 'El día de carga tiene que ser hoy o alguno de los próximos ' +
+          DIAS_CARGA_ADELANTE + ' días.');
+      }
+
       const brutoEst = vBruto.valor;
       const idTicket = await siguienteIdTicket();
       const nro = await tomarNumero(req.body.nro, s.codigoIngreso);
@@ -1587,7 +1673,10 @@ module.exports = function crearAppMovil(deps) {
       // lea estos registros sin ningún cambio.
       const registro = {
         idTicket,
-        fecha: hoyStr(),
+        // El día en que CARGA el camión, no el día en que se tipeó: eso está en
+        // `creadoEn`. Con cualquier código que no sea el GENERAL de carga, los
+        // dos coinciden y es hoy.
+        fecha: fechaCarga,
         usuario: req.nombreDia,
         cargaPara,
         socio: vSocio.valor,
@@ -1641,7 +1730,8 @@ module.exports = function crearAppMovil(deps) {
       // La balanza del TICKET y su propio id: con el código 56781 el ticket va
       // a la balanza del campo, y sin excluirse a sí mismo se avisaba de un
       // repetido que era el ticket que se acababa de guardar.
-      const repetido = await buscarRepetidoHoy(
+      const repetido = await buscarRepetidoElDia(
+        registro.fecha,
         registro.patentes,
         registro.codigoIngreso,
         r.insertedId

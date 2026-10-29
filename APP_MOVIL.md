@@ -363,6 +363,45 @@ los teléfonos descarten las **pantallas** que tenían guardadas y tomen las
 nuevas. Las pesadas pendientes y los números reservados no se tocan (ver
 "Actualizar la app NO borra lo que quedó pendiente", más arriba).
 
+### Qué día carga el camión (solo GENERAL)
+
+El campo `fecha` del registro es **el día en que carga el camión**, no el día en
+que alguien lo tipeó. Antes eran lo mismo, y por eso GENERAL no podía dejar
+preparados los camiones de mañana ni los de la semana: cargarlos antes los
+dejaba con la fecha de ese día.
+
+Cuándo se tipeó **no se perdió**: sigue en `creadoEn`, con hora.
+
+| | |
+| --- | --- |
+| Quién lo elige | **solo** el código general de carga (56781) |
+| Qué puede elegir | hoy y los **7 días** siguientes (`DIAS_CARGA_ADELANTE`) |
+| Con cualquier otro código | `fecha` es hoy, como siempre; el campo ni se dibuja |
+
+En la pantalla es una **lista de 8 días**, no un calendario. Así elegir una fecha
+pasada o fuera del tope es imposible: no hay nada que validar, ningún error que
+mostrar, pesa menos y se usa con un toque. El servidor valida igual
+(`fechaDeCarga`), porque lo que manda el teléfono no se da por bueno nunca.
+
+**El patio saltea los que son para otro día** (`r.fecha > hoy` en
+`camionesAbiertos`). Esa línea es la que hace que precargar sirva, y es lo
+primero que hay que mirar si algún día aparecen camiones antes de tiempo:
+
+> `ticketVigente` sólo mira hacia atrás —resta hoy menos la fecha—, así que con
+> una fecha futura esa resta da **negativo**, que es menor que cualquier tope y
+> pasa como vigente. Sin saltearlos, dejar preparada la semana le llena el patio
+> al balancero **hoy** con los camiones de los siete días.
+
+**Para atrás la fecha no se elige, pero sí puede llegar, y es legítima.** Una
+pesada cargada sin señal el jueves que el teléfono recién sube el lunes trae el
+jueves, que es el día real en que cargó el camión. Se acepta hasta 30 días
+(`DIAS_CARGA_ATRAS`); rechazarla dejaría la cola trabada para siempre. De paso
+eso arregla un problema viejo: antes esa pesada quedaba con la fecha del lunes y
+aparecía en el patio como si el camión estuviera ahí.
+
+**Los Excel y los reportes agrupan por el día de carga**, que es la consecuencia
+buscada: un camión precargado el lunes para el viernes cuenta en el viernes.
+
 ### De quién es cada ticket
 
 El `codigoIngreso` del registro es lo que define en qué tabla aparece el ticket y
@@ -383,15 +422,22 @@ que lo cargó lo pierda de vista.
 > código**, así que cualquier balanza ve y puede cerrar la tara final de otra.
 > En la app cada balanza ve y cierra **solo lo suyo**, en los tres pasos.
 
-### El aviso de "camión repetido hoy"
+### El aviso de "camión repetido"
 
-Cuando la misma patente se carga hoy en **otra** balanza, sale un cartel (ref.
-7b). Es solo un aviso: **no bloquea** la carga, y el mismo dato le llega a
-GENERAL en "Para revisar". Un segundo viaje en la **misma** balanza es normal y
-no avisa.
+Cuando la misma patente se carga **el mismo día** en **otra** balanza, sale un
+cartel (ref. 7b). Es solo un aviso: **no bloquea** la carga, y el mismo dato le
+llega a GENERAL en "Para revisar". Un segundo viaje en la **misma** balanza es
+normal y no avisa.
 
-Se pregunta en dos momentos: al salir de **Patentes**, y otra vez al elegir el
-**campo** — porque de eso depende cuál es "su" balanza.
+Se pregunta en tres momentos: al salir de **Patentes**, al elegir el **campo**
+—porque de eso depende cuál es "su" balanza— y al cambiar el **día de carga**.
+
+> **El día es el de carga, no hoy.** Desde que GENERAL puede dejar un camión
+> preparado para el lunes, "repetido" significa repetido **en su día de carga**.
+> Comparando siempre contra hoy, dos tickets para el mismo lunes no se avisaban
+> nunca, y el aviso se perdía justo cuando más falta hace: al precargar no está
+> el camión a la vista para notarlo. Por eso el día se le **pasa** a la función y
+> no se calcula adentro.
 
 > **Cuidado con el código `56781`.** Es el único que **deriva** el ticket a la
 > balanza del campo, así que la balanza del ticket **no** es la de la sesión.
@@ -404,8 +450,8 @@ Se pregunta en dos momentos: al salir de **Patentes**, y otra vez al elegir el
 >    lo anunciaba como su propio repetido, con su mismo número, su misma hora y
 >    su mismo usuario. Un camión nuevo parecía repetido.
 >
-> Por eso `buscarRepetidoHoy(patentes, balanzaDelTicket, excluirId)` recibe la
-> balanza **del ticket** y el id a excluir. Después de guardar se le pasa el
+> Por eso `buscarRepetidoElDia(fecha, patentes, balanzaDelTicket, excluirId)`
+> recibe la balanza **del ticket** y el id a excluir. Después de guardar se le pasa el
 > `_id` recién insertado: un ticket no puede ser su propio repetido, pase lo que
 > pase con los códigos.
 

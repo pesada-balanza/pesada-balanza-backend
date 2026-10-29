@@ -16,6 +16,27 @@
 
     <form id="form-pesada" novalidate style="display:flex; flex-direction:column; gap:14px">
 
+      <%# ¿QUÉ DÍA CARGA? — sólo con el código GENERAL de carga.
+          Va arriba de todo porque cambia el sentido de todo lo de abajo: no es
+          lo mismo cargar un camión que está llegando que dejar preparado el del
+          lunes.
+          Es una LISTA de 8 días y no un calendario a propósito: así elegir una
+          fecha pasada o fuera del tope es imposible, no hay nada que validar ni
+          ningún error que mostrar, pesa menos y en el celular se usa con un
+          toque. (El servidor valida igual: lo que manda el teléfono no se da
+          por bueno nunca.) %>
+      <% if (diasCarga) { %>
+        <div class="campo">
+          <label class="etiqueta" for="fechaCarga">¿Qué día carga?</label>
+          <select id="fechaCarga" name="fechaCarga">
+            <% diasCarga.forEach(function (d) { %>
+              <option value="<%= d.valor %>"><%= d.texto %></option>
+            <% }); %>
+          </select>
+          <span id="aviso-fecha" class="txt-chico"></span>
+        </div>
+      <% } %>
+
       <div class="campo">
         <span class="etiqueta">Carga para</span>
         <div class="opciones" data-opciones="cargaPara">
@@ -109,7 +130,8 @@
 <div class="velo centrado" id="modal-repetido" hidden>
   <div class="hoja">
     <div class="hoja-texto">
-      <span class="etiqueta-ambar">Camión repetido hoy</span>
+      <%# Sin "hoy": el día lo dice el renglón de abajo, que ahora puede ser otro. %>
+      <span class="etiqueta-ambar">Camión repetido</span>
       <span class="t-modal" id="rep-titulo"></span>
       <span class="txt" style="font-size:14px; line-height:1.5" id="rep-detalle"></span>
     </div>
@@ -132,7 +154,33 @@
   var campoSocio = document.getElementById('campo-socio');
   var inputPatentes = document.getElementById('patentes');
   var selCampo = document.getElementById('campo');
+  <%# Sólo existen con el código GENERAL de carga: con el de una balanza quedan
+      en null y todo lo que sigue cae a "hoy", que es como funcionaba antes. %>
+  var selFecha = document.getElementById('fechaCarga');
+  var avisoFecha = document.getElementById('aviso-fecha');
   var yaAvisado = '';
+
+  <%# "hoy" o "el lunes": cuándo carga el camión que se está cargando. %>
+  function cuandoCarga() {
+    if (!selFecha || selFecha.selectedIndex === 0) return 'hoy';
+    return 'el ' + selFecha.options[selFecha.selectedIndex].text.split(' ')[0];
+  }
+
+  <% if (diasCarga) { %>
+  <%# Elegir un día que no es hoy no cambia nada en pantalla, así que sin este
+      renglón GENERAL queda con la duda de si el balancero ya lo está viendo.
+      Cuando el día ES hoy no dice nada: no hay obviedades que ocupen lugar.
+      Va adentro del `if` como el campo: al balancero no le sirve de nada y no
+      tiene por qué viajar hasta su teléfono. `cuandoCarga` sí queda afuera,
+      porque la usa el cartel de camión repetido, que lo ve todo el mundo. %>
+  function revisarFecha() {
+    avisoFecha.textContent = selFecha.selectedIndex === 0
+      ? ''
+      : 'Le aparece al balancero ' + cuandoCarga() + '.';
+  }
+  selFecha.addEventListener('change', function () { revisarFecha(); revisarRepetido(); });
+  revisarFecha();
+  <% } %>
 
   // Autocompletar con lo que ya está cargado en la base.
   App.cargarSugerencias(function (d) {
@@ -155,11 +203,15 @@
   function revisarRepetido() {
     var p = (inputPatentes.value || '').trim();
     var c = selCampo.value || '';
-    var clave = p + '|' + c;
+    <%# El día entra en la clave: cambiar la fecha cambia contra qué se compara,
+        así que el aviso se vuelve a pedir en vez de darse por hecho. %>
+    var f = selFecha ? selFecha.value : '';
+    var clave = p + '|' + c + '|' + f;
     if (!p || clave === yaAvisado || !App.hayConexion()) return;
     yaAvisado = clave;
     App.pedir('GET', '/app/api/repetido?patentes=' + encodeURIComponent(p) +
-      '&campo=' + encodeURIComponent(c), null, function (err, res) {
+      '&campo=' + encodeURIComponent(c) +
+      (f ? '&fechaCarga=' + encodeURIComponent(f) : ''), null, function (err, res) {
       if (err || !res || !res.repetido) return;
       mostrarRepetido(res.repetido);
     });
@@ -169,7 +221,7 @@
 
   function mostrarRepetido(r, guardado) {
     document.getElementById('rep-titulo').innerHTML =
-      App.esc(r.patentes) + ' ya se cargó hoy en ' + App.esc(r.balanza);
+      App.esc(r.patentes) + ' ya se cargó ' + cuandoCarga() + ' en ' + App.esc(r.balanza);
     var partes = [];
     if (r.nro) partes.push('ticket ' + r.nro);
     if (r.hora) partes.push('a las ' + r.hora);

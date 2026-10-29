@@ -22,6 +22,7 @@ const SUITES = [
   ['probar-buscar.js', 'Buscar un ticket y moverse entre días'],
   ['probar-corregir.js', 'Corregir los datos de un ticket: solo GENERAL'],
   ['probar-reparto.js', 'Repartir los kg del viaje entre los tractores'],
+  ['probar-fecha-carga.js', 'Qué día carga el camión: GENERAL lo deja preparado'],
   ['probar-excel.js', 'Exportar a Excel desde la app, con los permisos de cada código'],
   ['probar-liviana.js', 'Que sea liviana y que actualizar no borre lo pendiente'],
   ['probar-sin-senal-real.js', 'Sin señal con el service worker de verdad (como en el teléfono)'],
