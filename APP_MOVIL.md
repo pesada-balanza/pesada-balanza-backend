@@ -402,6 +402,47 @@ aparecía en el patio como si el camión estuviera ahí.
 **Los Excel y los reportes agrupan por el día de carga**, que es la consecuencia
 buscada: un camión precargado el lunes para el viernes cuenta en el viernes.
 
+#### El aviso de "camiones preparados"
+
+Mientras no llega su día, un camión preparado **no está en ninguna lista**. Por
+eso el resumen de GENERAL lleva arriba un aviso ámbar con el total y el corte
+**por día**:
+
+```
+6 camiones preparados
+mañana: 1 · sábado 31: 3 · lunes 2: 2
+```
+
+| | |
+| --- | --- |
+| Quién lo ve | los dos códigos de GENERAL: el que mira (12341) y el que carga (56781) |
+| Quién no | los balanceros, ni acá ni en su patio — decidido así a pedido |
+| Desde cuándo | desde **mañana**, no desde pasado |
+
+> **Por qué desde mañana.** Mostrando sólo los de más de un día, el camión de
+> mañana queda sin aviso **y** sin patio justo el día anterior a cargar: el
+> mismo agujero que el aviso viene a tapar, corrido un día.
+
+No se filtra por balanza a propósito: `balanzasVisibles` deja afuera el código
+56781, y ahí es donde quedan los tickets de un campo sin balanza fija.
+
+#### `esDeMasAdelante`, y por qué hay que preguntarlo en cada lugar
+
+Todo lugar que decide si un ticket "está abierto" tiene que saltear los que son
+para más adelante, **uno por uno**. No alcanza con `ticketVigente`: esa función
+resta hoy menos la fecha, así que una fecha futura da negativo y pasa como
+vigente. Hoy son cuatro lugares:
+
+| Dónde | Si falta |
+| --- | --- |
+| `camionesAbiertos` | el patio del balancero se llena con los siete días, hoy |
+| `resumenDelDia` → `enCurso` | el resumen cuenta camiones que no están en ningún patio |
+| pantalla de **tara final** | se puede pesar vacío un camión que todavía no vino |
+| `POST /api/tara-final` | lo mismo, mandándolo a mano sin pasar por la pantalla |
+
+A la **regulada** no hace falta: para llegar ahí el ticket necesita tara final, y
+eso ya está cerrado más arriba.
+
 ### De quién es cada ticket
 
 El `codigoIngreso` del registro es lo que define en qué tabla aparece el ticket y

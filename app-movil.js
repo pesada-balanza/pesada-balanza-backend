@@ -178,6 +178,62 @@ module.exports = function crearAppMovil(deps) {
     return v;
   }
 
+  /**
+   * Los camiones que ya están preparados para un día que todavía no llegó,
+   * agrupados por día y de más cercano a más lejano.
+   *
+   * Hasta que llega su día, un camión preparado no está en ninguna lista: no es
+   * del patio de ninguna balanza y tampoco del de GENERAL. Sólo aparece
+   * buscándolo por patente o por chofer, que es como no estar. Este aviso es lo
+   * único que dice cuántos hay y para cuándo.
+   *
+   * Desde MAÑANA, no desde pasado. Mostrando sólo los de más de un día, el de
+   * mañana queda sin aviso Y sin patio justo el día anterior a cargar: el
+   * mismo agujero que esto viene a tapar, corrido un día.
+   *
+   * No se filtra por balanza a propósito. `balanzasVisibles` deja afuera el
+   * código 56781, y ahí es donde quedan los tickets de un campo que no tiene
+   * balanza fija: filtrando, esos camiones no aparecerían en ningún lado.
+   */
+  /**
+   * ¿El ticket está preparado para un día que todavía no llegó?
+   *
+   * Hay que preguntarlo a mano en cada lugar que decide si un ticket "está
+   * abierto": `ticketVigente` resta hoy menos la fecha y con una fecha futura
+   * esa resta da negativo, que pasa como vigente. O sea que sin esta pregunta
+   * un camión preparado para el lunes cuenta como si estuviera en el patio.
+   */
+  function esDeMasAdelante(r) {
+    return !!r && String(r.fecha || '') > hoyStr();
+  }
+
+  async function camionesPreparados() {
+    const docs = await colRegistros()
+      .find(
+        {
+          pesadaPara: 'CAMIONES',
+          anulado: { $ne: true },
+          confirmada: { $ne: true },
+          fecha: { $gt: hoyStr() },
+        },
+        { projection: { fecha: 1 } }
+      )
+      .toArray();
+
+    const porFecha = {};
+    for (const r of docs) porFecha[r.fecha] = (porFecha[r.fecha] || 0) + 1;
+
+    const manana = diaMas(1);
+    const porDia = Object.keys(porFecha).sort().map((f) => ({
+      fecha: f,
+      // "mañana" se lee de un vistazo; "viernes 30" obliga a mirar el almanaque.
+      texto: f === manana ? 'mañana' : diaBonito(f),
+      cantidad: porFecha[f],
+    }));
+
+    return { total: docs.length, porDia };
+  }
+
   /** "domingo 09/08/26" — el día de la semana y la fecha, para la barra de días. */
   function diaConFecha(fechaStr) {
     const d = new Date(fechaStr + 'T12:00:00Z');
@@ -963,7 +1019,7 @@ module.exports = function crearAppMovil(deps) {
          da negativo, que es menor que cualquier tope y pasa como vigente. Es
          decir: dejar preparada la semana le llenaba el patio al balancero con
          los camiones de los siete días, todos juntos, hoy. */
-      if (r.fecha > hoy) continue;
+      if (esDeMasAdelante(r)) continue;
 
       const tieneTaraFinal = !!r.fechaTaraFinal;
       // Sin TARA FINAL, el ticket de CAMIONES vive 1 día (regla de la web).
@@ -1821,6 +1877,18 @@ module.exports = function crearAppMovil(deps) {
       if (r.fechaTaraFinal) {
         return res.redirect('/app/regulada/' + String(r._id));
       }
+      /* Preparado para más adelante: no se puede empezar a cerrar antes de
+         tiempo. Del patio no se llega —ahí no está—, pero sí desde Buscar, y
+         sin esto se podría pesar vacío un camión que todavía no vino y dejar el
+         ticket con una tara final anterior a su propia fecha de carga. */
+      if (esDeMasAdelante(r)) {
+        return pantallaError(
+          res,
+          'Todavía no',
+          'Este camión está preparado para el ' + fechaLarga(r.fecha) +
+            '. Va a aparecer en el patio ese día.'
+        );
+      }
       if (!ticketVigente(r.fecha, DIAS_CAMIONES_A_TARA_FINAL)) {
         return pantallaError(
           res,
@@ -1859,6 +1927,12 @@ module.exports = function crearAppMovil(deps) {
       if (!r) return fallar(res, 404, 'No se encontró el camión.');
       if (r.anulado) return fallar(res, 400, 'Este ticket está anulado.');
       if (r.fechaTaraFinal) return fallar(res, 400, 'Este camión ya tiene la tara final cargada.');
+      // Mismo motivo que en la pantalla: no se cierra un paso antes de que
+      // llegue el día para el que el camión está preparado.
+      if (esDeMasAdelante(r)) {
+        return fallar(res, 400, 'Este camión está preparado para el ' +
+          fechaLarga(r.fecha) + '. Va a aparecer en el patio ese día.');
+      }
 
       const v = validarNumero(req.body.taraNueva, TARA_MIN, TARA_MAX);
       if (!v.ok) return fallar(res, 400, 'Tara final: ' + v.error);
@@ -3248,9 +3322,13 @@ module.exports = function crearAppMovil(deps) {
       )
       .toArray();
     const enCurso = abiertos.filter((r) =>
-      r.fechaTaraFinal
+      // Preparado para más adelante NO está en curso: el camión todavía no
+      // existe en el patio de nadie. Igual que en `camionesAbiertos`, hay que
+      // saltearlos a mano: `ticketVigente` sólo mira hacia atrás y da por
+      // vigente cualquier fecha futura. Tienen su propio aviso arriba.
+      !esDeMasAdelante(r) && (r.fechaTaraFinal
         ? ticketVigente(r.fecha, DIAS_TARA_FINAL_A_REGULADA)
-        : ticketVigente(r.fecha, DIAS_CAMIONES_A_TARA_FINAL)
+        : ticketVigente(r.fecha, DIAS_CAMIONES_A_TARA_FINAL))
     );
     // "En curso" son dos cosas distintas: el que todavía no se pesó vacío (no
     // salió a cargar) y el que ya tiene la tara y está en el lote esperando la
@@ -3507,6 +3585,13 @@ module.exports = function crearAppMovil(deps) {
       const s = sesionApp(req);
       const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.fecha || '')) ? req.query.fecha : hoyStr();
       const resumen = await resumenDelDia(s, fecha);
+      /* El aviso es sólo de los dos códigos de GENERAL: el que mira (12341) y
+         el que carga (56781), que es el que deja los camiones preparados. A los
+         balanceros no les va, ni acá ni en su patio: lo que se prepara para más
+         adelante es asunto de quien lo prepara, y al balancero le aparece solo
+         el día que carga. Decidido así a pedido. */
+      const esUsuarioGeneral = !!s.esGeneral || s.codigoIngreso === CODIGO_GENERAL_INGRESO;
+      const preparados = esUsuarioGeneral ? await camionesPreparados() : null;
       // Si el código ve una sola balanza, desde acá mismo puede imprimir el día:
       // este resumen ES su pantalla de inicio y no tiene por qué entrar a la
       // lista para eso. GENERAL ve todas, así que entra por la balanza que quiera.
@@ -3515,6 +3600,7 @@ module.exports = function crearAppMovil(deps) {
         layout: 'app/layout',
         titulo: 'Resumen del día',
         resumen,
+        preparados,
         balanzaUnica: visibles.length === 1 ? visibles[0] : '',
         dias: navegacionDias(fecha, '/app/general'),
         kg,

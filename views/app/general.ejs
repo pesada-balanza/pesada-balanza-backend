@@ -19,6 +19,24 @@
     <%# 0. Moverse entre días: el resumen ya no es solo el de hoy %>
     <%- include('nav-dias', { dias: dias }) %>
 
+    <%# 0b. Camiones preparados para días que todavía no llegaron.
+         Va arriba de todo porque hasta que llega su día NO ESTÁN EN NINGUNA
+         OTRA LISTA: ni en el patio de la balanza ni acá abajo. Este renglón es
+         lo único que dice que existen.
+         Desaparece solo cuando no hay ninguno, como el resto de los avisos. %>
+    <% if (preparados && preparados.total) { %>
+      <div class="aviso">
+        <div class="aviso-col">
+          <span class="aviso-titulo">
+            <%= preparados.total %> <%= preparados.total === 1 ? 'camión preparado' : 'camiones preparados' %>
+          </span>
+          <%# Por DÍA y no por balanza: lo que se pregunta de algo que todavía no
+              pasó es cuándo pasa. %>
+          <span class="aviso-detalle"><%= preparados.porDia.map(function (d) { return d.texto + ': ' + d.cantidad; }).join(' · ') %></span>
+        </div>
+      </div>
+    <% } %>
+
     <%# 1. El neto del día, a lo ancho: así los granos entran cómodos adentro
         de la misma tarjeta, sin achicar nada. Antes eran dos recuadros al lado
         y el de la izquierda quedaba muy angosto para meterle el detalle. %>

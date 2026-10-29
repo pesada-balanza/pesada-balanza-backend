@@ -122,6 +122,7 @@ const leer = (id) => registros().docs.find((d) => String(d._id) === String(id));
 
 const MATACO = '5679';
 const GENERAL_CARGA = '56781';
+const GENERAL_OBSERVA = '12341';
 const CAMPO = 'El Mataco - SACHAYOJ - SE';
 
 /** El cuerpo de una pesada nueva. `fechaCarga` sólo si se pasa. */
@@ -264,6 +265,19 @@ async function main() {
   ok('el demorado tampoco está: cargó hace cuatro días y ya venció',
     enPatio.indexOf(demorado.nroApp) === -1, JSON.stringify(enPatio));
 
+  /* Del patio no se llega, pero desde Buscar sí: tampoco se puede empezar a
+     cerrar antes de tiempo. Sin esto se podría pesar vacío un camión que
+     todavía no vino y dejarle una tara final anterior a su día de carga. */
+  r = await ir('GET', '/app/tara-final/' + precargado._id);
+  ok('la pantalla de tara final de un preparado no deja seguir',
+    /Todavía no/.test(r.texto), r.texto.slice(0, 200));
+  r = await ir('POST', '/app/api/tara-final', {
+    id: String(precargado._id), taraNueva: 15600,
+  });
+  ok('y el servidor tampoco, aunque se mande a mano', r.estado === 400,
+    r.estado + ' ' + r.texto.slice(0, 160));
+  ok('el ticket sigue sin tara final', !leer(precargado._id).fechaTaraFinal);
+
   /* Llega el día: lo único que cambia es la fecha del ticket. */
   precargado.fecha = HOY;
   const ahora = await patio();
@@ -299,7 +313,71 @@ async function main() {
     !(r.json && r.json.repetido), r.texto.slice(0, 200));
 
   /* ═══════════════════════════════════════════════════════════════════════
-   * 7. EN UN NAVEGADOR DE VERDAD
+   * 7. EL AVISO DE CAMIONES PREPARADOS
+   * ═════════════════════════════════════════════════════════════════════ */
+  seccion('El aviso de camiones preparados');
+
+  // Uno para mañana, que es el caso que el aviso nombra distinto.
+  await entrar(GENERAL_CARGA, 'Matías H');
+  await ir('POST', '/app/api/pesada', pesada({ fechaCarga: diaMas(1), patentes: 'DD 111 DD' }));
+
+  /* Lo esperado se calcula de la base y no se escribe a mano: así la prueba no
+     se rompe cada vez que una sección de arriba agrega un camión más. */
+  const futuros = registros().docs.filter((d) =>
+    d.pesadaPara === 'CAMIONES' && !d.anulado && !d.confirmada && d.fecha > HOY);
+  const diasFuturos = Array.from(new Set(futuros.map((d) => d.fecha))).sort();
+  ok('hay camiones preparados para más de un día', diasFuturos.length > 1, diasFuturos.join());
+
+  r = await ir('GET', '/app/general');
+  ok('el código que carga ve el aviso',
+    r.texto.indexOf(futuros.length + ' camiones preparados') !== -1, r.texto.length);
+  ok('y nombra a mañana como "mañana", no con el día de la semana',
+    r.texto.indexOf('mañana: ') !== -1);
+
+
+  for (const f of diasFuturos) {
+    const cuantos = futuros.filter((d) => d.fecha === f).length;
+    const etiqueta = f === diaMas(1) ? 'mañana' : null;
+    ok('dice cuántos hay para el ' + (etiqueta || f),
+      etiqueta ? r.texto.indexOf('mañana: ' + cuantos) !== -1
+               : new RegExp('\\w+ \\d+: ' + cuantos).test(r.texto), f + ' × ' + cuantos);
+  }
+
+  await entrar(GENERAL_OBSERVA, 'Matías H');
+  r = await ir('GET', '/app/general');
+  ok('el código que mira también lo ve',
+    r.texto.indexOf(futuros.length + ' camiones preparados') !== -1);
+
+  /* "En curso" cuenta lo que está pasando AHORA. Un camión preparado para el
+     lunes no está en curso, y contarlo ahí dejaba el resumen diciendo un número
+     que no se podía cruzar con nada: el patio mostraba menos camiones. */
+  const abiertosHoy = registros().docs.filter((d) =>
+    d.pesadaPara === 'CAMIONES' && !d.anulado && !d.confirmada &&
+    d.fecha <= HOY && d.fecha >= diaMas(-2));
+  // En el HTML dice "En curso"; las mayúsculas que se ven las pone el CSS.
+  const enCurso = />En curso<[\s\S]{0,600}?dato-xg">(\d+)</.exec(r.texto);
+  ok('"En curso" no cuenta los preparados',
+    enCurso && Number(enCurso[1]) === abiertosHoy.length,
+    (enCurso ? enCurso[1] : 'sin número') + ' vs ' + abiertosHoy.length +
+      ' (futuros: ' + futuros.length + ')');
+
+  await entrar(MATACO, 'Juan Sosa');
+  r = await ir('GET', '/app/general');
+  ok('al balancero NO le aparece', r.texto.indexOf('preparados') === -1);
+  const suPatio = await ir('GET', '/app/patio');
+  ok('ni en su patio', suPatio.texto.indexOf('preparados') === -1);
+
+  /* Que se vaya solo cuando no queda ninguno: un aviso que queda pegado se
+     vuelve parte del fondo y deja de avisar. */
+  const guardadas = futuros.map((d) => d.fecha);
+  futuros.forEach((d) => { d.anulado = true; });
+  await entrar(GENERAL_OBSERVA, 'Matías H');
+  r = await ir('GET', '/app/general');
+  ok('sin ninguno preparado, el aviso no está', r.texto.indexOf('preparados') === -1);
+  futuros.forEach((d, i) => { d.anulado = false; d.fecha = guardadas[i]; });
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * 8. EN UN NAVEGADOR DE VERDAD
    * ═════════════════════════════════════════════════════════════════════ */
   seccion('La pantalla en el teléfono');
 
